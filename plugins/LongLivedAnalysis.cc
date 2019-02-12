@@ -31,8 +31,11 @@
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
 #include "DataFormats/Common/interface/Handle.h"
-#include "DataFormats/MuonReco/interface/Muon.h"
-#include "DataFormats/MuonReco/interface/MuonFwd.h" 
+#include "DataFormats/PatCandidates/interface/Muon.h"
+#include "DataFormats/PatCandidates/interface/Photon.h"
+#include "DataFormats/PatCandidates/interface/IsolatedTrack.h"
+
+//#include "DataFormats/MuonReco/interface/MuonFwd.h" 
 
 #include <string>
 
@@ -54,7 +57,9 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       std::string theFileName;
       edm::ParameterSet parameters;
-      edm::EDGetTokenT<edm::View<reco::Muon> >  theMuonCollection;   
+      edm::EDGetTokenT<edm::View<pat::Muon> >  theMuonCollection;   
+      edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
+      edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
 
 };
 //=======================================================================================================================================================================================================================//
@@ -68,7 +73,9 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    usesResource("TFileService");
    
    parameters = iConfig;
-   theMuonCollection = consumes<edm::View<reco::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
+   theMuonCollection = consumes<edm::View<pat::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
+   thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
+   theIsoTrackCollection = consumes<edm::View<pat::IsolatedTrack> >  (parameters.getParameter<edm::InputTag>("IsoTrackCollection"));
    theFileName = parameters.getParameter<std::string>("nameOfFile");
  
 }
@@ -89,11 +96,24 @@ LongLivedAnalysis::~LongLivedAnalysis()
 //=======================================================================================================================================================================================================================//
 void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-   using namespace edm;
 
+   edm::Handle<edm::View<pat::Muon> > muons;
+   edm::Handle<edm::View<pat::Photon> > photons;
+   edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
 
-   edm::Handle<edm::View<reco::Muon> > muons;
    iEvent.getByToken(theMuonCollection, muons);
+   iEvent.getByToken(thePhotonCollection, photons);
+   iEvent.getByToken(theIsoTrackCollection, isotracks);
+
+   // Loop over the muons
+   for (size_t i = 0; i < muons->size(); ++i){
+
+       const pat::Muon & muon = (*muons)[i];
+       float pt = muon.pt();
+
+       std::cout << pt << std::endl;
+   }
+
 
 }
 //=======================================================================================================================================================================================================================//
