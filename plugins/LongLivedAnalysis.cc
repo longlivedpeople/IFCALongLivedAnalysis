@@ -30,6 +30,12 @@
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
+#include "DataFormats/Common/interface/Handle.h"
+#include "DataFormats/MuonReco/interface/Muon.h"
+#include "DataFormats/MuonReco/interface/MuonFwd.h" 
+
+#include <string>
+
 
 
 //=======================================================================================================================================================================================================================//
@@ -47,7 +53,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       virtual void endJob() override;
 
       std::string theFileName;
-      edm::ParemeterSet parameters;
+      edm::ParameterSet parameters;
       edm::EDGetTokenT<edm::View<reco::Muon> >  theMuonCollection;   
 
 };
@@ -63,7 +69,7 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    
    parameters = iConfig;
    theMuonCollection = consumes<edm::View<reco::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
-   theFileName = parameters.getParameter<edm::string>("nameOfFile");
+   theFileName = parameters.getParameter<std::string>("nameOfFile");
  
 }
 //=======================================================================================================================================================================================================================//
