@@ -48,12 +48,16 @@
 
 
 //=======================================================================================================================================================================================================================//
-/////// -----------------------> DATA DEFINITION
-//
-////////// BRANCHES
+
+/////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// DATA DEFINITION //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
 
 
-//-> Isotrack Selection
+////////////////////////////////////// BRANCHES /////////////////////////////////////
+
+
+//-> ISOTRACK SELECTION
 const Int_t nIsoTrackMax = 500;
 Int_t nIsoTrack;
 // Primitive:
@@ -73,14 +77,30 @@ Int_t IsoTrackSel_numberOfValidPixelHits[nIsoTrackMax];
 Float_t IsoTrackSel_dxySignificance[nIsoTrackMax];
 
 
-//-> Muon Selection
+//-> PHOTON SELECTION
+const Int_t nPhotonMax = 100;
+Int_t nPhoton;
+// Primitive:
+Float_t PhotonSel_et[nPhotonMax];
+Float_t PhotonSel_eta[nPhotonMax];
+Float_t PhotonSel_phi[nPhotonMax];
+Float_t PhotonSel_hadronicOverEm[nPhotonMax];
+Float_t PhotonSel_full5x5_sigmaIetaIeta[nPhotonMax];
+Int_t PhotonSel_isEB[nPhotonMax];
+Int_t PhotonSel_isEE[nPhotonMax];
+
+
+//-> MUON SELECTION
 const Int_t nMuonMax = 100;
 Int_t nMuon;
 Float_t MuonSel_pt[nMuonMax];
 Float_t MuonSel_eta[nMuonMax];
 
 
-////////// OUTPUT FILE AND OUTPUT TREE
+
+
+/////////////////////////////////////// OUTPUT //////////////////////////////////////
+
 TFile *file_out;
 TTree *tree_out;
 
@@ -194,6 +214,28 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+   ////////////////////////////////// PHOTON FEATURES //////////////////////////////////
+   
+   nPhoton = photons->size();
+
+   // Loop over the photons
+   for (size_t i = 0; i < photons->size(); ++i){
+
+       const pat::Photon & photon = (*photons)[i];
+
+       PhotonSel_et[i] = photon.et();
+       PhotonSel_eta[i] = photon.eta();
+       PhotonSel_phi[i] = photon.phi();
+       PhotonSel_hadronicOverEm[i] = photon.hadronicOverEm();
+       PhotonSel_full5x5_sigmaIetaIeta[i] = photon.full5x5_sigmaIetaIeta();
+       PhotonSel_isEB[i] = photon.isEB();
+       PhotonSel_isEE[i] = photon.isEE();
+
+
+   }
+
+
+
    /////////////////////////////////// MUON FEATURES ///////////////////////////////////
 
    nMuon = muons->size();
@@ -231,7 +273,8 @@ void LongLivedAnalysis::beginJob()
     tree_out = new TTree("Events", "Events");
 
 
-    // Isotrack branches definition
+    ///////////////////////////////// ISOTRACK BRANCHES /////////////////////////////////
+    
     tree_out->Branch("nIsoTrack", &nIsoTrack, "nIsoTrack/I");
     tree_out->Branch("IsoTrackSel_pt", IsoTrackSel_pt, "IsoTrackSel_pt[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_eta", IsoTrackSel_eta, "IsoTrackSel_eta[nIsoTrack]/F");
@@ -247,7 +290,20 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_numberOfValidTrackerHits", IsoTrackSel_numberOfValidTrackerHits, "IsoTrackSel_numberOfValidTrackerHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelHits", IsoTrackSel_numberOfValidPixelHits, "IsoTrackSel_numberOfValidPixelHits[nIsoTrack]/I");
 
-    // Muon branches definition
+    
+    ////////////////////////////////// PHOTON BRANCHES //////////////////////////////////
+
+    tree_out->Branch("nPhoton", &nPhoton, "nPhoton/I");
+    tree_out->Branch("PhotonSel_et", PhotonSel_et, "PhotonSel_et[nPhoton]/F");
+    tree_out->Branch("PhotonSel_eta", PhotonSel_eta, "PhotonSel_eta[nPhoton]/F");
+    tree_out->Branch("PhotonSel_phi", PhotonSel_phi, "PhotonSel_phi[nPhoton]/F");
+    tree_out->Branch("PhotonSel_hadronicOverEm", PhotonSel_hadronicOverEm, "PhotonSel_hadronicOverEm[nPhoton]/F");
+    tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
+    tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
+    tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
+
+    /////////////////////////////////// MUON BRANCHES ///////////////////////////////////
+
     tree_out->Branch("nMuon", &nMuon, "nMuon/I");
     tree_out->Branch("MuonSel_pt", MuonSel_pt, "MuonSel_pt[nMuon]/F");
     tree_out->Branch("MuonSel_eta", MuonSel_eta, "MuonSel_pt[nMuon]/F");
