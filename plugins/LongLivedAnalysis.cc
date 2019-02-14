@@ -41,6 +41,9 @@
 //#include "DataFormats/MuonReco/interface/MuonFwd.h" 
 
 #include <string>
+#include <iostream>
+#include <vector>
+#include <algorithm>
 
 #include "TLorentzVector.h"
 #include "TTree.h"
@@ -48,6 +51,30 @@
 
 
 //=======================================================================================================================================================================================================================//
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////// FUNCTIONS ///////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+bool goodPhoton(const pat::Photon & photon)
+{
+
+    // Return true if the photon fulfills with the analysis requirements and false instead
+
+    if (fabs(photon.eta()) > 1.4442 && fabs(photon.eta()) < 1.566) { return false; } // narrow EB region to be defined
+    if (photon.hadronicOverEm() > 0.05) { return false; }
+    if (photon.isEE() && photon.full5x5_sigmaIetaIeta() > 0.034) { return false; }
+    if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
+
+    return true;
+
+}
+
+
+
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// DATA DEFINITION //////////////////////////////////
@@ -160,6 +187,12 @@ LongLivedAnalysis::~LongLivedAnalysis()
 void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
 
+   /////////////////////////////////////////////////////////////////////////////////////
+   ///////////////////////////////////// MAIN CODE /////////////////////////////////////
+   /////////////////////////////////////////////////////////////////////////////////////
+
+
+
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
    edm::Handle<edm::View<pat::Muon> > muons;
    edm::Handle<edm::View<pat::Photon> > photons;
@@ -216,12 +249,27 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ////////////////////////////////// PHOTON FEATURES //////////////////////////////////
    
-   nPhoton = photons->size();
+   std::vector<int> iP; // photon indexes
+   std::vector<Float_t> P_et; // photon pt
 
-   // Loop over the photons
+   // Select good photons
    for (size_t i = 0; i < photons->size(); ++i){
-
+       
        const pat::Photon & photon = (*photons)[i];
+
+       if (goodPhoton(photon)) { iP.push_back(i); P_et.push_back(photon.et()); }
+
+   }
+
+   // Sort good lepton indexes by pt
+   std::sort( std::begin(iP), std::end(iP), [&](int i1, int i2){ return P_et[i1] < P_et[i2]; });
+
+
+   nPhoton = iP.size();
+   // Loop over the good photons
+   for (size_t i = 0; i < iP.size(); ++i){
+
+       const pat::Photon & photon = (*photons)[iP.at(i)];
 
        PhotonSel_et[i] = photon.et();
        PhotonSel_eta[i] = photon.eta();
