@@ -35,6 +35,11 @@
 #include "DataFormats/PatCandidates/interface/Photon.h"
 #include "DataFormats/PatCandidates/interface/IsolatedTrack.h"
 #include "DataFormats/TrackReco/interface/HitPattern.h"
+#include "DataFormats/TrackReco/interface/TrackFwd.h"
+#include "DataFormats/TrackReco/interface/Track.h"
+#include "DataFormats/Common/interface/RefToBase.h"
+#include "DataFormats/TrackReco/interface/HitPattern.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/PatCandidates/interface/PFIsolation.h"
 
 
@@ -70,7 +75,6 @@ bool goodPhoton(const pat::Photon & photon)
     return true;
 
 }
-
 
 
 
@@ -117,6 +121,15 @@ Int_t PhotonSel_isEB[nPhotonMax];
 Int_t PhotonSel_isEE[nPhotonMax];
 
 
+//-> ELECTRON CANDIDATE SELECTION
+const Int_t nElectronCandidateMax = 100;
+Int_t nElectronCandidate;
+Float_t ElectronCandidate_pt[nElectronCandidateMax];
+Float_t ElectronCandidate_eta[nElectronCandidateMax];
+Float_t ElectronCandidate_phi[nElectronCandidateMax];
+Int_t ElectronCandidate_photonIdx[nElectronCandidateMax];
+Int_t ElectronCandidate_isotrackIdx[nElectronCandidateMax];
+
 //-> MUON SELECTION
 const Int_t nMuonMax = 100;
 Int_t nMuon;
@@ -151,6 +164,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::View<pat::Muon> >  theMuonCollection;   
       edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
+      edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
 
 };
 //=======================================================================================================================================================================================================================//
@@ -167,6 +181,8 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    theMuonCollection = consumes<edm::View<pat::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
    theIsoTrackCollection = consumes<edm::View<pat::IsolatedTrack> >  (parameters.getParameter<edm::InputTag>("IsoTrackCollection"));
+   thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
+
  
 }
 //=======================================================================================================================================================================================================================//
@@ -197,11 +213,21 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<pat::Muon> > muons;
    edm::Handle<edm::View<pat::Photon> > photons;
    edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
+   edm::Handle<edm::View<reco::Vertex> > primaryvertices;
 
    iEvent.getByToken(theMuonCollection, muons);
    iEvent.getByToken(thePhotonCollection, photons);
    iEvent.getByToken(theIsoTrackCollection, isotracks);
+   iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
 
+
+
+   ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
+
+   //Int_t nPV = primaryvertices->size();
+   //const reco::Vertex &pv = (*primaryvertices)[0];
+
+   //const std::vector<reco::Track> &tk =  pv.refittedTracks();
 
 
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
@@ -252,12 +278,17 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    std::vector<int> iP; // photon indexes
    std::vector<Float_t> P_et; // photon pt
 
+
    // Select good photons
    for (size_t i = 0; i < photons->size(); ++i){
        
        const pat::Photon & photon = (*photons)[i];
 
-       if (goodPhoton(photon)) { iP.push_back(i); P_et.push_back(photon.et()); }
+       if (goodPhoton(photon)) 
+       { 
+           iP.push_back(i); 
+           P_et.push_back(photon.et()); 
+       }
 
    }
 
@@ -296,6 +327,40 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        MuonSel_pt[i] = muon.pt();
        MuonSel_eta[i] = muon.eta(); 
    }
+
+
+
+   ///////////////////////////////// ELECTRON CANDIDATES ///////////////////////////////
+
+   int e = 0;
+
+   for (size_t i = 0; i < isotracks->size(); ++i){
+
+       const pat::IsolatedTrack & isotrack = (*isotracks)[i];
+
+       for (size_t j = 0; j < iP.size(); ++j){
+
+           const pat::Photon & photon = (*photons)[iP.at(j)];
+           float deltaPhi = fabs(photon.phi() - isotrack.phi());
+           float deltaEta = fabs(photon.eta() - isotrack.eta());
+           float deltaR = sqrt(deltaPhi*deltaPhi + deltaEta*deltaEta);
+
+           if (deltaR < 0.1){
+
+               ElectronCandidate_pt[e] = photon.et();
+               ElectronCandidate_phi[e] = isotrack.phi();
+               ElectronCandidate_eta[e] = isotrack.eta();
+               ElectronCandidate_photonIdx[e] = iP.at(j);
+               ElectronCandidate_isotrackIdx[e] = i;
+               e++;
+
+           }           
+
+       }
+
+   }
+ 
+   nElectronCandidate = e;
 
 
 
@@ -355,6 +420,17 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("nMuon", &nMuon, "nMuon/I");
     tree_out->Branch("MuonSel_pt", MuonSel_pt, "MuonSel_pt[nMuon]/F");
     tree_out->Branch("MuonSel_eta", MuonSel_eta, "MuonSel_pt[nMuon]/F");
+
+
+    //////////////////////////// ELECTRON CANDIDATE BRANCHES ////////////////////////////
+    tree_out->Branch("nElectronCandidate", &nElectronCandidate, "nElectronCandidate/I");
+    tree_out->Branch("ElectronCandidate_pt", ElectronCandidate_pt, "ElectronCandidate[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_eta", ElectronCandidate_eta, "ElectronCandidate[nElectronCandidate]/F");    
+    tree_out->Branch("ElectronCandidate_phi", ElectronCandidate_phi, "ElectronCandidate[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_photonIdx", ElectronCandidate_photonIdx, "ElectronCandidate_photonIdx[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_isotrackIdx", ElectronCandidate_isotrackIdx, "ElectronCandidate_isotrackIdx[nElectronCandidate]/F");
+
+
 
 
 }
