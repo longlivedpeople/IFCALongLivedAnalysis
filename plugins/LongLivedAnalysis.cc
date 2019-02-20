@@ -76,7 +76,13 @@ bool goodPhoton(const pat::Photon & photon)
 
 }
 
+bool goodTrack(const pat::IsolatedTrack & track)
+{
 
+    // Fill
+    return true;
+
+}
 
 
 
@@ -232,12 +238,23 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
 
-   nIsoTrack = isotracks->size();
+   std::vector<int> iT; // track indexes
+//   nIsoTrack = isotracks->size();
 
-   // Loop over the isotracks
-   for (size_t i = 0; i < isotracks->size(); ++i){
+   for (size_t i = 0; i < isotracks->size(); i++){
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[i];
+       if (goodTrack(isotrack)){ iT.push_back(i); }
+
+   }
+
+
+
+   // Loop over the isotracks
+   for (size_t i = 0; i < iT.size(); ++i){
+
+       
+       const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(i)];
 
        // Basic features:
        IsoTrackSel_pt[i] = isotrack.pt();
@@ -276,7 +293,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    ////////////////////////////////// PHOTON FEATURES //////////////////////////////////
    
    std::vector<int> iP; // photon indexes
-   std::vector<Float_t> P_et; // photon pt
 
 
    // Select good photons
@@ -287,13 +303,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        if (goodPhoton(photon)) 
        { 
            iP.push_back(i); 
-           P_et.push_back(photon.et()); 
        }
 
    }
 
    // Sort good lepton indexes by pt
-   std::sort( std::begin(iP), std::end(iP), [&](int i1, int i2){ return P_et[i1] < P_et[i2]; });
+   std::sort( std::begin(iP), std::end(iP), [&](int i1, int i2){ return photons->at(i1).et() < photons->at(i2).et(); });
 
 
    nPhoton = iP.size();
@@ -334,11 +349,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    int e = 0;
 
-   for (size_t i = 0; i < isotracks->size(); ++i){
+   for (size_t i = 0; i < iT.size(); ++i){
 
-       const pat::IsolatedTrack & isotrack = (*isotracks)[i];
-
+       const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(i)];
+       std::cout << "track" << "\t" << i << std::endl;
        for (size_t j = 0; j < iP.size(); ++j){
+
+           std::cout << "cluster" << "\t" << j << std::endl;
 
            const pat::Photon & photon = (*photons)[iP.at(j)];
            float deltaPhi = fabs(photon.phi() - isotrack.phi());
@@ -350,11 +367,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                ElectronCandidate_pt[e] = photon.et();
                ElectronCandidate_phi[e] = isotrack.phi();
                ElectronCandidate_eta[e] = isotrack.eta();
-               ElectronCandidate_photonIdx[e] = iP.at(j);
+               ElectronCandidate_photonIdx[e] = j;
+               std::cout << "photonIdx" << "\t" << ElectronCandidate_photonIdx[e] << std::endl;
                ElectronCandidate_isotrackIdx[e] = i;
                e++;
 
            }           
+
+           std::cout << "e" << "\t" << e << std::endl;
 
        }
 
@@ -427,8 +447,8 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronCandidate_pt", ElectronCandidate_pt, "ElectronCandidate[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_eta", ElectronCandidate_eta, "ElectronCandidate[nElectronCandidate]/F");    
     tree_out->Branch("ElectronCandidate_phi", ElectronCandidate_phi, "ElectronCandidate[nElectronCandidate]/F");
-    tree_out->Branch("ElectronCandidate_photonIdx", ElectronCandidate_photonIdx, "ElectronCandidate_photonIdx[nElectronCandidate]/F");
-    tree_out->Branch("ElectronCandidate_isotrackIdx", ElectronCandidate_isotrackIdx, "ElectronCandidate_isotrackIdx[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_photonIdx", ElectronCandidate_photonIdx, "ElectronCandidate_photonIdx[nElectronCandidate]/I");
+    tree_out->Branch("ElectronCandidate_isotrackIdx", ElectronCandidate_isotrackIdx, "ElectronCandidate_isotrackIdx[nElectronCandidate]/I");
 
 
 
