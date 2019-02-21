@@ -6,7 +6,10 @@ longlivedanalyzer = cms.EDAnalyzer('LongLivedAnalysis',
     MuonCollection = cms.InputTag("slimmedMuons"),
     PhotonCollection = cms.InputTag("slimmedPhotons"),
     IsoTrackCollection = cms.InputTag("isolatedTracks"),
-    PrimaryVertexCollection = cms.InputTag("offlineSlimmedPrimaryVertices")
+    PrimaryVertexCollection = cms.InputTag("offlineSlimmedPrimaryVertices"),
+    bits = cms.InputTag("TriggerResults","","HLT"),
+    prescales = cms.InputTag("patTrigger"),
+    objects = cms.InputTag("slimmedPatTrigger"),
 )
 
 

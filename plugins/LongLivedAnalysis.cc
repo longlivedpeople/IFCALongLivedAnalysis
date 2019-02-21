@@ -43,6 +43,14 @@
 #include "DataFormats/PatCandidates/interface/PFIsolation.h"
 
 
+#include "FWCore/Common/interface/TriggerNames.h"
+#include "DataFormats/Common/interface/TriggerResults.h"
+#include "DataFormats/PatCandidates/interface/TriggerObjectStandAlone.h"
+#include "DataFormats/PatCandidates/interface/PackedTriggerPrescales.h"
+#include "DataFormats/Candidate/interface/Candidate.h"
+
+
+
 //#include "DataFormats/MuonReco/interface/MuonFwd.h" 
 
 #include <string>
@@ -85,6 +93,14 @@ bool goodTrack(const pat::IsolatedTrack & track)
 }
 
 
+bool isGoodMuonTriggerObject( pat::TriggerObjectStandAlone obj)
+{
+
+    // Fill
+    return true;
+
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// DATA DEFINITION //////////////////////////////////
@@ -117,7 +133,6 @@ Float_t IsoTrackSel_dxySignificance[nIsoTrackMax];
 //-> PHOTON SELECTION
 const Int_t nPhotonMax = 100;
 Int_t nPhoton;
-// Primitive:
 Float_t PhotonSel_et[nPhotonMax];
 Float_t PhotonSel_eta[nPhotonMax];
 Float_t PhotonSel_phi[nPhotonMax];
@@ -125,6 +140,15 @@ Float_t PhotonSel_hadronicOverEm[nPhotonMax];
 Float_t PhotonSel_full5x5_sigmaIetaIeta[nPhotonMax];
 Int_t PhotonSel_isEB[nPhotonMax];
 Int_t PhotonSel_isEE[nPhotonMax];
+
+
+//-> MUON TRIGGER OBJECT SELECTION
+const Int_t nMuonTriggerObjectMax = 500;
+Int_t nMuonTriggerObject;
+Float_t MuonTriggerObjectSel_pt[nMuonTriggerObjectMax];
+Float_t MuonTriggerObjectSel_eta[nMuonTriggerObjectMax];
+Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
+
 
 
 //-> ELECTRON CANDIDATE SELECTION
@@ -172,6 +196,10 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
       edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
 
+      edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
+      edm::EDGetTokenT<edm::View<pat::TriggerObjectStandAlone> > triggerObjects_;
+      edm::EDGetTokenT<pat::PackedTriggerPrescales>  triggerPrescales_;
+
 };
 //=======================================================================================================================================================================================================================//
 
@@ -190,6 +218,11 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
 
  
+
+   triggerBits_ = consumes<edm::TriggerResults> (parameters.getParameter<edm::InputTag>("bits"));
+   triggerObjects_ = consumes<edm::View<pat::TriggerObjectStandAlone> > (parameters.getParameter<edm::InputTag>("objects"));
+   triggerPrescales_ = consumes<pat::PackedTriggerPrescales > (parameters.getParameter<edm::InputTag>("prescales"));
+
 }
 //=======================================================================================================================================================================================================================//
 
@@ -221,11 +254,132 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
    edm::Handle<edm::View<reco::Vertex> > primaryvertices;
 
+   edm::Handle<edm::TriggerResults> triggerBits;
+   edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
+   edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
+
+
    iEvent.getByToken(theMuonCollection, muons);
    iEvent.getByToken(thePhotonCollection, photons);
    iEvent.getByToken(theIsoTrackCollection, isotracks);
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
 
+   iEvent.getByToken(triggerBits_, triggerBits);
+   iEvent.getByToken(triggerObjects_, triggerObjects);
+   iEvent.getByToken(triggerPrescales_, triggerPrescales);
+
+
+
+
+   ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
+ 
+   std::vector<int> iMT; // muon trigger object indexes 
+   const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
+
+   std::string muonTriggerName = "HLT_DoubleMu43NoFiltersNoVtx_v3"; // default 
+
+   // Loop to get Muon Trigger objects:
+   for (size_t i = 0; i < triggerObjects->size(); i++) 
+   {
+       
+
+       pat::TriggerObjectStandAlone obj = (*triggerObjects)[i];
+
+
+       obj.unpackPathNames(names);
+       obj.unpackFilterLabels(iEvent, *triggerBits);    
+
+
+       bool isMuonTriggerObject = obj.hasPathName( muonTriggerName, true, true );
+
+       if (!isMuonTriggerObject) { continue; }
+
+       if (isGoodMuonTriggerObject(obj)) iMT.push_back(i);
+
+   }
+   
+
+
+   // Sort the muon trigger objects by pt
+   std::sort( std::begin(iMT), std::end(iMT), [&](int i1, int i2){ return triggerObjects->at(i1).pt() < triggerObjects->at(i2).pt(); });
+
+
+
+   // Fill the muon trigger objects features
+   nMuonTriggerObject = iMT.size();
+
+   for (size_t i = 0; i < iMT.size(); i++){
+   
+       pat::TriggerObjectStandAlone obj = (*triggerObjects)[iMT.at(i)];
+
+       obj.unpackPathNames(names);
+       obj.unpackFilterLabels(iEvent, *triggerBits);
+
+       MuonTriggerObjectSel_pt[i] = obj.pt();
+       MuonTriggerObjectSel_eta[i] = obj.eta();
+       MuonTriggerObjectSel_phi[i] = obj.phi();
+   
+
+   }
+
+
+   /////  -> Code from twiki here: Print trigger info:
+   /* 
+   const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
+
+   std::cout << "\n == TRIGGER PATHS= " << std::endl;
+    for (unsigned int i = 0, n = triggerBits->size(); i < n; ++i) {
+        std::cout << "Trigger " << names.triggerName(i) <<
+                ", prescale " << triggerPrescales->getPrescaleForIndex(i) <<
+                ": " << (triggerBits->accept(i) ? "PASS" : "fail (or not run)")
+                << std::endl;
+    }
+
+
+    
+
+    std::cout << "\n TRIGGER OBJECTS " << std::endl;
+
+    for (pat::TriggerObjectStandAlone obj : *triggerObjects) { // note: not "const &" since we want to call unpackPathNames
+        obj.unpackPathNames(names);
+        //obj.unpackFilterLabels(names);
+        std::cout << "\tTrigger object:  pt " << obj.pt() << ", eta " << obj.eta() << ", phi " << obj.phi() << std::endl;
+
+ 
+    // Print trigger object collection and type
+    std::cout << "\t   Collection: " << obj.collection() << std::endl;
+    std::cout << "\t   Type IDs:   ";
+    for (unsigned h = 0; h < obj.filterIds().size(); ++h) std::cout << " " << obj.filterIds()[h] ;
+    std::cout << std::endl;
+    // Print associated trigger filters
+    obj.unpackFilterLabels(iEvent, *triggerBits); // added
+    std::cout << "\t   Filters:    ";
+    for (unsigned h = 0; h < obj.filterLabels().size(); ++h) std::cout << " " << obj.filterLabels()[h];
+    std::cout << std::endl;
+    std::vector< std::string > pathNamesAll = obj.pathNames(false);
+    std::vector< std::string > pathNamesLast = obj.pathNames(true);
+
+    // Print all trigger paths, for each one record also if the object is associated to a 'l3' filter (always true for the
+    // definition used in the PAT trigger producer) and if it's associated to the last filter of a successfull path (which
+    // means that this object did cause this trigger to succeed; however, it doesn't work on some multi-object triggers)
+
+    std::cout << "\t   Paths (" << pathNamesAll.size()<<"/"<<pathNamesLast.size()<<"):    ";
+    for (unsigned h = 0, n = pathNamesAll.size(); h < n; ++h) {
+        bool isBoth = obj.hasPathName( pathNamesAll[h], true, true );
+        bool isL3   = obj.hasPathName( pathNamesAll[h], false, true );
+        bool isLF   = obj.hasPathName( pathNamesAll[h], true, false );
+        bool isNone = obj.hasPathName( pathNamesAll[h], false, false );
+        std::cout << "   " << pathNamesAll[h];
+        if (isBoth) std::cout << "(L,3)";
+        if (isL3 && !isBoth) std::cout << "(*,3)";
+        if (isLF && !isBoth) std::cout << "(L,*)";
+        if (isNone && !isBoth && !isL3 && !isLF) std::cout << "(*,*)";
+    }
+    std::cout << std::endl;
+    }
+    std::cout << std::endl;
+
+   */
 
 
    ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
@@ -239,7 +393,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
 
    std::vector<int> iT; // track indexes
-//   nIsoTrack = isotracks->size();
 
    for (size_t i = 0; i < isotracks->size(); i++){
 
@@ -248,6 +401,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    }
 
+
+   nIsoTrack = iT.size();
 
 
    // Loop over the isotracks
@@ -347,46 +502,49 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ///////////////////////////////// ELECTRON CANDIDATES ///////////////////////////////
 
-   int e = 0;
+   int e = 0; // index of the electron candidate
 
+
+   // Loop over the isolated tracks to do a electron matching
    for (size_t i = 0; i < iT.size(); ++i){
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(i)];
-       std::cout << "track" << "\t" << i << std::endl;
+
        for (size_t j = 0; j < iP.size(); ++j){
 
-           std::cout << "cluster" << "\t" << j << std::endl;
 
            const pat::Photon & photon = (*photons)[iP.at(j)];
+
            float deltaPhi = fabs(photon.phi() - isotrack.phi());
            float deltaEta = fabs(photon.eta() - isotrack.eta());
            float deltaR = sqrt(deltaPhi*deltaPhi + deltaEta*deltaEta);
 
            if (deltaR < 0.1){
 
+               // Electron candidate selected if it is within a cone of DeltaR < 0.1 
+
                ElectronCandidate_pt[e] = photon.et();
                ElectronCandidate_phi[e] = isotrack.phi();
                ElectronCandidate_eta[e] = isotrack.eta();
                ElectronCandidate_photonIdx[e] = j;
-               std::cout << "photonIdx" << "\t" << ElectronCandidate_photonIdx[e] << std::endl;
                ElectronCandidate_isotrackIdx[e] = i;
-               e++;
+               
+               e++; // Next electron candidate
 
            }           
-
-           std::cout << "e" << "\t" << e << std::endl;
 
        }
 
    }
  
-   nElectronCandidate = e;
+   nElectronCandidate = e; // number of electron candidates = last idx filled + 1
 
 
 
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
+   std::cout << "prefill" << std::endl;
    tree_out->Fill();
-
+   std::cout << "post fill" << std::endl;
 }
 //=======================================================================================================================================================================================================================//
 
@@ -434,6 +592,15 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
     tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
     tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
+
+
+    //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
+    //
+    tree_out->Branch("nMuonTriggerObject", &nMuonTriggerObject, "nMuonTriggerObject/I");
+    tree_out->Branch("MuonTriggerObjectSel_pt", MuonTriggerObjectSel_pt, "MuonTriggerObjectSel_pt[nMuonTriggerObject]/F");
+    tree_out->Branch("MuonTriggerObjectSel_eta", MuonTriggerObjectSel_eta, "MuonTriggerObjectSel_eta[nMuonTriggerObject]/F");
+    tree_out->Branch("MuonTriggerObjectSel_phi", MuonTriggerObjectSel_phi, "MuonTriggerObjectSel_phi[nMuonTriggerObject]/F");
+
 
     /////////////////////////////////// MUON BRANCHES ///////////////////////////////////
 
