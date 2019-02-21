@@ -155,16 +155,21 @@ Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
 const Int_t nElectronCandidateMax = 100;
 Int_t nElectronCandidate;
 Float_t ElectronCandidate_pt[nElectronCandidateMax];
+Float_t ElectronCandidate_et[nElectronCandidateMax];
 Float_t ElectronCandidate_eta[nElectronCandidateMax];
 Float_t ElectronCandidate_phi[nElectronCandidateMax];
 Int_t ElectronCandidate_photonIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_isotrackIdx[nElectronCandidateMax];
 
-//-> MUON SELECTION
-const Int_t nMuonMax = 100;
-Int_t nMuon;
-Float_t MuonSel_pt[nMuonMax];
-Float_t MuonSel_eta[nMuonMax];
+
+//-> MUON CANDIDATE SELECTION
+const Int_t nMuonCandidateMax = 100;
+Int_t nMuonCandidate;
+Float_t MuonCandidate_pt[nMuonCandidateMax];
+Float_t MuonCandidate_eta[nMuonCandidateMax];
+Float_t MuonCandidate_phi[nMuonCandidateMax];
+Int_t MuonCandidate_muonTriggerObjectIdx[nMuonCandidateMax];
+Int_t MuonCandidate_isotrackIdx[nMuonCandidateMax];
 
 
 
@@ -191,7 +196,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       std::string output_filename;
       edm::ParameterSet parameters;
-      edm::EDGetTokenT<edm::View<pat::Muon> >  theMuonCollection;   
+      //edm::EDGetTokenT<edm::View<pat::Muon> >  theMuonCollection;   
       edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
       edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
@@ -212,7 +217,7 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    usesResource("TFileService");
    
    parameters = iConfig;
-   theMuonCollection = consumes<edm::View<pat::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
+   //theMuonCollection = consumes<edm::View<pat::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
    theIsoTrackCollection = consumes<edm::View<pat::IsolatedTrack> >  (parameters.getParameter<edm::InputTag>("IsoTrackCollection"));
    thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
@@ -249,7 +254,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
-   edm::Handle<edm::View<pat::Muon> > muons;
+   //edm::Handle<edm::View<pat::Muon> > muons;
    edm::Handle<edm::View<pat::Photon> > photons;
    edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
    edm::Handle<edm::View<reco::Vertex> > primaryvertices;
@@ -259,7 +264,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
 
 
-   iEvent.getByToken(theMuonCollection, muons);
+   //iEvent.getByToken(theMuonCollection, muons);
    iEvent.getByToken(thePhotonCollection, photons);
    iEvent.getByToken(theIsoTrackCollection, isotracks);
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
@@ -485,31 +490,18 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
 
-   /////////////////////////////////// MUON FEATURES ///////////////////////////////////
 
-   nMuon = muons->size();
-
-   // Loop over the muons
-   for (size_t i = 0; i < muons->size(); ++i){
-
-       const pat::Muon & muon = (*muons)[i];
-
-       MuonSel_pt[i] = muon.pt();
-       MuonSel_eta[i] = muon.eta(); 
-   }
-
-
-
-   ///////////////////////////////// ELECTRON CANDIDATES ///////////////////////////////
+   ///////////////////////////////// LEPTON CANDIDATES /////////////////////////////////
 
    int e = 0; // index of the electron candidate
+   int m = 0; // index of the muon candidate
 
-
-   // Loop over the isolated tracks to do a electron matching
+   // Loop over the isolated tracks to do a lepton matching
    for (size_t i = 0; i < iT.size(); ++i){
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(i)];
 
+       // Electron matching
        for (size_t j = 0; j < iP.size(); ++j){
 
 
@@ -523,7 +515,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
                // Electron candidate selected if it is within a cone of DeltaR < 0.1 
 
-               ElectronCandidate_pt[e] = photon.et();
+               ElectronCandidate_pt[e] = isotrack.pt();
+               ElectronCandidate_et[e] = photon.et();
                ElectronCandidate_phi[e] = isotrack.phi();
                ElectronCandidate_eta[e] = isotrack.eta();
                ElectronCandidate_photonIdx[e] = j;
@@ -535,10 +528,41 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        }
 
+
+       // Muon matching
+       for (size_t j = 0; j < iMT.size(); ++j){
+
+
+           pat::TriggerObjectStandAlone obj = (*triggerObjects)[iMT.at(j)];
+
+           obj.unpackPathNames(names);
+           obj.unpackFilterLabels(iEvent, *triggerBits);
+
+           float deltaPhi = fabs(obj.phi() - isotrack.phi());
+           float deltaEta = fabs(obj.eta() - isotrack.eta());
+           float deltaR = sqrt(deltaPhi*deltaPhi + deltaEta*deltaEta);
+
+           if (deltaR < 0.1){
+
+               // Muon candidate selected if it is within a cone of DeltaR < 0.1 
+
+               MuonCandidate_pt[m] = isotrack.pt();
+               MuonCandidate_phi[m] = isotrack.phi();
+               MuonCandidate_eta[m] = isotrack.eta();
+               MuonCandidate_muonTriggerObjectIdx[m] = j;
+               MuonCandidate_isotrackIdx[m] = i;
+
+               m++; // Next electron candidate
+
+
+           }
+
+       }
+
    }
  
    nElectronCandidate = e; // number of electron candidates = last idx filled + 1
-
+   nMuonCandidate = e; // number of muon candidates = last idx filled + 1
 
 
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
@@ -602,21 +626,27 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonTriggerObjectSel_phi", MuonTriggerObjectSel_phi, "MuonTriggerObjectSel_phi[nMuonTriggerObject]/F");
 
 
-    /////////////////////////////////// MUON BRANCHES ///////////////////////////////////
-
-    tree_out->Branch("nMuon", &nMuon, "nMuon/I");
-    tree_out->Branch("MuonSel_pt", MuonSel_pt, "MuonSel_pt[nMuon]/F");
-    tree_out->Branch("MuonSel_eta", MuonSel_eta, "MuonSel_pt[nMuon]/F");
-
 
     //////////////////////////// ELECTRON CANDIDATE BRANCHES ////////////////////////////
+
     tree_out->Branch("nElectronCandidate", &nElectronCandidate, "nElectronCandidate/I");
-    tree_out->Branch("ElectronCandidate_pt", ElectronCandidate_pt, "ElectronCandidate[nElectronCandidate]/F");
-    tree_out->Branch("ElectronCandidate_eta", ElectronCandidate_eta, "ElectronCandidate[nElectronCandidate]/F");    
-    tree_out->Branch("ElectronCandidate_phi", ElectronCandidate_phi, "ElectronCandidate[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_pt", ElectronCandidate_pt, "ElectronCandidate_pt[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_et", ElectronCandidate_et, "ElectronCandidate_et[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_eta", ElectronCandidate_eta, "ElectronCandidate_eta[nElectronCandidate]/F");    
+    tree_out->Branch("ElectronCandidate_phi", ElectronCandidate_phi, "ElectronCandidate_phi[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_photonIdx", ElectronCandidate_photonIdx, "ElectronCandidate_photonIdx[nElectronCandidate]/I");
     tree_out->Branch("ElectronCandidate_isotrackIdx", ElectronCandidate_isotrackIdx, "ElectronCandidate_isotrackIdx[nElectronCandidate]/I");
 
+
+
+    ////////////////////////////// MUON CANDIDATE BRANCHES /////////////////////////////
+
+    tree_out->Branch("nMuonCandidate", &nMuonCandidate, "nMuonCandidate/I");
+    tree_out->Branch("MuonCandidate_pt", MuonCandidate_pt, "MuonCandidate_pt[nMuonCandidate]/F");
+    tree_out->Branch("MuonCandidate_eta", MuonCandidate_eta, "MuonCandidate_eta[nMuonCandidate]/F");
+    tree_out->Branch("MuonCandidate_phi", MuonCandidate_phi, "MuonCandidate_phi[nMuonCandidate]/F");
+    tree_out->Branch("MuonCandidate_muonTriggerObjectIdx", MuonCandidate_muonTriggerObjectIdx, "MuonCandidate_muonTriggerObjectIdx[nMuonCandidate]/I");
+    tree_out->Branch("MuonCandidate_isotrackIdx", MuonCandidate_isotrackIdx, "MuonCandidate_isotrackIdx[nMuonCandidate]/I");
 
 
 
