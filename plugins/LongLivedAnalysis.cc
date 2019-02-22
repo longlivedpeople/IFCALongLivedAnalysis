@@ -50,6 +50,8 @@
 #include "DataFormats/Candidate/interface/Candidate.h"
 
 
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+
 
 //#include "DataFormats/MuonReco/interface/MuonFwd.h" 
 
@@ -102,6 +104,29 @@ bool isGoodMuonTriggerObject( pat::TriggerObjectStandAlone obj)
 }
 
 
+float d0_value(const reco::GenParticle &p)
+{
+
+    float vx = p.vx();
+    float vy = p.vy();
+  
+    float d0 = sqrt(vx*vx + vy*vy);
+    return d0;
+
+}
+
+
+bool isLongLivedLepton(const reco::GenParticle &p)
+{
+
+    if (!( abs(p.pdgId()) == 11 || abs(p.pdgId()) == 13)){ return false; }
+    if (abs(p.mother()->pdgId()) != 1000022){ return false; }
+
+    return true;
+
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// DATA DEFINITION //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -149,7 +174,14 @@ Float_t MuonTriggerObjectSel_pt[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_eta[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
 
-
+//-> GENPARTICLE SELECTION
+const Int_t nGenParticleMax = 500;
+Int_t nGenParticle;
+Float_t GenParticleSel_pt[nGenParticleMax];
+Float_t GenParticleSel_eta[nGenParticleMax];
+Float_t GenParticleSel_phi[nGenParticleMax];
+Int_t GenParticleSel_pdgId[nGenParticleMax];
+Float_t GenParticleSel_d0[nGenParticleMax];
 
 //-> ELECTRON CANDIDATE SELECTION
 const Int_t nElectronCandidateMax = 100;
@@ -205,6 +237,10 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::View<pat::TriggerObjectStandAlone> > triggerObjects_;
       edm::EDGetTokenT<pat::PackedTriggerPrescales>  triggerPrescales_;
 
+      // Gen collection
+      edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;
+
+
 };
 //=======================================================================================================================================================================================================================//
 
@@ -227,6 +263,10 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    triggerBits_ = consumes<edm::TriggerResults> (parameters.getParameter<edm::InputTag>("bits"));
    triggerObjects_ = consumes<edm::View<pat::TriggerObjectStandAlone> > (parameters.getParameter<edm::InputTag>("objects"));
    triggerPrescales_ = consumes<pat::PackedTriggerPrescales > (parameters.getParameter<edm::InputTag>("prescales"));
+
+
+   theGenParticleCollection = consumes<edm::View<reco::GenParticle> >  (parameters.getParameter<edm::InputTag>("genParticleCollection"));
+
 
 }
 //=======================================================================================================================================================================================================================//
@@ -263,6 +303,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
    edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
 
+   edm::Handle<edm::View<reco::GenParticle> > genParticles;
+
 
    //iEvent.getByToken(theMuonCollection, muons);
    iEvent.getByToken(thePhotonCollection, photons);
@@ -273,7 +315,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(triggerObjects_, triggerObjects);
    iEvent.getByToken(triggerPrescales_, triggerPrescales);
 
-
+   iEvent.getByToken(theGenParticleCollection, genParticles);
 
 
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
@@ -447,6 +489,21 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        IsoTrackSel_numberOfValidTrackerHits[i] = hits.numberOfValidTrackerHits();
        IsoTrackSel_numberOfValidPixelHits[i] = hits.numberOfValidPixelHits();
 
+
+       // GenParticles matching
+       /*
+       for(size_t j = 0; j < genParticles.size(); j++) {
+
+           const reco::GenParticle &genparticle = (*genParticles)[j];
+
+           float genpt = genparticle.pt();
+           float genphi = genparticle.phi();
+           float geneta = genparticle.eta();
+           if(  
+
+       }
+       */
+
    }
 
 
@@ -489,40 +546,96 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+   //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
+
+   std::vector<int> iGP;
+
+   for(size_t i = 0; i < genParticles->size(); i++) {
 
 
+        const reco::GenParticle &genparticle = (*genParticles)[i];
+
+        if (isLongLivedLepton(genparticle)){ iGP.push_back(i); }
+
+
+   } 
+
+
+
+   nGenParticle = iGP.size();
+   // Loop over the selected gen particles
+   for(size_t i = 0; i < iGP.size(); i++){
+
+       const reco::GenParticle &genparticle = (*genParticles)[iGP.at(i)];
+
+       GenParticleSel_pdgId[i] = genparticle.pdgId();
+       GenParticleSel_d0[i] = d0_value(genparticle);
+       
+
+       // Get the last genparticle (to avoid radiative effects):
+       if (genparticle.numberOfDaughters() > 0){
+
+           const reco::Candidate *d = genparticle.daughter(0);
+           while(d->numberOfDaughters()> 0 && d->daughter(0)->pdgId() == d->pdgId()){ d = d->daughter(0); }
+
+           GenParticleSel_pt[i] = d->pt();
+           GenParticleSel_eta[i] = d->eta();
+           GenParticleSel_phi[i] = d->phi();
+
+       } else {
+
+           GenParticleSel_pt[i] = genparticle.pt();
+           GenParticleSel_eta[i] = genparticle.eta();
+           GenParticleSel_phi[i] = genparticle.phi();
+
+       }
+
+
+   }
+
+
+
+   /////////////////////////////////////////////////////////////////////////////////////
    ///////////////////////////////// LEPTON CANDIDATES /////////////////////////////////
+   /////////////////////////////////////////////////////////////////////////////////////
+
 
    int e = 0; // index of the electron candidate
    int m = 0; // index of the muon candidate
+   float deltaR_min; // variable ot found the minimum deltaR
+
+   std::vector<int> matched_clusters; // free clusters to match
+
+   std::vector<int> matched_triggerObjects; // free trigger objects to match
+
+   int m_cluster;
+   int m_triggerObject;
+
 
    // Loop over the isolated tracks to do a lepton matching
    for (size_t i = 0; i < iT.size(); ++i){
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(i)];
+       
+       // Matching variables initiallization:
+       deltaR_min = 10.; 
+       m_cluster = -99;
+       m_triggerObject = -99;
 
        // Electron matching
-       for (size_t j = 0; j < iP.size(); ++j){
+       for (size_t jp = 0; jp < iP.size(); ++jp){
 
 
-           const pat::Photon & photon = (*photons)[iP.at(j)];
+           const pat::Photon & photon = (*photons)[iP.at(jp)];
 
            float deltaPhi = fabs(photon.phi() - isotrack.phi());
            float deltaEta = fabs(photon.eta() - isotrack.eta());
            float deltaR = sqrt(deltaPhi*deltaPhi + deltaEta*deltaEta);
 
-           if (deltaR < 0.1){
+           if (deltaR < 0.1 && deltaR < deltaR_min){
 
-               // Electron candidate selected if it is within a cone of DeltaR < 0.1 
-
-               ElectronCandidate_pt[e] = isotrack.pt();
-               ElectronCandidate_et[e] = photon.et();
-               ElectronCandidate_phi[e] = isotrack.phi();
-               ElectronCandidate_eta[e] = isotrack.eta();
-               ElectronCandidate_photonIdx[e] = j;
-               ElectronCandidate_isotrackIdx[e] = i;
-               
-               e++; // Next electron candidate
+               m_cluster = jp;
+               deltaR_min = deltaR;
 
            }           
 
@@ -530,10 +643,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
        // Muon matching
-       for (size_t j = 0; j < iMT.size(); ++j){
+       for (size_t jm = 0; jm < iMT.size(); ++jm){
 
 
-           pat::TriggerObjectStandAlone obj = (*triggerObjects)[iMT.at(j)];
+           pat::TriggerObjectStandAlone obj = (*triggerObjects)[iMT.at(jm)];
 
            obj.unpackPathNames(names);
            obj.unpackFilterLabels(iEvent, *triggerBits);
@@ -542,33 +655,70 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            float deltaEta = fabs(obj.eta() - isotrack.eta());
            float deltaR = sqrt(deltaPhi*deltaPhi + deltaEta*deltaEta);
 
-           if (deltaR < 0.1){
+           if (deltaR < 0.1 && deltaR < deltaR_min){
 
-               // Muon candidate selected if it is within a cone of DeltaR < 0.1 
-
-               MuonCandidate_pt[m] = isotrack.pt();
-               MuonCandidate_phi[m] = isotrack.phi();
-               MuonCandidate_eta[m] = isotrack.eta();
-               MuonCandidate_muonTriggerObjectIdx[m] = j;
-               MuonCandidate_isotrackIdx[m] = i;
-
-               m++; // Next electron candidate
-
+               m_triggerObject = jm; m_cluster = -99;
+               deltaR_min = deltaR;
 
            }
 
        }
 
+
+       // Final lepton matching
+       if (m_cluster == -99 && m_triggerObject == -99){ continue; // no matching
+       }
+       else if(m_cluster == -99 && m_triggerObject != -99){ // muon candidate found
+       
+            pat::TriggerObjectStandAlone obj = (*triggerObjects)[iMT.at(m_triggerObject)];
+
+            obj.unpackPathNames(names);
+            obj.unpackFilterLabels(iEvent, *triggerBits);
+  
+            if(std::find(matched_triggerObjects.begin(), matched_triggerObjects.end(), m_triggerObject) != matched_triggerObjects.end()){ continue; }
+ 
+            MuonCandidate_pt[m] = isotrack.pt();
+            MuonCandidate_phi[m] = isotrack.phi();
+            MuonCandidate_eta[m] = isotrack.eta();
+            MuonCandidate_muonTriggerObjectIdx[m] = m_triggerObject;
+            MuonCandidate_isotrackIdx[m] = i;
+            matched_triggerObjects.push_back(m_triggerObject);
+
+            m++; // Next muon candidate
+
+
+       }
+       else if(m_cluster != -99 && m_triggerObject == -99){ // electron candidate found
+     
+           if(std::find(matched_clusters.begin(), matched_clusters.end(), m_cluster) != matched_clusters.end()){ continue; }
+
+           const pat::Photon & photon = (*photons)[iP.at(m_cluster)];
+
+           ElectronCandidate_pt[e] = isotrack.pt();
+           ElectronCandidate_et[e] = photon.et();
+           ElectronCandidate_phi[e] = isotrack.phi();
+           ElectronCandidate_eta[e] = isotrack.eta();
+           ElectronCandidate_photonIdx[e] = m_cluster;
+           ElectronCandidate_isotrackIdx[e] = i;
+           matched_clusters.push_back(m_cluster);
+               
+           e++; // Next electron candidate
+
+       }
+
+
    }
  
    nElectronCandidate = e; // number of electron candidates = last idx filled + 1
-   nMuonCandidate = e; // number of muon candidates = last idx filled + 1
+   nMuonCandidate = m; // number of muon candidates = last idx filled + 1
 
 
+   /////////////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
-   std::cout << "prefill" << std::endl;
+   /////////////////////////////////////////////////////////////////////////////////////
    tree_out->Fill();
-   std::cout << "post fill" << std::endl;
+
+
 }
 //=======================================================================================================================================================================================================================//
 
@@ -624,6 +774,16 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonTriggerObjectSel_pt", MuonTriggerObjectSel_pt, "MuonTriggerObjectSel_pt[nMuonTriggerObject]/F");
     tree_out->Branch("MuonTriggerObjectSel_eta", MuonTriggerObjectSel_eta, "MuonTriggerObjectSel_eta[nMuonTriggerObject]/F");
     tree_out->Branch("MuonTriggerObjectSel_phi", MuonTriggerObjectSel_phi, "MuonTriggerObjectSel_phi[nMuonTriggerObject]/F");
+
+
+    //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
+
+    tree_out->Branch("nGenParticle", &nGenParticle, "nGenParticle/I");
+    tree_out->Branch("GenParticleSel_pt", GenParticleSel_pt, "GenParticleSel_pt[nGenParticle]/F");
+    tree_out->Branch("GenParticleSel_eta", GenParticleSel_eta, "GenParticleSel_eta[nGenParticle]/F");
+    tree_out->Branch("GenParticleSel_phi", GenParticleSel_phi, "GenParticleSel_phi[nGenParticle]/F");
+    tree_out->Branch("GenParticleSel_d0", GenParticleSel_d0, "GenParticleSel_d0[nGenParticle]/F");
+    tree_out->Branch("GenParticleSel_pdgId", GenParticleSel_pdgId, "GenParticleSel_pdgId[nGenParticle]/I");
 
 
 

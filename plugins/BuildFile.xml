@@ -9,5 +9,6 @@
 <use name="DataFormats/Candidate"/>
 <use name="DataFormats/PatCandidates"/>
 <use name="DataFormats/TrackReco"/>
+<use name="DataFormats/HepMCCandidate"/>
 <use name="DataFormats/VertexReco"/>
 <flags EDM_PLUGIN="1"/>
