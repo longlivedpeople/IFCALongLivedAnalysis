@@ -32,6 +32,7 @@
 
 #include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
+#include "DataFormats/PatCandidates/interface/Electron.h"
 #include "DataFormats/PatCandidates/interface/Photon.h"
 #include "DataFormats/PatCandidates/interface/IsolatedTrack.h"
 #include "DataFormats/TrackReco/interface/HitPattern.h"
@@ -166,6 +167,14 @@ Float_t PhotonSel_full5x5_sigmaIetaIeta[nPhotonMax];
 Int_t PhotonSel_isEB[nPhotonMax];
 Int_t PhotonSel_isEE[nPhotonMax];
 
+//-> ELECTRON SELECTION
+const Int_t nElectronMax = 100;
+Int_t nElectron;
+Float_t ElectronSel_pt[nElectronMax];
+Float_t ElectronSel_eta[nElectronMax];
+Float_t ElectronSel_phi[nElectronMax];
+
+
 
 //-> MUON TRIGGER OBJECT SELECTION
 const Int_t nMuonTriggerObjectMax = 500;
@@ -228,7 +237,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       std::string output_filename;
       edm::ParameterSet parameters;
-      //edm::EDGetTokenT<edm::View<pat::Muon> >  theMuonCollection;   
+      edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
       edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
       edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
@@ -253,7 +262,7 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    usesResource("TFileService");
    
    parameters = iConfig;
-   //theMuonCollection = consumes<edm::View<pat::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
+   theElectronCollection = consumes<edm::View<pat::Electron> >  (parameters.getParameter<edm::InputTag>("ElectronCollection"));
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
    theIsoTrackCollection = consumes<edm::View<pat::IsolatedTrack> >  (parameters.getParameter<edm::InputTag>("IsoTrackCollection"));
    thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
@@ -294,7 +303,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
-   //edm::Handle<edm::View<pat::Muon> > muons;
+   edm::Handle<edm::View<pat::Electron> > electrons;
    edm::Handle<edm::View<pat::Photon> > photons;
    edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
    edm::Handle<edm::View<reco::Vertex> > primaryvertices;
@@ -306,7 +315,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<reco::GenParticle> > genParticles;
 
 
-   //iEvent.getByToken(theMuonCollection, muons);
+   iEvent.getByToken(theElectronCollection, electrons);
    iEvent.getByToken(thePhotonCollection, photons);
    iEvent.getByToken(theIsoTrackCollection, isotracks);
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
@@ -546,6 +555,21 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+   ///////////////////////////////// ELECTRON FEATURES /////////////////////////////////
+
+   nElectron = electrons->size();
+
+   for (size_t i = 0; i < electrons->size(); i++){
+
+       const pat::Electron & electron = (* electrons)[i];
+
+       ElectronSel_pt[i] = electron.pt();
+       ElectronSel_eta[i] = electron.eta();
+       ElectronSel_phi[i] = electron.phi();
+
+   }
+
+
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
 
    std::vector<int> iGP;
@@ -766,6 +790,15 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
     tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
     tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
+
+
+    ///////////////////////////////// ELECTRON BRANCHES /////////////////////////////////
+
+    tree_out->Branch("nElectron", &nElectron, "nElectron/I");
+    tree_out->Branch("ElectronSel_pt", ElectronSel_pt, "ElectronSel_pt[nElectron]/F");
+    tree_out->Branch("ElectronSel_eta", ElectronSel_eta, "ElectronSel_eta[nElectron]/F");
+    tree_out->Branch("ElectronSel_phi", ElectronSel_phi, "ElectronSel_phi[nElectron]/F");
+
 
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
