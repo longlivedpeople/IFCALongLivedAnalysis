@@ -30,6 +30,11 @@
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
+
+#include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/GenRunInfoProduct.h"
+
+
 #include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
@@ -42,6 +47,7 @@
 #include "DataFormats/TrackReco/interface/HitPattern.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/PatCandidates/interface/PFIsolation.h"
+#include "DataFormats/BeamSpot/interface/BeamSpot.h"
 
 
 #include "FWCore/Common/interface/TriggerNames.h"
@@ -52,6 +58,11 @@
 
 
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+
+
+//#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
+//#include "RecoVertex/VertexPrimitives/interface/TransientVertex.h"
+
 
 
 //#include "DataFormats/MuonReco/interface/MuonFwd.h" 
@@ -105,14 +116,15 @@ bool isGoodMuonTriggerObject( pat::TriggerObjectStandAlone obj)
 }
 
 
-float d0_value(const reco::GenParticle &p)
+float dxy_value(const reco::GenParticle &p)
 {
 
     float vx = p.vx();
     float vy = p.vy();
+    float phi = p.phi();
   
-    float d0 = sqrt(vx*vx + vy*vy);
-    return d0;
+    float dxy = -vx*sin(phi) + vy*cos(phi);
+    return dxy;
 
 }
 
@@ -135,6 +147,24 @@ bool isLongLivedLepton(const reco::GenParticle &p)
 
 ////////////////////////////////////// BRANCHES /////////////////////////////////////
 
+//-> EVENT INFO
+Int_t Event_event;
+Int_t Event_luminosityBlock;
+Int_t Event_run;
+
+
+//-> PRIMARY VERTEX SELECTION
+Int_t nPV;
+
+
+//-> BEAM SPOT
+Float_t BeamSpot_x0;
+Float_t BeamSpot_y0;
+Float_t BeamSpot_z0;
+Float_t BeamSpot_BeamWidthX;
+Float_t BeamSpot_BeamWidthY;
+
+
 
 //-> ISOTRACK SELECTION
 const Int_t nIsoTrackMax = 500;
@@ -147,11 +177,18 @@ Float_t IsoTrackSel_dxy[nIsoTrackMax];
 Float_t IsoTrackSel_dxyError[nIsoTrackMax];
 Float_t IsoTrackSel_dz[nIsoTrackMax];
 Float_t IsoTrackSel_dzError[nIsoTrackMax];
+Float_t IsoTrackSel_vx[nIsoTrackMax];
+Float_t IsoTrackSel_vy[nIsoTrackMax];
+Float_t IsoTrackSel_vz[nIsoTrackMax];
 Float_t IsoTrackSel_pfIsolationDR03[nIsoTrackMax];
 Float_t IsoTrackSel_miniPFIsolation[nIsoTrackMax];
 Int_t IsoTrackSel_isHighPurityTrack[nIsoTrackMax];
 Int_t IsoTrackSel_numberOfValidTrackerHits[nIsoTrackMax];
 Int_t IsoTrackSel_numberOfValidPixelHits[nIsoTrackMax];
+Int_t IsoTrackSel_fromPV[nIsoTrackMax];
+Float_t IsoTrackSel_PVx[nIsoTrackMax];
+Float_t IsoTrackSel_PVy[nIsoTrackMax];
+Float_t IsoTrackSel_PVz[nIsoTrackMax];
 // Derived:
 Float_t IsoTrackSel_dxySignificance[nIsoTrackMax];
 
@@ -190,7 +227,7 @@ Float_t GenParticleSel_pt[nGenParticleMax];
 Float_t GenParticleSel_eta[nGenParticleMax];
 Float_t GenParticleSel_phi[nGenParticleMax];
 Int_t GenParticleSel_pdgId[nGenParticleMax];
-Float_t GenParticleSel_d0[nGenParticleMax];
+Float_t GenParticleSel_dxy[nGenParticleMax];
 
 //-> ELECTRON CANDIDATE SELECTION
 const Int_t nElectronCandidateMax = 100;
@@ -237,6 +274,11 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       std::string output_filename;
       edm::ParameterSet parameters;
+
+      edm::EDGetTokenT<GenEventInfoProduct> theEventInfo;
+      edm::EDGetTokenT<GenRunInfoProduct> theRunInfo;
+
+
       edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
       edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
@@ -245,6 +287,8 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
       edm::EDGetTokenT<edm::View<pat::TriggerObjectStandAlone> > triggerObjects_;
       edm::EDGetTokenT<pat::PackedTriggerPrescales>  triggerPrescales_;
+
+      edm::EDGetTokenT<reco::BeamSpot> theBeamSpot;
 
       // Gen collection
       edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;
@@ -262,6 +306,11 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    usesResource("TFileService");
    
    parameters = iConfig;
+
+
+   theEventInfo = consumes<GenEventInfoProduct> (parameters.getParameter<edm::InputTag>("EventInfo"));
+   theRunInfo = consumes<GenRunInfoProduct> (parameters.getParameter<edm::InputTag>("RunInfo"));
+
    theElectronCollection = consumes<edm::View<pat::Electron> >  (parameters.getParameter<edm::InputTag>("ElectronCollection"));
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
    theIsoTrackCollection = consumes<edm::View<pat::IsolatedTrack> >  (parameters.getParameter<edm::InputTag>("IsoTrackCollection"));
@@ -272,6 +321,8 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    triggerBits_ = consumes<edm::TriggerResults> (parameters.getParameter<edm::InputTag>("bits"));
    triggerObjects_ = consumes<edm::View<pat::TriggerObjectStandAlone> > (parameters.getParameter<edm::InputTag>("objects"));
    triggerPrescales_ = consumes<pat::PackedTriggerPrescales > (parameters.getParameter<edm::InputTag>("prescales"));
+
+   theBeamSpot = consumes<reco::BeamSpot>  (parameters.getParameter<edm::InputTag>("BeamSpot"));
 
 
    theGenParticleCollection = consumes<edm::View<reco::GenParticle> >  (parameters.getParameter<edm::InputTag>("genParticleCollection"));
@@ -303,6 +354,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
+   
+   edm::Handle<GenEventInfoProduct> eventInfo;
+   edm::Handle<GenRunInfoProduct> runInfo;
+
    edm::Handle<edm::View<pat::Electron> > electrons;
    edm::Handle<edm::View<pat::Photon> > photons;
    edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
@@ -312,8 +367,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
    edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
 
+   edm::Handle<reco::BeamSpot> beamSpot;
+
    edm::Handle<edm::View<reco::GenParticle> > genParticles;
 
+
+
+   iEvent.getByToken(theEventInfo, eventInfo);
+   iEvent.getByToken(theRunInfo, runInfo);
 
    iEvent.getByToken(theElectronCollection, electrons);
    iEvent.getByToken(thePhotonCollection, photons);
@@ -324,7 +385,27 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(triggerObjects_, triggerObjects);
    iEvent.getByToken(triggerPrescales_, triggerPrescales);
 
+   iEvent.getByToken(theBeamSpot, beamSpot);
+
    iEvent.getByToken(theGenParticleCollection, genParticles);
+
+
+   /////////////////////////////////// EVENT INFO //////////////////////////////////////
+
+   //const edm::EventAuxiliary &event = (*eventInfo).eventAuxiliary();
+   /*
+   Event_event = (*runInfo).event();
+   Event_run = (*eventInfo).run();
+   Event_luminosityBlock = (*eventInfo).luminosityBlock();
+   */
+
+   //////////////////////////////////// BEAM SPOT //////////////////////////////////////
+
+   BeamSpot_x0 = (*beamSpot).x0();
+   BeamSpot_y0 = (*beamSpot).y0();
+   BeamSpot_z0 = (*beamSpot).z0();
+   BeamSpot_BeamWidthX = (*beamSpot).BeamWidthX();
+   BeamSpot_BeamWidthY = (*beamSpot).BeamWidthY();
 
 
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
@@ -440,10 +521,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
 
-   //Int_t nPV = primaryvertices->size();
-   //const reco::Vertex &pv = (*primaryvertices)[0];
 
-   //const std::vector<reco::Track> &tk =  pv.refittedTracks();
+   nPV = primaryvertices->size();
 
 
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
@@ -491,27 +570,42 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        IsoTrackSel_dzError[i] = isotrack.dzError();
        IsoTrackSel_dxySignificance[i] = fabs(isotrack.dxy())/isotrack.dxyError();
 
+
        // Hit info:
-       //
        const reco::HitPattern &hits = isotrack.hitPattern();
 
        IsoTrackSel_numberOfValidTrackerHits[i] = hits.numberOfValidTrackerHits();
        IsoTrackSel_numberOfValidPixelHits[i] = hits.numberOfValidPixelHits();
 
 
-       // GenParticles matching
-       /*
-       for(size_t j = 0; j < genParticles.size(); j++) {
+       // Info extracted form the packedCandidate of the isotrack
+       // (PV(), vertex())
+       IsoTrackSel_fromPV[i] = isotrack.fromPV(); 
+       const pat::PackedCandidateRef &pckCand = isotrack.packedCandRef(); // access the packed candidate
+       
+       if (isotrack.fromPV() > -1){ // check it has a PV
 
-           const reco::GenParticle &genparticle = (*genParticles)[j];
+           IsoTrackSel_vx[i] = (*pckCand).vx();
+           IsoTrackSel_vy[i] = (*pckCand).vy();
+           IsoTrackSel_vz[i] = (*pckCand).vz();
 
-           float genpt = genparticle.pt();
-           float genphi = genparticle.phi();
-           float geneta = genparticle.eta();
-           if(  
+           const reco::VertexRef &PV = (*pckCand).vertexRef(); // access the PV of the candidate
+           IsoTrackSel_PVx[i] = (*PV).x();
+           IsoTrackSel_PVy[i] = (*PV).y();
+           IsoTrackSel_PVz[i] = (*PV).z();
+
+       }else{
+
+           IsoTrackSel_vx[i] = -99;
+           IsoTrackSel_vy[i] = -99;
+           IsoTrackSel_vz[i] = -99;
+
+           IsoTrackSel_PVx[i] = -99;
+           IsoTrackSel_PVy[i] = -99;
+           IsoTrackSel_PVz[i] = -99;
 
        }
-       */
+
 
    }
 
@@ -593,7 +687,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        const reco::GenParticle &genparticle = (*genParticles)[iGP.at(i)];
 
        GenParticleSel_pdgId[i] = genparticle.pdgId();
-       GenParticleSel_d0[i] = d0_value(genparticle);
+       GenParticleSel_dxy[i] = dxy_value(genparticle);
        
 
        // Get the last genparticle (to avoid radiative effects):
@@ -762,6 +856,27 @@ void LongLivedAnalysis::beginJob()
     tree_out = new TTree("Events", "Events");
 
 
+    ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
+
+    tree_out->Branch("Event_event", &Event_event, "Event_event/I");
+    tree_out->Branch("Event_run", &Event_run, "Event_run/I");
+    tree_out->Branch("Event_luminosityBlock", &Event_luminosityBlock, "Event_luminosityBlock/I");
+
+
+    ///////////////////////////////// BEAM SPOT BRANCHES ////////////////////////////////
+
+    tree_out->Branch("BeamSpot_x0", &BeamSpot_x0, "BeamSpot_x0/F");
+    tree_out->Branch("BeamSpot_y0", &BeamSpot_y0, "BeamSpot_y0/F");
+    tree_out->Branch("BeamSpot_z0", &BeamSpot_z0, "BeamSpot_z0/F");
+    tree_out->Branch("BeamSpot_BeamWidthX", &BeamSpot_BeamWidthX, "BeamSpot_BeamWidthX/F");
+    tree_out->Branch("BeamSpot_BeamWidthY", &BeamSpot_BeamWidthY, "BeamSpot_BeamWidthY/F");
+
+
+    ////////////////////////////// PRIMARY VERTEX BRANCHES //////////////////////////////
+
+    tree_out->Branch("nPV", &nPV, "nPV/I");
+
+
     ///////////////////////////////// ISOTRACK BRANCHES /////////////////////////////////
     
     tree_out->Branch("nIsoTrack", &nIsoTrack, "nIsoTrack/I");
@@ -773,11 +888,19 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_dz", IsoTrackSel_dz, "IsoTrackSel_dz[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_dzError", IsoTrackSel_dzError, "IsoTrackSel_dzError[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_dxySignificance", IsoTrackSel_dxySignificance, "IsoTrackSel_dxySignificance[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_vx", IsoTrackSel_vx, "IsoTrackSel_vx[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_vy", IsoTrackSel_vy, "IsoTrackSel_vy[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_vz", IsoTrackSel_vz, "IsoTrackSel_vz[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_pfIsolationDR03", IsoTrackSel_pfIsolationDR03, "IsoTrackSel_pfIsolationDR03[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_miniPFIsolation", IsoTrackSel_miniPFIsolation, "IsoTrackSel_miniPFIsolation[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_isHighPurityTrack", IsoTrackSel_isHighPurityTrack, "IsoTrackSel_isHighPurityTrack[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidTrackerHits", IsoTrackSel_numberOfValidTrackerHits, "IsoTrackSel_numberOfValidTrackerHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelHits", IsoTrackSel_numberOfValidPixelHits, "IsoTrackSel_numberOfValidPixelHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_fromPV", IsoTrackSel_fromPV, "IsoTrackSel_fromPV[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_PVx", IsoTrackSel_PVx, "IsoTrackSel_PVx[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_PVy", IsoTrackSel_PVy, "IsoTrackSel_PVy[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_PVz", IsoTrackSel_PVz, "IsoTrackSel_PVz[nIsoTrack]/F");
+
 
     
     ////////////////////////////////// PHOTON BRANCHES //////////////////////////////////
@@ -815,7 +938,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenParticleSel_pt", GenParticleSel_pt, "GenParticleSel_pt[nGenParticle]/F");
     tree_out->Branch("GenParticleSel_eta", GenParticleSel_eta, "GenParticleSel_eta[nGenParticle]/F");
     tree_out->Branch("GenParticleSel_phi", GenParticleSel_phi, "GenParticleSel_phi[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_d0", GenParticleSel_d0, "GenParticleSel_d0[nGenParticle]/F");
+    tree_out->Branch("GenParticleSel_dxy", GenParticleSel_dxy, "GenParticleSel_dxy[nGenParticle]/F");
     tree_out->Branch("GenParticleSel_pdgId", GenParticleSel_pdgId, "GenParticleSel_pdgId[nGenParticle]/I");
 
 

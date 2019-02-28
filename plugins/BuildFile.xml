@@ -11,4 +11,6 @@
 <use name="DataFormats/TrackReco"/>
 <use name="DataFormats/HepMCCandidate"/>
 <use name="DataFormats/VertexReco"/>
+<use name="SimDataFormats/GeneratorProducts"/>
+<use name="DataFormats/BeamSpot"/>
 <flags EDM_PLUGIN="1"/>
