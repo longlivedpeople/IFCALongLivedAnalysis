@@ -9,7 +9,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-        'file:/afs/cern.ch/work/f/fernance/public/ForPablo/EXO-DisplacedSUSY_squarkToQuarkChi_MSquark_1500_MChi_494_ctau_160mm_TuneCP5_14TeV_pythia8_miniAOD.root'
+        'file:/afs/cern.ch/work/v/vizan/public/LLA/SUSYtestRunIIFall17miniAOD/EXO-DisplacedSUSY_squarkToQuarkChi_MSquark_1500_MChi_494_ctau_160mm_TuneCP5_14TeV_pythia8_miniAOD.root'
     )
 )
 
