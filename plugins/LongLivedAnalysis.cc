@@ -26,6 +26,8 @@
 #include <memory>
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/one/EDAnalyzer.h"
+#include "FWCore/Framework/interface/EDProducer.h"
+#include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
@@ -48,6 +50,15 @@
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/PatCandidates/interface/PFIsolation.h"
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
+#include "DataFormats/PatCandidates/interface/PackedCandidate.h"
+
+
+
+#include "TrackingTools/Records/interface/TransientTrackRecord.h"
+#include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
+#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
+#include "RecoVertex/AdaptiveVertexFit/interface/AdaptiveVertexFitter.h"
+#include "RecoVertex/VertexPrimitives/interface/TransientVertex.h"
 
 
 #include "FWCore/Common/interface/TriggerNames.h"
@@ -101,7 +112,6 @@ bool goodPhoton(const pat::Photon & photon)
 bool goodTrack(const pat::IsolatedTrack & track)
 {
 
-    // Fill
     return true;
 
 }
@@ -155,6 +165,20 @@ Int_t Event_run;
 
 //-> PRIMARY VERTEX SELECTION
 Int_t nPV;
+Float_t PV_vx;
+Float_t PV_vy;
+Float_t PV_vz;
+Int_t PV_nTrack;
+const Int_t PV_nTrackMax = 500;
+Int_t PV_associatedTracks[PV_nTrackMax];
+Int_t PV_nTrackUsedInFitting;
+
+// -> REFITTED PRIMARY VERTEX
+Float_t RefittedPV_vx;
+Float_t RefittedPV_vy;
+Float_t RefittedPV_vz;
+Int_t RefittedPV_nPFTrack;
+Int_t RefittedPV_nLostTrack;
 
 
 //-> BEAM SPOT
@@ -283,6 +307,8 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
       edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
+      edm::EDGetTokenT<edm::View<pat::PackedCandidate> > thePackedPFCandidateCollection;
+      edm::EDGetTokenT<edm::View<pat::PackedCandidate> > theLostTracksCollection;
 
       edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
       edm::EDGetTokenT<edm::View<pat::TriggerObjectStandAlone> > triggerObjects_;
@@ -315,8 +341,8 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
    theIsoTrackCollection = consumes<edm::View<pat::IsolatedTrack> >  (parameters.getParameter<edm::InputTag>("IsoTrackCollection"));
    thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
-
- 
+   thePackedPFCandidateCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("PackedPFCandidateCollection"));
+   theLostTracksCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("LostTracksCollection"));
 
    triggerBits_ = consumes<edm::TriggerResults> (parameters.getParameter<edm::InputTag>("bits"));
    triggerObjects_ = consumes<edm::View<pat::TriggerObjectStandAlone> > (parameters.getParameter<edm::InputTag>("objects"));
@@ -362,6 +388,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<pat::Photon> > photons;
    edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
    edm::Handle<edm::View<reco::Vertex> > primaryvertices;
+   edm::Handle<edm::View<pat::PackedCandidate> > packedPFCandidates;
+   edm::Handle<edm::View<pat::PackedCandidate> > lostTracks;
+
 
    edm::Handle<edm::TriggerResults> triggerBits;
    edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
@@ -380,6 +409,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(thePhotonCollection, photons);
    iEvent.getByToken(theIsoTrackCollection, isotracks);
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
+   iEvent.getByToken(thePackedPFCandidateCollection, packedPFCandidates);
+   iEvent.getByToken(theLostTracksCollection, lostTracks);
+
 
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -401,11 +433,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    //////////////////////////////////// BEAM SPOT //////////////////////////////////////
 
-   BeamSpot_x0 = (*beamSpot).x0();
-   BeamSpot_y0 = (*beamSpot).y0();
-   BeamSpot_z0 = (*beamSpot).z0();
-   BeamSpot_BeamWidthX = (*beamSpot).BeamWidthX();
-   BeamSpot_BeamWidthY = (*beamSpot).BeamWidthY();
+   reco::BeamSpot beamSpotObject = *beamSpot;
+   BeamSpot_x0 = beamSpotObject.x0();
+   BeamSpot_y0 = beamSpotObject.y0();
+   BeamSpot_z0 = beamSpotObject.z0();
+   BeamSpot_BeamWidthX = beamSpotObject.BeamWidthX();
+   BeamSpot_BeamWidthY = beamSpotObject.BeamWidthY();
 
 
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
@@ -523,6 +556,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    nPV = primaryvertices->size();
+   //const reco::Vertex &thevertex = (*primaryvertices)[0];
+
 
 
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
@@ -537,7 +572,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
-   nIsoTrack = iT.size();
+   nIsoTrack = iT.size(); // number of isotracks
+   PV_nTrackUsedInFitting = 0;
+
+   PV_nTrack = 0; // initiallize the counter
+   PV_vx = -99; 
+   PV_vy = -99;
+   PV_vz = -99;
 
 
    // Loop over the isotracks
@@ -583,7 +624,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        IsoTrackSel_fromPV[i] = isotrack.fromPV(); 
        const pat::PackedCandidateRef &pckCand = isotrack.packedCandRef(); // access the packed candidate
        
-       if (isotrack.fromPV() > -1){ // check it has a PV
+       if (isotrack.fromPV() > 0){ // check it has a PV
 
            IsoTrackSel_vx[i] = (*pckCand).vx();
            IsoTrackSel_vy[i] = (*pckCand).vy();
@@ -593,6 +634,22 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            IsoTrackSel_PVx[i] = (*PV).x();
            IsoTrackSel_PVy[i] = (*PV).y();
            IsoTrackSel_PVz[i] = (*PV).z();
+
+
+
+           // Primary Vertex collection -> obtained by means of the isotracks -> packedCandidate -> vertex:
+           if (PV_vx == -99 && PV_vy == -99 && PV_vz == -99 && (*pckCand).pvAssociationQuality() > 5){ // Fill the information of the PV collection
+           
+               PV_vx = (*PV).x();
+               PV_vy = (*PV).y();
+               PV_vz = (*PV).z();
+
+               PV_nTrackUsedInFitting++;
+
+           }            
+
+           PV_associatedTracks[PV_nTrack] = iT.at(i);
+           PV_nTrack++;
 
        }else{
 
@@ -608,6 +665,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    }
+
+
+
 
 
    ////////////////////////////////// PHOTON FEATURES //////////////////////////////////
@@ -831,6 +891,85 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    nMuonCandidate = m; // number of muon candidates = last idx filled + 1
 
 
+ 
+ 
+   /////////////////////////////////////////////////////////////////////////////////////
+   ////////////////////////////////// VERTEX REFITTING /////////////////////////////////
+   /////////////////////////////////////////////////////////////////////////////////////
+
+ 
+   edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder;
+   iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
+
+   std::vector<reco::TransientTrack> refit_tracks; // tracks for refitting
+
+   RefittedPV_nPFTrack = 0;
+   RefittedPV_nLostTrack = 0;
+
+ 
+   // Loop over packedPFCandidates
+   for (size_t i = 0; i < packedPFCandidates->size(); i++ ){
+
+       const pat::PackedCandidate &packedPFCandidate = (*packedPFCandidates)[i];
+
+       if (!packedPFCandidate.hasTrackDetails()) continue;
+       const reco::Track packedPFTrack = packedPFCandidate.pseudoTrack();
+
+       // Selection criteria for the tracks
+       if (packedPFCandidate.pvAssociationQuality() < 6) continue;
+
+       RefittedPV_nPFTrack++;
+
+       reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedPFTrack);
+       transientTrack.setBeamSpot(beamSpotObject);
+       refit_tracks.push_back(transientTrack);
+
+
+   }
+
+
+
+   
+   // Loop over lostTracks
+   for (size_t i = 0; i < lostTracks->size(); i++){
+       
+       const pat::PackedCandidate &lostTrack = (*lostTracks)[i];
+
+       if (!lostTrack.hasTrackDetails()) continue;
+       const reco::Track packedLostTrack = lostTrack.pseudoTrack();
+
+       if (lostTrack.pvAssociationQuality() < 6) continue;
+
+       RefittedPV_nLostTrack++;
+
+       reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedLostTrack);
+       transientTrack.setBeamSpot(beamSpotObject);
+       refit_tracks.push_back(transientTrack);
+
+
+
+   }
+
+
+   // Reffit the vertex
+
+   if (refit_tracks.size() > 1){
+       AdaptiveVertexFitter  theFitter;
+       TransientVertex myVertex = theFitter.vertex(refit_tracks);
+
+       if (myVertex.isValid()){
+
+           RefittedPV_vx = myVertex.position().x();
+           RefittedPV_vy = myVertex.position().y();
+           RefittedPV_vz = myVertex.position().z();
+
+       }
+
+   }
+
+   
+   
+   
    /////////////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////////////
@@ -851,10 +990,13 @@ void LongLivedAnalysis::beginJob()
     output_filename = parameters.getParameter<std::string>("nameOfOutput");
     file_out = new TFile(output_filename.c_str(), "RECREATE");
     file_out->cd();
+
+    std::cout << "the file is created" << std::endl;
     
     // Output Tree definition
     tree_out = new TTree("Events", "Events");
 
+    std::cout << "The tree is created" << std::endl;
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
 
@@ -875,6 +1017,21 @@ void LongLivedAnalysis::beginJob()
     ////////////////////////////// PRIMARY VERTEX BRANCHES //////////////////////////////
 
     tree_out->Branch("nPV", &nPV, "nPV/I");
+    tree_out->Branch("PV_vx", &PV_vx, "PV_vx/F");
+    tree_out->Branch("PV_vy", &PV_vy, "PV_vy/F");
+    tree_out->Branch("PV_vz", &PV_vz, "PV_vz/F");
+    tree_out->Branch("PV_nTrack", &PV_nTrack, "PV_nTrack/I");
+    tree_out->Branch("PV_associatedTracks", PV_associatedTracks, "PV_associatedTracks[PV_nTrack]/I");
+    tree_out->Branch("PV_nTrackUsedInFitting", &PV_nTrackUsedInFitting, "PV_nTrackUsedInFitting/I");
+
+
+    /////////////////////////// REFITTED PRIMARY VERTEX BRANCHES ////////////////////////
+
+    tree_out->Branch("RefittedPV_vx", &RefittedPV_vx, "RefittedPV_vx/F");
+    tree_out->Branch("RefittedPV_vy", &RefittedPV_vy, "RefittedPV_vy/F");
+    tree_out->Branch("RefittedPV_vz", &RefittedPV_vz, "RefittedPV_vz/F");
+    tree_out->Branch("RefittedPV_nPFTrack", &RefittedPV_nPFTrack, "RefittedPV_nPFTrack/I");
+    tree_out->Branch("RefittedPV_nLostTrack", &RefittedPV_nLostTrack, "RefittedPV_nLostTrack/I");
 
 
     ///////////////////////////////// ISOTRACK BRANCHES /////////////////////////////////
@@ -976,6 +1133,9 @@ void LongLivedAnalysis::beginJob()
 void LongLivedAnalysis::endJob() 
 {
 
+
+    std::cout << "The event is writen" << std::endl;
+    file_out->cd();
     tree_out->Write();
     file_out->Close();
 
