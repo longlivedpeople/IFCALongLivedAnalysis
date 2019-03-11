@@ -295,8 +295,6 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       std::string output_filename;
       edm::ParameterSet parameters;
 
-      edm::EDGetTokenT<GenEventInfoProduct> theEventInfo;
-      edm::EDGetTokenT<GenRunInfoProduct> theRunInfo;
 
 
       edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
@@ -329,9 +327,6 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    
    parameters = iConfig;
 
-
-   theEventInfo = consumes<GenEventInfoProduct> (parameters.getParameter<edm::InputTag>("EventInfo"));
-   theRunInfo = consumes<GenRunInfoProduct> (parameters.getParameter<edm::InputTag>("RunInfo"));
 
    theElectronCollection = consumes<edm::View<pat::Electron> >  (parameters.getParameter<edm::InputTag>("ElectronCollection"));
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
@@ -377,8 +372,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
    
-   edm::Handle<GenEventInfoProduct> eventInfo;
-   edm::Handle<GenRunInfoProduct> runInfo;
 
    edm::Handle<edm::View<pat::Electron> > electrons;
    edm::Handle<edm::View<pat::Photon> > photons;
@@ -398,8 +391,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
 
-   iEvent.getByToken(theEventInfo, eventInfo);
-   iEvent.getByToken(theRunInfo, runInfo);
 
    iEvent.getByToken(theElectronCollection, electrons);
    iEvent.getByToken(thePhotonCollection, photons);
@@ -420,12 +411,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    /////////////////////////////////// EVENT INFO //////////////////////////////////////
 
-   //const edm::EventAuxiliary &event = (*eventInfo).eventAuxiliary();
-   /*
-   Event_event = (*runInfo).event();
-   Event_run = (*eventInfo).run();
-   Event_luminosityBlock = (*eventInfo).luminosityBlock();
-   */
+   
+   Event_event = iEvent.id().event();
+   Event_run = iEvent.id().run();
+   Event_luminosityBlock = iEvent.id().luminosityBlock();
+   
+
+   std::cout << iEvent.id().luminosityBlock() << std::endl;
 
    //////////////////////////////////// BEAM SPOT //////////////////////////////////////
 
