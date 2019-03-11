@@ -417,7 +417,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    Event_luminosityBlock = iEvent.id().luminosityBlock();
    
 
-   std::cout << iEvent.id().luminosityBlock() << std::endl;
 
    //////////////////////////////////// BEAM SPOT //////////////////////////////////////
 
