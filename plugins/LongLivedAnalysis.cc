@@ -59,6 +59,7 @@
 #include "RecoVertex/VertexPrimitives/interface/TransientVertex.h"
 #include "RecoVertex/VertexTools/interface/GeometricAnnealing.h"
 
+#include "RecoBTag/SecondaryVertex/interface/SecondaryVertex.h"
 
 #include "FWCore/Common/interface/TriggerNames.h"
 #include "DataFormats/Common/interface/TriggerResults.h"
