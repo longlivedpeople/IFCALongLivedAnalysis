@@ -17,4 +17,5 @@
 <use name="TrackingTools/Records"/>
 <use name="RecoVertex/VertexPrimitives"/>
 <use name="RecoVertex/AdaptiveVertexFit"/>
+<use name="RecoVertex/VertexTools"/>
 <flags EDM_PLUGIN="1"/>
