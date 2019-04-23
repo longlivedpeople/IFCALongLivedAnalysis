@@ -52,13 +52,12 @@
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
 
-
-
 #include "TrackingTools/Records/interface/TransientTrackRecord.h"
 #include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
 #include "TrackingTools/TransientTrack/interface/TransientTrack.h"
 #include "RecoVertex/AdaptiveVertexFit/interface/AdaptiveVertexFitter.h"
 #include "RecoVertex/VertexPrimitives/interface/TransientVertex.h"
+#include "RecoVertex/VertexTools/interface/GeometricAnnealing.h"
 
 
 #include "FWCore/Common/interface/TriggerNames.h"
@@ -259,7 +258,6 @@ Float_t ElectronCandidate_phi[nElectronCandidateMax];
 Int_t ElectronCandidate_photonIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_isotrackIdx[nElectronCandidateMax];
 
-
 //-> MUON CANDIDATE SELECTION
 const Int_t nMuonCandidateMax = 100;
 Int_t nMuonCandidate;
@@ -398,7 +396,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
    iEvent.getByToken(thePackedPFCandidateCollection, packedPFCandidates);
    iEvent.getByToken(theLostTracksCollection, lostTracks);
-
 
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -606,7 +603,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        const pat::PackedCandidateRef &pckCand = isotrack.packedCandRef(); // access the packed candidate
       
  
-       if (isotrack.fromPV() > 0){ // check it has a PV
+       if (isotrack.fromPV() > -1){ // check it has a PV
 
            IsoTrackSel_vx[i] = (*pckCand).vx();
            IsoTrackSel_vy[i] = (*pckCand).vy();
@@ -874,7 +871,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    RefittedPV_nPFTrack = 0;
    RefittedPV_nLostTrack = 0;
 
-
    // Original PV values
    PV_vx = -99;
    PV_vy = -99;
@@ -906,15 +902,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        }
 
        RefittedPV_nPFTrack++;
-
        reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedPFTrack);
-       //transientTrack.setBeamSpot(beamSpotObject);
+       transientTrack.setBeamSpot(beamSpotObject);
        refit_tracks.push_back(transientTrack);
 
 
    }
-
-   std::cout << "PFTRack: " << RefittedPV_nPFTrack << "\t" << packedPFCandidates->size() << std::endl;
 
    
    // Loop over lostTracks
@@ -925,12 +918,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        if (!lostTrack.hasTrackDetails()) continue;
        const reco::Track packedLostTrack = lostTrack.pseudoTrack();
 
-       if (lostTrack.fromPV() !=  3) continue;
+       if (lostTrack.fromPV() != 3) continue;
 
        RefittedPV_nLostTrack++;
-
        reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedLostTrack);
-       //transientTrack.setBeamSpot(beamSpotObject);
+       transientTrack.setBeamSpot(beamSpotObject);
        refit_tracks.push_back(transientTrack);
 
 
@@ -938,10 +930,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+
+
    // Reffit the vertex
 
    if (refit_tracks.size() > 1){
-       AdaptiveVertexFitter  theFitter;
+       
+       AdaptiveVertexFitter  theFitter(GeometricAnnealing(2.5));
        TransientVertex myVertex = theFitter.vertex(refit_tracks);
 
        if (myVertex.isValid()){
@@ -954,8 +949,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    }
 
-   
-   
+
+
    
    /////////////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
@@ -978,12 +973,10 @@ void LongLivedAnalysis::beginJob()
     file_out = new TFile(output_filename.c_str(), "RECREATE");
     file_out->cd();
 
-    std::cout << "the file is created" << std::endl;
     
     // Output Tree definition
     tree_out = new TTree("Events", "Events");
 
-    std::cout << "The tree is created" << std::endl;
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
 
@@ -1118,7 +1111,6 @@ void LongLivedAnalysis::endJob()
 {
 
 
-    std::cout << "The event is writen" << std::endl;
     file_out->cd();
     tree_out->Write();
     file_out->Close();
