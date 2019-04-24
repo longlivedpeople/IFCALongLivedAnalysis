@@ -60,6 +60,7 @@
 #include "RecoVertex/VertexTools/interface/GeometricAnnealing.h"
 
 #include "RecoBTag/SecondaryVertex/interface/SecondaryVertex.h"
+#include "RecoBTag/SecondaryVertex/interface/TrackKinematics.h"
 
 #include "FWCore/Common/interface/TriggerNames.h"
 #include "DataFormats/Common/interface/TriggerResults.h"
@@ -268,6 +269,24 @@ Float_t MuonCandidate_phi[nMuonCandidateMax];
 Int_t MuonCandidate_muonTriggerObjectIdx[nMuonCandidateMax];
 Int_t MuonCandidate_isotrackIdx[nMuonCandidateMax];
 
+//-> LL Candidates                                                                                                                                                                                 
+const Int_t nLLMax = 1000;
+
+Int_t nLL;
+Float_t LL_Lxy[nLLMax];
+Float_t LL_Ixy[nLLMax];
+Float_t LL_Mass[nLLMax];
+
+
+Int_t nEE;
+Float_t EE_Lxy[nLLMax];
+Float_t EE_Ixy[nLLMax];
+Float_t EE_Mass[nLLMax];
+
+Int_t nMM;
+Float_t MM_Lxy[nLLMax];
+Float_t MM_Ixy[nLLMax];
+Float_t MM_Mass[nLLMax];
 
 
 
@@ -951,6 +970,187 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+   ////////////////////////////////// LL CANDIDATES //////////////////////////////////                                                    
+   nLL = 0;
+   nEE = 0;
+   nMM = 0;
+   std::vector<reco::TransientTrack> refit_tracks_EE;
+   std::vector<reco::TransientTrack> refit_tracks_MM;
+
+   std::vector<reco::Track> refit_recotracks_EE;
+   std::vector<reco::Track> refit_recotracks_MM;
+                                     
+   if (nElectronCandidate >= 2) {
+     const pat::IsolatedTrack & it_A = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[0])];;
+     const pat::IsolatedTrack & it_B = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[1])];;
+     // std::cout << it_A.pt() << "<-|isotrack_A PT isotrack_Bb|->" << it_B.pt() << std::endl;
+     // std::cout << IsoTrackSel_pt[ElectronCandidate_isotrackIdx[0]] << "<-|isotrack_A PT isotrack_Bb|->" << IsoTrackSel_pt[ElectronCandidate_isotrackIdx[1]] << std::endl;
+     // std::cout << IsoTrackSel_vx[ElectronCandidate_isotrackIdx[0]] << "<-|isotrack_A vx isotrack_Bb|->" << IsoTrackSel_vx[ElectronCandidate_isotrackIdx[1]] << std::endl;
+     // std::cout << IsoTrackSel_packed_pt[ElectronCandidate_isotrackIdx[0]] << "<-|isotrack_A packed isotrack_Bb|->" << IsoTrackSel_packed_pt[ElectronCandidate_isotrackIdx[1]] << std::endl;
+
+     const pat::PackedCandidateRef &pckCandA = it_A.packedCandRef();
+     const pat::PackedCandidateRef &pckCandB = it_B.packedCandRef();
+
+
+     if (pckCandA.isNonnull() && pckCandA->hasTrackDetails() && pckCandB.isNonnull() && pckCandB->hasTrackDetails()) { 
+       const reco::Track isorecotrkA = pckCandA->pseudoTrack();
+       reco::TransientTrack isotransienttrackA = theTransientTrackBuilder->build(isorecotrkA);
+
+       const reco::Track isorecotrkB = pckCandB->pseudoTrack();
+       reco::TransientTrack isotransienttrackB = theTransientTrackBuilder->build(isorecotrkB);
+
+       //std::cout << isorecotrkA.pt() << "<-|isotrack_A before SV isotrack_Bb|->" << isorecotrkB.pt() << std::endl;
+       refit_tracks_EE.push_back(isotransienttrackA);
+       refit_tracks_EE.push_back(isotransienttrackB);
+
+       refit_recotracks_EE.push_back(isorecotrkA);
+       refit_recotracks_EE.push_back(isorecotrkB);
+     }
+
+     // for (unsigned int i = 0; i < refit_tracks.size(); i++) {
+     //   std::cout << "  PTtrack1 " << refit_tracks[i].track().pt() << std::endl;
+     //   std::cout << "  PTtrack2 " << refit_recotracks[i].pt() << std::endl;
+     // }
+
+
+     //std::cout << "refit_LL size " << refit_tracks_LL.size() << std::endl;
+
+     
+     if (refit_tracks_EE.size() > 1) {
+       AdaptiveVertexFitter  theFitter_EE(GeometricAnnealing(2.5));
+
+       // Vertex refitting:                                                                                                                                                     
+       TransientVertex myVertex = theFitter_EE.vertex(refit_tracks_EE);
+       if (myVertex.isValid()) {
+	 const reco::VertexRef &PV = (*pckCandA).vertexRef();
+	 const reco::Vertex* recopv = PV.get();
+	 const reco::Vertex pv = *recopv;
+	 //bool isnullpv = PV.isNull();
+
+	 //std::cout << " isnullpv = " << isnullpv << std::endl;
+	 //use secondary vertex kinematics as jet axis
+	 GlobalVector axis(0,0,0); 
+       
+	 const reco::Vertex secV = myVertex;
+	 //std::cout << pv.x() << "  |pv sv| " << secV.x() << std::endl;
+	 //the following line compiles but produces a crash. But if I get coordinate directly it goes fine.
+	 //axis = GlobalVector(secV.p4().X(),secV.p4().Y(),secV.p4().Z());
+
+         axis = GlobalVector(secV.x(),secV.y(),secV.z());
+	 //std::cout << "axis.x=" << axis.x() << std::endl;
+
+	 Measurement1D vMeas = reco::SecondaryVertex::computeDist2d(pv,secV,axis,true);
+	 //std::cout << "vSig = " << vSig << std::endl;
+
+
+	 reco::TrackKinematics secVkin(refit_recotracks_EE);
+	 //std::cout << "secVkin.nTrack =" << secVkin.numberOfTracks() << std::endl;
+	 //std::cout << "secVkin.nTrack =" << secVkin.weightedVectorSum().M() << std::endl;
+
+	 LL_Lxy[nLL] = vMeas.value();
+	 LL_Ixy[nLL] = vMeas.significance();
+	 LL_Mass[nLL] = secVkin.weightedVectorSum().M(); 
+	 nLL++;
+
+
+	 EE_Lxy[nEE] = vMeas.value();
+	 EE_Ixy[nEE] = vMeas.significance();
+	 EE_Mass[nEE] = secVkin.weightedVectorSum().M(); 
+	 nEE++;
+
+       }
+       else std::cout << "invalid sec vertex" << std::endl;
+     }
+     
+     
+   }// electron > 1
+ 
+ 
+   
+
+
+   //now the same for muon
+
+   if (nMuonCandidate >= 2) {
+     const pat::IsolatedTrack & it_A = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[0])];;
+     const pat::IsolatedTrack & it_B = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[1])];;
+     // std::cout << it_A.pt() << "<-|isotrack_A PT isotrack_Bb|->" << it_B.pt() << std::endl;
+     // std::cout << IsoTrackSel_pt[MuonCandidate_isotrackIdx[0]] << "<-|isotrack_A PT isotrack_Bb|->" << IsoTrackSel_pt[MuonCandidate_isotrackIdx[1]] << std::endl;
+     // std::cout << IsoTrackSel_vx[MuonCandidate_isotrackIdx[0]] << "<-|isotrack_A vx isotrack_Bb|->" << IsoTrackSel_vx[MuonCandidate_isotrackIdx[1]] << std::endl;
+     // std::cout << IsoTrackSel_packed_pt[MuonCandidate_isotrackIdx[0]] << "<-|isotrack_A packed isotrack_Bb|->" << IsoTrackSel_packed_pt[MuonCandidate_isotrackIdx[1]] << std::endl;
+
+     const pat::PackedCandidateRef &pckCandA = it_A.packedCandRef();
+     const pat::PackedCandidateRef &pckCandB = it_B.packedCandRef();
+
+
+     if (pckCandA.isNonnull() && pckCandA->hasTrackDetails() && pckCandB.isNonnull() && pckCandB->hasTrackDetails()) { 
+       const reco::Track isorecotrkA = pckCandA->pseudoTrack();
+       reco::TransientTrack isotransienttrackA = theTransientTrackBuilder->build(isorecotrkA);
+
+       const reco::Track isorecotrkB = pckCandB->pseudoTrack();
+       reco::TransientTrack isotransienttrackB = theTransientTrackBuilder->build(isorecotrkB);
+
+       //std::cout << isorecotrkA.pt() << "<-|isotrack_A before SV isotrack_Bb|->" << isorecotrkB.pt() << std::endl;
+       refit_tracks_MM.push_back(isotransienttrackA);
+       refit_tracks_MM.push_back(isotransienttrackB);
+
+       refit_recotracks_MM.push_back(isorecotrkA);
+       refit_recotracks_MM.push_back(isorecotrkB);
+     }
+
+     // for (unsigned int i = 0; i < refit_tracks.size(); i++) {
+     //   std::cout << "  PTtrack1 " << refit_tracks[i].track().pt() << std::endl;
+     //   std::cout << "  PTtrack2 " << refit_recotracks[i].pt() << std::endl;
+     // }
+
+
+     //std::cout << "refit_LL size " << refit_tracks_LL.size() << std::endl;
+
+     if (refit_tracks_MM.size() > 1) {
+       AdaptiveVertexFitter  theFitter_MM(GeometricAnnealing(2.5));
+
+       // Vertex refitting:                                                                                                                                                     
+       TransientVertex myVertex = theFitter_MM.vertex(refit_tracks_MM);
+       if (myVertex.isValid()) {
+	 const reco::VertexRef &PV = (*pckCandA).vertexRef();
+	 const reco::Vertex* recopv = PV.get();
+	 const reco::Vertex pv = *recopv;
+	 //bool isnullpv = PV.isNull();
+
+	 //std::cout << " isnullpv = " << isnullpv << std::endl;
+	 //use secondary vertex kinematics as jet axis
+	 GlobalVector axis(0,0,0); 
+       
+	 const reco::Vertex secV = myVertex;
+	 //std::cout << pv.x() << "  |pv sv| " << secV.x() << std::endl;
+	 //the following line compiles but produces a crash. But if I get coordinate directly it goes fine.
+	 //axis = GlobalVector(secV.p4().X(),secV.p4().Y(),secV.p4().Z());
+
+         axis = GlobalVector(secV.x(),secV.y(),secV.z());
+	 //std::cout << "axis.x=" << axis.x() << std::endl;
+
+	 Measurement1D vMeas = reco::SecondaryVertex::computeDist2d(pv,secV,axis,true);
+	 //std::cout << "vSig = " << vSig << std::endl;
+
+	 reco::TrackKinematics secVkin(refit_recotracks_MM);
+
+	 LL_Lxy[nLL] = vMeas.value();
+	 LL_Ixy[nLL] = vMeas.significance();
+	 LL_Mass[nLL] = secVkin.weightedVectorSum().M();
+	 nLL++;
+
+
+	 MM_Lxy[nMM] = vMeas.value();
+	 MM_Ixy[nMM] = vMeas.significance();
+	 MM_Mass[nMM] = secVkin.weightedVectorSum().M();
+	 nMM++;
+
+       }
+       else std::cout << "invalid sec vertex" << std::endl;
+     }
+     
+     
+   }// muon > 1
 
    
    /////////////////////////////////////////////////////////////////////////////////////
@@ -1099,6 +1299,19 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonCandidate_muonTriggerObjectIdx", MuonCandidate_muonTriggerObjectIdx, "MuonCandidate_muonTriggerObjectIdx[nMuonCandidate]/I");
     tree_out->Branch("MuonCandidate_isotrackIdx", MuonCandidate_isotrackIdx, "MuonCandidate_isotrackIdx[nMuonCandidate]/I");
 
+    ////////////////////////////// LL BRANCHES /////////////////////////////
+    tree_out->Branch("nLL", &nLL, "nLL/I");
+    tree_out->Branch("LL_Lxy", LL_Lxy, "LL_Lxy[nLL]/F");
+    tree_out->Branch("LL_Ixy", LL_Ixy, "LL_Ixy[nLL]/F");
+    tree_out->Branch("LL_Mass", LL_Mass, "LL_Mass[nLL]/F");
+    tree_out->Branch("nEE", &nEE, "nEE/I");
+    tree_out->Branch("EE_Lxy", EE_Lxy, "EE_Lxy[nEE]/F");
+    tree_out->Branch("EE_Ixy", EE_Ixy, "EE_Ixy[nEE]/F");
+    tree_out->Branch("EE_Mass", EE_Mass, "EE_Mass[nEE]/F");
+    tree_out->Branch("nMM", &nMM, "nMM/I");
+    tree_out->Branch("MM_Lxy", MM_Lxy, "MM_Lxy[nMM]/F");
+    tree_out->Branch("MM_Ixy", MM_Ixy, "MM_Ixy[nMM]/F");
+    tree_out->Branch("MM_Mass", MM_Mass, "MM_Mass[nMM]/F");
 
 
 }
