@@ -239,14 +239,29 @@ Float_t MuonTriggerObjectSel_pt[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_eta[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
 
-//-> GENPARTICLE SELECTION
-const Int_t nGenParticleMax = 500;
-Int_t nGenParticle;
-Float_t GenParticleSel_pt[nGenParticleMax];
-Float_t GenParticleSel_eta[nGenParticleMax];
-Float_t GenParticleSel_phi[nGenParticleMax];
-Int_t GenParticleSel_pdgId[nGenParticleMax];
-Float_t GenParticleSel_dxy[nGenParticleMax];
+//-> GENLEPTON SELECTION
+const Int_t nGenLeptonMax = 500;
+Int_t nGenLepton;
+Float_t GenLeptonSel_pt[nGenLeptonMax];
+Float_t GenLeptonSel_et[nGenLeptonMax];
+Float_t GenLeptonSel_eta[nGenLeptonMax];
+Float_t GenLeptonSel_phi[nGenLeptonMax];
+Int_t GenLeptonSel_pdgId[nGenLeptonMax];
+Float_t GenLeptonSel_dxy[nGenLeptonMax];
+Int_t GenLeptonSel_motherIdx[nGenLeptonMax];
+
+//-> GENNEUTRALINO SELECTION
+const Int_t nGenNeutralinoMax = 500;
+Int_t nGenNeutralino;
+Float_t GenNeutralinoSel_pt[nGenNeutralinoMax];
+Float_t GenNeutralinoSel_eta[nGenNeutralinoMax];
+Float_t GenNeutralinoSel_phi[nGenNeutralinoMax];
+Int_t GenNeutralinoSel_pdgId[nGenNeutralinoMax];
+Float_t GenNeutralinoSel_Lxy[nGenNeutralinoMax];
+
+// -> GENERATION ACCEPTANCE CRITERIA
+Bool_t passAcceptanceCriteria;
+
 
 //-> ELECTRON CANDIDATE SELECTION
 const Int_t nElectronCandidateMax = 100;
@@ -558,6 +573,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    nIsoTrack = iT.size(); // number of isotracks
 
+   // Sort the isotracks by pt
+   std::sort( std::begin(iT), std::end(iT), [&](int i1, int i2){ return isotracks->at(i1).pt() < isotracks->at(i2).pt(); });
+
 
    // Loop over the isotracks
    for (size_t i = 0; i < iT.size(); ++i){
@@ -691,51 +709,124 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
 
-   std::vector<int> iGP;
+   std::vector<int> iGL; // Generated lepton indexes
+   std::vector<int> iGN; // Generated neutralino indexes
 
    for(size_t i = 0; i < genParticles->size(); i++) {
 
 
         const reco::GenParticle &genparticle = (*genParticles)[i];
 
-        if (isLongLivedLepton(genparticle)){ iGP.push_back(i); }
+        // Check if it is a lepton comming from a long lived neutralino:
+        if (isLongLivedLepton(genparticle)){ iGL.push_back(i); continue; }
 
+        // Check if it is a longlived neutralino (correct id and after all radiative emission)
+        if (abs(genparticle.pdgId()) == 1000022 && (abs(genparticle.daughter(0)->pdgId()) != 1000022) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
+            iGN.push_back(i);
+            continue;
 
+        }
    } 
 
 
+   // Number of generated leptons:
+   nGenLepton = iGL.size();
 
-   nGenParticle = iGP.size();
-   // Loop over the selected gen particles
-   for(size_t i = 0; i < iGP.size(); i++){
+   // Number of generated neutralinos:
+   nGenNeutralino = iGN.size();
 
-       const reco::GenParticle &genparticle = (*genParticles)[iGP.at(i)];
+   // Sort the leptons and neutralinos by pt
+   std::sort( std::begin(iGL), std::end(iGL), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
+   std::sort( std::begin(iGN), std::end(iGN), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
 
-       GenParticleSel_pdgId[i] = genparticle.pdgId();
-       GenParticleSel_dxy[i] = dxy_value(genparticle);
+
+   // Loop over the selected neutralinos
+   for(size_t i = 0; i < iGN.size(); i++){
+
+       const reco::GenParticle &genparticle = (*genParticles)[iGN.at(i)];
+
+       GenNeutralinoSel_pt[i] = genparticle.pt();
+       GenNeutralinoSel_eta[i] = genparticle.eta();
+       GenNeutralinoSel_phi[i] = genparticle.phi();
+       GenNeutralinoSel_pdgId[i] = genparticle.pdgId();
+
+       // Generated transverse decay length of the neutralino
+
+       const reco::Candidate *m = genparticle.mother();
+    
+       while((abs(m->pdgId()) == 100022)){ m = m->mother(); }
+
+       GenNeutralinoSel_Lxy[i] = sqrt((m->vx()-genparticle.daughter(0)->vx())*(m->vx()-genparticle.daughter(0)->vx()) + (m->vy()-genparticle.daughter(0)->vy())*(m->vy()-genparticle.daughter(0)->vy()));
+
+   }
+
+
+
+   // Loop over the selected genleptons
+   for(size_t i = 0; i < iGL.size(); i++){
+
+       const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
+
+       GenLeptonSel_pdgId[i] = genparticle.pdgId();
+       GenLeptonSel_dxy[i] = dxy_value(genparticle);
+
+
+       // Define the mother index
+       GenLeptonSel_motherIdx[i] = -99;
+       if(genparticle.mother()->pt() == GenNeutralinoSel_pt[0]){
+
+           GenLeptonSel_motherIdx[i] = 0;
+
+       } else if (genparticle.mother()->pt() == GenNeutralinoSel_pt[1]){
+
+           GenLeptonSel_motherIdx[i] = 1;
+
+       }
        
 
-       // Get the last genparticle (to avoid radiative effects):
+       // Get the last genlepton (to avoid radiative effects):
        if (genparticle.numberOfDaughters() > 0){
 
            const reco::Candidate *d = genparticle.daughter(0);
            while(d->numberOfDaughters()> 0 && d->daughter(0)->pdgId() == d->pdgId()){ d = d->daughter(0); }
 
-           GenParticleSel_pt[i] = d->pt();
-           GenParticleSel_eta[i] = d->eta();
-           GenParticleSel_phi[i] = d->phi();
+           GenLeptonSel_pt[i] = d->pt();
+           GenLeptonSel_et[i] = d->et();
+           GenLeptonSel_eta[i] = d->eta();
+           GenLeptonSel_phi[i] = d->phi();
 
        } else {
 
-           GenParticleSel_pt[i] = genparticle.pt();
-           GenParticleSel_eta[i] = genparticle.eta();
-           GenParticleSel_phi[i] = genparticle.phi();
+           GenLeptonSel_pt[i] = genparticle.pt();
+           GenLeptonSel_et[i] = genparticle.et();
+           GenLeptonSel_eta[i] = genparticle.eta();
+           GenLeptonSel_phi[i] = genparticle.phi();
 
        }
 
 
    }
 
+
+
+   //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
+
+   passAcceptanceCriteria = true; // true by default
+   bool passLeadingElectron = false;
+
+   for (size_t i = 0; i < iGL.size(); i++){
+
+       if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}
+
+       if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAcceptanceCriteria = false; break;}
+       if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAcceptanceCriteria = false; break;}
+       if (fabs(GenLeptonSel_eta[i]) > 2){ passAcceptanceCriteria = false; break;}
+
+   }
+
+   if (passLeadingElectron == false) {passAcceptanceCriteria = false;}
+   
+   if (GenNeutralinoSel_Lxy[0] > 50 || GenNeutralinoSel_Lxy[1] > 50){ passAcceptanceCriteria = false;}
 
 
    /////////////////////////////////////////////////////////////////////////////////////
@@ -1068,14 +1159,22 @@ void LongLivedAnalysis::beginJob()
 
     //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
 
-    tree_out->Branch("nGenParticle", &nGenParticle, "nGenParticle/I");
-    tree_out->Branch("GenParticleSel_pt", GenParticleSel_pt, "GenParticleSel_pt[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_eta", GenParticleSel_eta, "GenParticleSel_eta[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_phi", GenParticleSel_phi, "GenParticleSel_phi[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_dxy", GenParticleSel_dxy, "GenParticleSel_dxy[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_pdgId", GenParticleSel_pdgId, "GenParticleSel_pdgId[nGenParticle]/I");
+    tree_out->Branch("nGenLepton", &nGenLepton, "nGenLepton/I");
+    tree_out->Branch("GenLeptonSel_pt", GenLeptonSel_pt, "GenLeptonSel_pt[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_et", GenLeptonSel_et, "GenLeptonSel_et[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_eta", GenLeptonSel_eta, "GenLeptonSel_eta[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_phi", GenLeptonSel_phi, "GenLeptonSel_phi[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_dxy", GenLeptonSel_dxy, "GenLeptonSel_dxy[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
 
 
+    tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");
+    tree_out->Branch("GenNeutralinoSel_pt", GenNeutralinoSel_pt, "GenNeutralinoSel_pt[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_eta", GenNeutralinoSel_eta, "GenNeutralinoSel_eta[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_phi", GenNeutralinoSel_phi, "GenNeutralinoSel_phi[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_Lxy", GenNeutralinoSel_Lxy, "GenNeutralinoSel_Lxy[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_pdgId", GenNeutralinoSel_pdgId, "GenNeutralinoSel_pdgId[nGenNeutralino]/I");
 
     //////////////////////////// ELECTRON CANDIDATE BRANCHES ////////////////////////////
 
@@ -1087,6 +1186,10 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronCandidate_photonIdx", ElectronCandidate_photonIdx, "ElectronCandidate_photonIdx[nElectronCandidate]/I");
     tree_out->Branch("ElectronCandidate_isotrackIdx", ElectronCandidate_isotrackIdx, "ElectronCandidate_isotrackIdx[nElectronCandidate]/I");
 
+
+    ///////////////////////////////// ACCEPTANCE CRITERIA //////////////////////////////
+
+    tree_out->Branch("passAcceptanceCriteria", &passAcceptanceCriteria, "passAcceptanceCriteria/O");
 
 
     ////////////////////////////// MUON CANDIDATE BRANCHES /////////////////////////////
