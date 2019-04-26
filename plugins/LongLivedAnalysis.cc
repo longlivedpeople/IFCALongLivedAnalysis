@@ -61,6 +61,7 @@
 #include "RecoVertex/VertexTools/interface/GeometricAnnealing.h"
 
 #include "RecoBTag/SecondaryVertex/interface/SecondaryVertex.h"
+#include "RecoBTag/SecondaryVertex/interface/TrackKinematics.h"
 
 #include "FWCore/Common/interface/TriggerNames.h"
 #include "DataFormats/Common/interface/TriggerResults.h"
@@ -315,6 +316,30 @@ Float_t MuonCandidate_phi[nMuonCandidateMax];
 Int_t MuonCandidate_muonTriggerObjectIdx[nMuonCandidateMax];
 Int_t MuonCandidate_isotrackIdx[nMuonCandidateMax];
 
+//-> LL Candidates                                                                                                                                                                                 
+const Int_t nLLMax = 1000;
+
+Int_t nLL;
+Float_t LL_Lxy[nLLMax];
+Float_t LL_Ixy[nLLMax];
+Float_t LL_Mass[nLLMax];
+
+Float_t LLSel_Lxy;
+Float_t LLSel_Ixy;
+Float_t LLSel_Mass;
+Int_t LLSel_isMM;
+Int_t LLSel_isEE;
+
+
+Int_t nEE;
+Float_t EE_Lxy[nLLMax];
+Float_t EE_Ixy[nLLMax];
+Float_t EE_Mass[nLLMax];
+
+Int_t nMM;
+Float_t MM_Lxy[nLLMax];
+Float_t MM_Ixy[nLLMax];
+Float_t MM_Mass[nLLMax];
 
 
 
@@ -360,7 +385,12 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       // Gen collection
       edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;
 
+      //"Global" variables
+      std::vector<int> iT; // track indexes
+      edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder;
 
+      // Class functions
+      bool buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrack> > const& isotracks, int idxA, int idxB, bool isEE);
 };
 //=======================================================================================================================================================================================================================//
 
@@ -602,9 +632,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
-
-   std::vector<int> iT; // track indexes
-
+   iT.clear();
+   
    for (size_t i = 0; i < isotracks->size(); i++){
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[i];
@@ -1055,7 +1084,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////////////////////////////////////////////////////////////
 
  
-   edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder;
    iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
 
    std::vector<reco::TransientTrack> refit_tracks; // tracks for refitting
@@ -1142,8 +1170,45 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+   ////////////////////////////////// LL CANDIDATES //////////////////////////////////                                                    
+   nLL = 0;
+   nEE = 0;
+   nMM = 0;
 
-   
+   LLSel_Lxy = -99;
+   LLSel_Ixy = -99;
+   LLSel_Mass = -99;
+   LLSel_isEE = 0;
+   LLSel_isMM = 0;
+   for (int i = 1; i < nElectronCandidate; i++) {
+     for (int j = 0; j < i; j++) {
+       if (i != j) {
+	 //if (i == 1 && j == 0) {//OOOOOOOOOOOOOOOOJOOOOOOOOOOOOOOOOOOO
+
+	 //std::cout << "checking pair (" << i << ", " << j << ")" << std::endl;
+	 bool goodpair = buildLLcandidate(isotracks, i, j, true);
+         if (goodpair) {;}// do nothing, just avoid warning
+	 //if (goodpair) std::cout << "valid candidate" << std::endl;
+	 //else std::cout << "bad candidate" << std::endl;
+       }
+     }
+   }
+
+   for (int i = 1; i < nMuonCandidate; i++) {
+     for (int j = 0; j < i; j++) {
+       if (i != j) {
+	 //if (i == 1 && j == 0) {//OOOOOOOOOOOOOOOOJOOOOOOOOOOOOOOOOOOO
+
+	 //std::cout << "checking pair (" << i << ", " << j << ")" << std::endl;
+	 bool goodpair = buildLLcandidate(isotracks, i, j, false);
+         if (goodpair) {;}// do nothing, just avoid warning
+	 //if (goodpair) std::cout << "valid candidate" << std::endl;
+	 //else std::cout << "bad candidate" << std::endl;
+       }
+     }
+   }
+
+
    /////////////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////////////
@@ -1333,8 +1398,24 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonCandidate_muonTriggerObjectIdx", MuonCandidate_muonTriggerObjectIdx, "MuonCandidate_muonTriggerObjectIdx[nMuonCandidate]/I");
     tree_out->Branch("MuonCandidate_isotrackIdx", MuonCandidate_isotrackIdx, "MuonCandidate_isotrackIdx[nMuonCandidate]/I");
 
-
-
+    ////////////////////////////// LL BRANCHES /////////////////////////////
+    tree_out->Branch("nLL", &nLL, "nLL/I");
+    tree_out->Branch("LL_Lxy", LL_Lxy, "LL_Lxy[nLL]/F");
+    tree_out->Branch("LL_Ixy", LL_Ixy, "LL_Ixy[nLL]/F");
+    tree_out->Branch("LL_Mass", LL_Mass, "LL_Mass[nLL]/F");
+    tree_out->Branch("nEE", &nEE, "nEE/I");
+    tree_out->Branch("EE_Lxy", EE_Lxy, "EE_Lxy[nEE]/F");
+    tree_out->Branch("EE_Ixy", EE_Ixy, "EE_Ixy[nEE]/F");
+    tree_out->Branch("EE_Mass", EE_Mass, "EE_Mass[nEE]/F");
+    tree_out->Branch("nMM", &nMM, "nMM/I");
+    tree_out->Branch("MM_Lxy", MM_Lxy, "MM_Lxy[nMM]/F");
+    tree_out->Branch("MM_Ixy", MM_Ixy, "MM_Ixy[nMM]/F");
+    tree_out->Branch("MM_Mass", MM_Mass, "MM_Mass[nMM]/F");
+    tree_out->Branch("LLSel_Lxy", &LLSel_Lxy, "LLSel_Lxy/F");
+    tree_out->Branch("LLSel_Ixy", &LLSel_Ixy, "LLSel_Ixy/F");
+    tree_out->Branch("LLSel_Mass", &LLSel_Mass, "LLSel_Mass/F");
+    tree_out->Branch("LLSel_isEE", &LLSel_isEE, "LLSel_isEE/I");
+    tree_out->Branch("LLSel_isMM", &LLSel_isMM, "LLSel_isMM/I");
 }
 //=======================================================================================================================================================================================================================//
 
@@ -1366,6 +1447,103 @@ void LongLivedAnalysis::fillDescriptions(edm::ConfigurationDescriptions& descrip
 }
 //=======================================================================================================================================================================================================================//
 
+
+bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrack> > const& isotracks, int idxA, int idxB, bool isEE) {
+
+   std::vector<reco::TransientTrack> vec_refitTracks;
+   std::vector<reco::Track> vec_refitRecoTracks;
+  const pat::IsolatedTrack & it_A = (isEE)?(*isotracks)[iT.at(ElectronCandidate_isotrackIdx[idxA])]: (*isotracks)[iT.at(MuonCandidate_isotrackIdx[idxA])];
+  const pat::IsolatedTrack & it_B = (isEE)?(*isotracks)[iT.at(ElectronCandidate_isotrackIdx[idxB])]: (*isotracks)[iT.at(MuonCandidate_isotrackIdx[idxB])];
+
+
+  const pat::PackedCandidateRef &pckCandA = it_A.packedCandRef();
+  const pat::PackedCandidateRef &pckCandB = it_B.packedCandRef();
+
+
+  if (pckCandA.isNonnull() && pckCandA->hasTrackDetails() && pckCandB.isNonnull() && pckCandB->hasTrackDetails()) { 
+    const reco::Track isorecotrkA = pckCandA->pseudoTrack();
+    reco::TransientTrack isotransienttrackA = theTransientTrackBuilder->build(isorecotrkA);
+
+    const reco::Track isorecotrkB = pckCandB->pseudoTrack();
+    reco::TransientTrack isotransienttrackB = theTransientTrackBuilder->build(isorecotrkB);
+
+    //std::cout << isorecotrkA.pt() << "<-|isotrack_A before SV isotrack_Bb|->" << isorecotrkB.pt() << std::endl;
+    vec_refitTracks.push_back(isotransienttrackA);
+    vec_refitTracks.push_back(isotransienttrackB);
+
+    vec_refitRecoTracks.push_back(isorecotrkA);
+    vec_refitRecoTracks.push_back(isorecotrkB);
+  }
+
+  if (vec_refitTracks.size() > 1) {
+    AdaptiveVertexFitter  thefitterll(GeometricAnnealing(2.5));
+
+    // Vertex refitting:                                                                                                                                                     
+    TransientVertex myVertex = thefitterll.vertex(vec_refitTracks);
+    if (myVertex.isValid()) {
+      const reco::VertexRef &PV = (*pckCandA).vertexRef();
+      const reco::Vertex* recopv = PV.get();
+      const reco::Vertex pv = *recopv;
+
+      GlobalVector axis(0,0,0); 
+       
+      const reco::Vertex secV = myVertex;
+
+      axis = GlobalVector(secV.x(),secV.y(),secV.z());
+
+
+      Measurement1D vMeas = reco::SecondaryVertex::computeDist2d(pv,secV,axis,true);
+
+
+
+      reco::TrackKinematics secVkin(vec_refitRecoTracks);
+      //std::cout << "secVkin.nTrack =" << secVkin.numberOfTracks() << std::endl;
+      //std::cout << "secVkin.nTrack =" << secVkin.weightedVectorSum().M() << std::endl;
+
+      LL_Lxy[nLL] = vMeas.value();
+      LL_Ixy[nLL] = vMeas.significance();
+      LL_Mass[nLL] = secVkin.weightedVectorSum().M(); 
+
+      //we update the value if it has not been initialized or if it has been and the new LL is more displaced
+      if ( (!LLSel_isEE && !LLSel_isMM) ||
+	   ( (LLSel_isEE || LLSel_isMM) && (fabs(LL_Ixy[nLL]) < fabs(LLSel_Ixy)) ) )
+	{
+	  if (isEE) {
+	    LLSel_isEE = true;
+	    LLSel_isMM = false;
+	  }
+	  else {
+	    LLSel_isMM = true;
+	    LLSel_isEE = false;
+	  }
+
+	  LLSel_Lxy = vMeas.value();
+	  LLSel_Ixy = vMeas.significance();
+	  LLSel_Mass = secVkin.weightedVectorSum().M(); 
+      }
+
+      nLL++;
+
+      if (isEE) {
+	EE_Lxy[nEE] = vMeas.value();
+	EE_Ixy[nEE] = vMeas.significance();
+	EE_Mass[nEE] = secVkin.weightedVectorSum().M(); 
+	nEE++;
+      }
+      else {
+	MM_Lxy[nMM] = vMeas.value();
+	MM_Ixy[nMM] = vMeas.significance();
+	MM_Mass[nMM] = secVkin.weightedVectorSum().M(); 
+	nMM++;
+      }
+    }
+    else return false;
+  } 
+  else return false;
+
+  return true;
+  
+}
 
 
 
