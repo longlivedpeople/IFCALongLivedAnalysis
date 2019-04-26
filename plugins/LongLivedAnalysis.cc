@@ -51,6 +51,7 @@
 #include "DataFormats/PatCandidates/interface/PFIsolation.h"
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
+#include "DataFormats/PatCandidates/interface/MET.h"
 
 #include "TrackingTools/Records/interface/TransientTrackRecord.h"
 #include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
@@ -202,9 +203,18 @@ Float_t IsoTrackSel_vy[nIsoTrackMax];
 Float_t IsoTrackSel_vz[nIsoTrackMax];
 Float_t IsoTrackSel_pfIsolationDR03[nIsoTrackMax];
 Float_t IsoTrackSel_miniPFIsolation[nIsoTrackMax];
+Float_t IsoTrackSel_relPfIsolationDR03[nIsoTrackMax];
+Float_t IsoTrackSel_relMiniPFIsolation[nIsoTrackMax];
 Int_t IsoTrackSel_isHighPurityTrack[nIsoTrackMax];
 Int_t IsoTrackSel_numberOfValidTrackerHits[nIsoTrackMax];
 Int_t IsoTrackSel_numberOfValidPixelHits[nIsoTrackMax];
+Int_t IsoTrackSel_numberOfValidPixelBarrelHits[nIsoTrackMax];
+Int_t IsoTrackSel_numberOfValidPixelEndcapHits[nIsoTrackMax];
+Int_t IsoTrackSel_numberOfValidStripHits[nIsoTrackMax];
+Int_t IsoTrackSel_numberOfValidStripTIBHits[nIsoTrackMax];
+Int_t IsoTrackSel_numberOfValidStripTIDHits[nIsoTrackMax];
+Int_t IsoTrackSel_numberOfValidStripTOBHits[nIsoTrackMax];
+Int_t IsoTrackSel_numberOfValidStripTECHits[nIsoTrackMax];
 Int_t IsoTrackSel_fromPV[nIsoTrackMax];
 Float_t IsoTrackSel_PVx[nIsoTrackMax];
 Float_t IsoTrackSel_PVy[nIsoTrackMax];
@@ -223,6 +233,7 @@ Float_t PhotonSel_hadronicOverEm[nPhotonMax];
 Float_t PhotonSel_full5x5_sigmaIetaIeta[nPhotonMax];
 Int_t PhotonSel_isEB[nPhotonMax];
 Int_t PhotonSel_isEE[nPhotonMax];
+Int_t PhotonSel_isGoodSC[nPhotonMax];
 
 //-> ELECTRON SELECTION
 const Int_t nElectronMax = 100;
@@ -240,14 +251,50 @@ Float_t MuonTriggerObjectSel_pt[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_eta[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
 
-//-> GENPARTICLE SELECTION
-const Int_t nGenParticleMax = 500;
-Int_t nGenParticle;
-Float_t GenParticleSel_pt[nGenParticleMax];
-Float_t GenParticleSel_eta[nGenParticleMax];
-Float_t GenParticleSel_phi[nGenParticleMax];
-Int_t GenParticleSel_pdgId[nGenParticleMax];
-Float_t GenParticleSel_dxy[nGenParticleMax];
+//-> GENLEPTON SELECTION
+const Int_t nGenLeptonMax = 500;
+Int_t nGenLepton;
+Float_t GenLeptonSel_pt[nGenLeptonMax];
+Float_t GenLeptonSel_et[nGenLeptonMax];
+Float_t GenLeptonSel_eta[nGenLeptonMax];
+Float_t GenLeptonSel_phi[nGenLeptonMax];
+Int_t GenLeptonSel_pdgId[nGenLeptonMax];
+Float_t GenLeptonSel_dxy[nGenLeptonMax];
+Int_t GenLeptonSel_motherIdx[nGenLeptonMax];
+
+//-> GENNEUTRALINO SELECTION
+const Int_t nGenNeutralinoMax = 500;
+Int_t nGenNeutralino;
+Float_t GenNeutralinoSel_pt[nGenNeutralinoMax];
+Float_t GenNeutralinoSel_eta[nGenNeutralinoMax];
+Float_t GenNeutralinoSel_phi[nGenNeutralinoMax];
+Int_t GenNeutralinoSel_pdgId[nGenNeutralinoMax];
+Float_t GenNeutralinoSel_Lxy[nGenNeutralinoMax];
+
+// -> GENERATION ACCEPTANCE CRITERIA
+Bool_t passAcceptanceCriteria;
+
+
+// -> MET 
+
+Int_t MET_isPFMET;
+Float_t MET_pt; // default Type 1 corrected MET
+Float_t MET_phi;
+Float_t MET_sumEt;
+Float_t MET_genPt;
+Float_t MET_genPhi;
+Float_t MET_corPt;
+Float_t MET_corPhi;
+Float_t MET_uncorPt;
+Float_t MET_uncorPhi;
+Float_t MET_metSignificance;
+Float_t MET_NeutralEMFraction;
+Float_t MET_NeutralHadEtFraction;
+Float_t MET_ChargedEMEtFraction;
+Float_t MET_ChargedHadEtFraction;
+Float_t MET_MuonEtFraction;
+Float_t MET_Type6EtFraction;
+Float_t MET_Type7EtFraction;
 
 //-> ELECTRON CANDIDATE SELECTION
 const Int_t nElectronCandidateMax = 100;
@@ -302,6 +349,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
       edm::EDGetTokenT<edm::View<pat::PackedCandidate> > thePackedPFCandidateCollection;
       edm::EDGetTokenT<edm::View<pat::PackedCandidate> > theLostTracksCollection;
+      edm::EDGetTokenT<edm::View<pat::MET> > theMETCollection;
 
       edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
       edm::EDGetTokenT<edm::View<pat::TriggerObjectStandAlone> > triggerObjects_;
@@ -333,6 +381,8 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
    thePackedPFCandidateCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("PackedPFCandidateCollection"));
    theLostTracksCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("LostTracksCollection"));
+   theMETCollection = consumes<edm::View<pat::MET> >  (parameters.getParameter<edm::InputTag>("METCollection"));
+
 
    triggerBits_ = consumes<edm::TriggerResults> (parameters.getParameter<edm::InputTag>("bits"));
    triggerObjects_ = consumes<edm::View<pat::TriggerObjectStandAlone> > (parameters.getParameter<edm::InputTag>("objects"));
@@ -378,7 +428,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<reco::Vertex> > primaryvertices;
    edm::Handle<edm::View<pat::PackedCandidate> > packedPFCandidates;
    edm::Handle<edm::View<pat::PackedCandidate> > lostTracks;
-
+   edm::Handle<edm::View<pat::MET> > METs;
 
    edm::Handle<edm::TriggerResults> triggerBits;
    edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
@@ -397,6 +447,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
    iEvent.getByToken(thePackedPFCandidateCollection, packedPFCandidates);
    iEvent.getByToken(theLostTracksCollection, lostTracks);
+   iEvent.getByToken(theMETCollection, METs);
 
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -405,6 +456,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(theBeamSpot, beamSpot);
 
    iEvent.getByToken(theGenParticleCollection, genParticles);
+
+
+   /////////////////////////////////// MC OR DATA //////////////////////////////////////
+
+   bool isMC = true;
 
 
    /////////////////////////////////// EVENT INFO //////////////////////////////////////
@@ -559,6 +615,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    nIsoTrack = iT.size(); // number of isotracks
 
+   // Sort the isotracks by pt
+   std::sort( std::begin(iT), std::end(iT), [&](int i1, int i2){ return isotracks->at(i1).pt() < isotracks->at(i2).pt(); });
+
 
    // Loop over the isotracks
    for (size_t i = 0; i < iT.size(); ++i){
@@ -578,7 +637,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        IsoTrackSel_pfIsolationDR03[i] = pfiso.chargedHadronIso() + pfiso.neutralHadronIso() + pfiso.photonIso() + pfiso.puChargedHadronIso();
        IsoTrackSel_miniPFIsolation[i] = minipfiso.chargedHadronIso() + minipfiso.neutralHadronIso() + minipfiso.photonIso() + minipfiso.puChargedHadronIso();
-
+       IsoTrackSel_relPfIsolationDR03[i] = IsoTrackSel_pfIsolationDR03[i]/isotrack.pt();
+       IsoTrackSel_relMiniPFIsolation[i] = IsoTrackSel_miniPFIsolation[i]/isotrack.pt();
 
        // Quality info:
        IsoTrackSel_isHighPurityTrack[i] = isotrack.isHighPurityTrack();
@@ -596,7 +656,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        IsoTrackSel_numberOfValidTrackerHits[i] = hits.numberOfValidTrackerHits();
        IsoTrackSel_numberOfValidPixelHits[i] = hits.numberOfValidPixelHits();
-
+       IsoTrackSel_numberOfValidPixelBarrelHits[i] = hits.numberOfValidPixelBarrelHits();
+       IsoTrackSel_numberOfValidPixelEndcapHits[i] = hits.numberOfValidPixelEndcapHits();
+       IsoTrackSel_numberOfValidStripHits[i] = hits.numberOfValidStripHits();
+       IsoTrackSel_numberOfValidStripTIBHits[i] = hits.numberOfValidStripTIBHits();
+       IsoTrackSel_numberOfValidStripTIDHits[i] = hits.numberOfValidStripTIDHits();
+       IsoTrackSel_numberOfValidStripTOBHits[i] = hits.numberOfValidStripTOBHits();
+       IsoTrackSel_numberOfValidStripTECHits[i] = hits.numberOfValidStripTECHits();
 
        // Info extracted form the packedCandidate of the isotrack
        // (PV(), vertex())
@@ -644,12 +710,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    // Select good photons
    for (size_t i = 0; i < photons->size(); ++i){
        
-       const pat::Photon & photon = (*photons)[i];
-
-       if (goodPhoton(photon)) 
-       { 
-           iP.push_back(i); 
-       }
+       // this is the place to put any preselection if required
+       iP.push_back(i);
 
    }
 
@@ -671,6 +733,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        PhotonSel_isEB[i] = photon.isEB();
        PhotonSel_isEE[i] = photon.isEE();
 
+       if (goodPhoton(photon)){PhotonSel_isGoodSC[i] = 1; }
+       else {PhotonSel_isGoodSC[i] = 0; }
 
    }
 
@@ -692,51 +756,175 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
 
-   std::vector<int> iGP;
+   std::vector<int> iGL; // Generated lepton indexes
+   std::vector<int> iGN; // Generated neutralino indexes
 
    for(size_t i = 0; i < genParticles->size(); i++) {
 
 
         const reco::GenParticle &genparticle = (*genParticles)[i];
 
-        if (isLongLivedLepton(genparticle)){ iGP.push_back(i); }
+        // Check if it is a lepton comming from a long lived neutralino:
+        if (isLongLivedLepton(genparticle)){ iGL.push_back(i); continue; }
 
+        // Check if it is a longlived neutralino (correct id and after all radiative emission)
+        if (abs(genparticle.pdgId()) == 1000022 && (abs(genparticle.daughter(0)->pdgId()) != 1000022) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
+            iGN.push_back(i);
+            continue;
 
+        }
    } 
 
 
+   // Number of generated leptons:
+   nGenLepton = iGL.size();
 
-   nGenParticle = iGP.size();
-   // Loop over the selected gen particles
-   for(size_t i = 0; i < iGP.size(); i++){
+   // Number of generated neutralinos:
+   nGenNeutralino = iGN.size();
 
-       const reco::GenParticle &genparticle = (*genParticles)[iGP.at(i)];
+   // Sort the leptons and neutralinos by pt
+   std::sort( std::begin(iGL), std::end(iGL), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
+   std::sort( std::begin(iGN), std::end(iGN), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
 
-       GenParticleSel_pdgId[i] = genparticle.pdgId();
-       GenParticleSel_dxy[i] = dxy_value(genparticle);
+
+   // Loop over the selected neutralinos
+   for(size_t i = 0; i < iGN.size(); i++){
+
+       const reco::GenParticle &genparticle = (*genParticles)[iGN.at(i)];
+
+       GenNeutralinoSel_pt[i] = genparticle.pt();
+       GenNeutralinoSel_eta[i] = genparticle.eta();
+       GenNeutralinoSel_phi[i] = genparticle.phi();
+       GenNeutralinoSel_pdgId[i] = genparticle.pdgId();
+
+       // Generated transverse decay length of the neutralino
+
+       const reco::Candidate *m = genparticle.mother();
+   
+       // To avoid radiative effects of the neutralino: 
+       while((abs(m->pdgId()) == 100022)){ m = m->mother(); }
+
+       GenNeutralinoSel_Lxy[i] = sqrt((m->vx()-genparticle.daughter(0)->vx())*(m->vx()-genparticle.daughter(0)->vx()) + (m->vy()-genparticle.daughter(0)->vy())*(m->vy()-genparticle.daughter(0)->vy()));
+
+   }
+
+
+
+   // Loop over the selected genleptons
+   for(size_t i = 0; i < iGL.size(); i++){
+
+       const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
+
+       GenLeptonSel_pdgId[i] = genparticle.pdgId();
+       GenLeptonSel_dxy[i] = dxy_value(genparticle);
+
+
+       // Define the mother index
+       GenLeptonSel_motherIdx[i] = -99;
+       if(genparticle.mother()->pt() == GenNeutralinoSel_pt[0]){
+
+           GenLeptonSel_motherIdx[i] = 0;
+
+       } else if (genparticle.mother()->pt() == GenNeutralinoSel_pt[1]){
+
+           GenLeptonSel_motherIdx[i] = 1;
+
+       }
        
 
-       // Get the last genparticle (to avoid radiative effects):
+       // Get the last genlepton (to avoid radiative effects):
        if (genparticle.numberOfDaughters() > 0){
 
            const reco::Candidate *d = genparticle.daughter(0);
            while(d->numberOfDaughters()> 0 && d->daughter(0)->pdgId() == d->pdgId()){ d = d->daughter(0); }
 
-           GenParticleSel_pt[i] = d->pt();
-           GenParticleSel_eta[i] = d->eta();
-           GenParticleSel_phi[i] = d->phi();
+           GenLeptonSel_pt[i] = d->pt();
+           GenLeptonSel_et[i] = d->et();
+           GenLeptonSel_eta[i] = d->eta();
+           GenLeptonSel_phi[i] = d->phi();
 
        } else {
 
-           GenParticleSel_pt[i] = genparticle.pt();
-           GenParticleSel_eta[i] = genparticle.eta();
-           GenParticleSel_phi[i] = genparticle.phi();
+           GenLeptonSel_pt[i] = genparticle.pt();
+           GenLeptonSel_et[i] = genparticle.et();
+           GenLeptonSel_eta[i] = genparticle.eta();
+           GenLeptonSel_phi[i] = genparticle.phi();
 
        }
 
 
    }
 
+
+
+   //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
+
+   passAcceptanceCriteria = true; // true by default
+   bool passLeadingElectron = false;
+
+   for (size_t i = 0; i < iGL.size(); i++){
+
+       if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}
+
+       if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAcceptanceCriteria = false; break;}
+       if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAcceptanceCriteria = false; break;}
+       if (fabs(GenLeptonSel_eta[i]) > 2){ passAcceptanceCriteria = false; break;}
+
+   }
+
+   if (passLeadingElectron == false) {passAcceptanceCriteria = false;}
+   
+   if (GenNeutralinoSel_Lxy[0] > 50 || GenNeutralinoSel_Lxy[1] > 50){ passAcceptanceCriteria = false;}
+
+
+   //////////////////////////////////////// MET ////////////////////////////////////////
+
+   const pat::MET &met = (*METs)[0]; // access the MET object
+
+   MET_pt = met.pt();
+   MET_phi = met.phi();
+   MET_sumEt = met.sumEt();
+   MET_corPt = met.corPt();
+   MET_corPhi = met.corPhi();
+   MET_uncorPt = met.uncorPt();
+   MET_uncorPhi = met.uncorPhi();
+   MET_metSignificance = met.metSignificance();
+
+   if (isMC) {
+
+        MET_genPt = met.genMET()->pt(); 
+        MET_genPhi = met.genMET()->phi();
+
+   } else { 
+
+        MET_genPt = -99;
+        MET_genPhi = -99;
+
+   }
+
+
+   // Specific PFMET stuff (Supposed to be filled always):
+   if (met.isPFMET()){
+
+       MET_NeutralEMFraction = met.NeutralEMFraction();
+       MET_NeutralHadEtFraction = met.NeutralHadEtFraction();
+       MET_ChargedEMEtFraction = met.ChargedEMEtFraction();
+       MET_ChargedHadEtFraction = met.ChargedHadEtFraction();
+       MET_MuonEtFraction = met.MuonEtFraction();
+       MET_Type6EtFraction = met.Type6EtFraction();
+       MET_Type7EtFraction = met.Type7EtFraction();
+
+   } else {
+
+       MET_NeutralEMFraction = -99;
+       MET_NeutralHadEtFraction = -99;
+       MET_ChargedEMEtFraction = -99;
+       MET_ChargedHadEtFraction = -99;
+       MET_MuonEtFraction = -99;
+       MET_Type6EtFraction = -99;
+       MET_Type7EtFraction = -99;
+
+   }
 
 
    /////////////////////////////////////////////////////////////////////////////////////
@@ -771,6 +959,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
            const pat::Photon & photon = (*photons)[iP.at(jp)];
+
+           // If the photon does not fulfill the preselection requirements the lepton candidate is not reconstructed
+           if (!goodPhoton(photon)) { continue; }
 
            float deltaPhi = fabs(photon.phi() - isotrack.phi());
            float deltaEta = fabs(photon.eta() - isotrack.eta());
@@ -1028,9 +1219,18 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_vz", IsoTrackSel_vz, "IsoTrackSel_vz[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_pfIsolationDR03", IsoTrackSel_pfIsolationDR03, "IsoTrackSel_pfIsolationDR03[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_miniPFIsolation", IsoTrackSel_miniPFIsolation, "IsoTrackSel_miniPFIsolation[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_relPfIsolationDR03", IsoTrackSel_relPfIsolationDR03, "IsoTrackSel_relPfIsolationDR03[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_relMiniPFIsolation", IsoTrackSel_relMiniPFIsolation, "IsoTrackSel_relMiniPFIsolation[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_isHighPurityTrack", IsoTrackSel_isHighPurityTrack, "IsoTrackSel_isHighPurityTrack[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidTrackerHits", IsoTrackSel_numberOfValidTrackerHits, "IsoTrackSel_numberOfValidTrackerHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelHits", IsoTrackSel_numberOfValidPixelHits, "IsoTrackSel_numberOfValidPixelHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_numberOfValidPixelBarrelHits", IsoTrackSel_numberOfValidPixelBarrelHits, "IsoTrackSel_numberOfValidPixelBarrelHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_numberOfValidPixelEndcapHits", IsoTrackSel_numberOfValidPixelEndcapHits, "IsoTrackSel_numberOfValidPixelEndcapHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_numberOfValidStripHits", IsoTrackSel_numberOfValidStripHits, "IsoTrackSel_numberOfValidStripHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_numberOfValidStripTIBHits", IsoTrackSel_numberOfValidStripTIBHits, "IsoTrackSel_numberOfValidStripTIBHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_numberOfValidStripTIDHits", IsoTrackSel_numberOfValidStripTIDHits, "IsoTrackSel_numberOfValidStripTIDHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_numberOfValidStripTOBHits", IsoTrackSel_numberOfValidStripTOBHits, "IsoTrackSel_numberOfValidStripTOBHits[nIsoTrack]/I");
+    tree_out->Branch("IsoTrackSel_numberOfValidStripTECHits", IsoTrackSel_numberOfValidStripTECHits, "IsoTrackSel_numberOfValidStripTECHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_fromPV", IsoTrackSel_fromPV, "IsoTrackSel_fromPV[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_PVx", IsoTrackSel_PVx, "IsoTrackSel_PVx[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_PVy", IsoTrackSel_PVy, "IsoTrackSel_PVy[nIsoTrack]/F");
@@ -1048,6 +1248,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
     tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
     tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
+    tree_out->Branch("PhotonSel_isGoodSC", PhotonSel_isGoodSC, "PhotonSel_isGoodSC[nPhoton]/I");
 
 
     ///////////////////////////////// ELECTRON BRANCHES /////////////////////////////////
@@ -1069,13 +1270,42 @@ void LongLivedAnalysis::beginJob()
 
     //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
 
-    tree_out->Branch("nGenParticle", &nGenParticle, "nGenParticle/I");
-    tree_out->Branch("GenParticleSel_pt", GenParticleSel_pt, "GenParticleSel_pt[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_eta", GenParticleSel_eta, "GenParticleSel_eta[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_phi", GenParticleSel_phi, "GenParticleSel_phi[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_dxy", GenParticleSel_dxy, "GenParticleSel_dxy[nGenParticle]/F");
-    tree_out->Branch("GenParticleSel_pdgId", GenParticleSel_pdgId, "GenParticleSel_pdgId[nGenParticle]/I");
+    tree_out->Branch("nGenLepton", &nGenLepton, "nGenLepton/I");
+    tree_out->Branch("GenLeptonSel_pt", GenLeptonSel_pt, "GenLeptonSel_pt[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_et", GenLeptonSel_et, "GenLeptonSel_et[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_eta", GenLeptonSel_eta, "GenLeptonSel_eta[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_phi", GenLeptonSel_phi, "GenLeptonSel_phi[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_dxy", GenLeptonSel_dxy, "GenLeptonSel_dxy[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
 
+
+    tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");
+    tree_out->Branch("GenNeutralinoSel_pt", GenNeutralinoSel_pt, "GenNeutralinoSel_pt[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_eta", GenNeutralinoSel_eta, "GenNeutralinoSel_eta[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_phi", GenNeutralinoSel_phi, "GenNeutralinoSel_phi[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_Lxy", GenNeutralinoSel_Lxy, "GenNeutralinoSel_Lxy[nGenNeutralino]/F");
+    tree_out->Branch("GenNeutralinoSel_pdgId", GenNeutralinoSel_pdgId, "GenNeutralinoSel_pdgId[nGenNeutralino]/I");
+
+    //////////////////////////////////// MET BRANCHES ///////////////////////////////////
+
+    tree_out->Branch("MET_pt", &MET_pt, "MET_pt/F");
+    tree_out->Branch("MET_phi", &MET_phi, "MET_phi/F");
+    tree_out->Branch("MET_sumEt", &MET_sumEt, "MET_sumEt/F");
+    tree_out->Branch("MET_genPt", &MET_genPt, "MET_genPt/F");
+    tree_out->Branch("MET_genPhi", &MET_genPhi, "MET_genPhi/F");
+    tree_out->Branch("MET_corPt", &MET_corPt, "MET_corPt/F");
+    tree_out->Branch("MET_corPhi", &MET_corPhi, "MET_corPhi/F");
+    tree_out->Branch("MET_uncorPt", &MET_uncorPt, "MET_uncorPt/F");
+    tree_out->Branch("MET_uncorPhi", &MET_uncorPhi, "MET_uncorPhi/F");
+    tree_out->Branch("MET_metSignificance", &MET_metSignificance, "MET_metSignificance/F");
+    tree_out->Branch("MET_NeutralEMFraction", &MET_NeutralEMFraction, "MET_NeutralEMFraction/F");
+    tree_out->Branch("MET_NeutralHadEtFraction", &MET_NeutralHadEtFraction, "MET_NeutralHadEtFraction/F");
+    tree_out->Branch("MET_ChargedEMEtFraction", &MET_ChargedEMEtFraction, "MET_ChargedEMEtFraction/F");
+    tree_out->Branch("MET_ChargedHadEtFraction", &MET_ChargedHadEtFraction, "MET_ChargedHadEtFraction/F");
+    tree_out->Branch("MET_MuonEtFraction", &MET_MuonEtFraction, "MET_MuonEtFraction/F");
+    tree_out->Branch("MET_Type6EtFraction", &MET_Type6EtFraction, "MET_Type6EtFraction/F");
+    tree_out->Branch("MET_Type7EtFraction", &MET_Type7EtFraction, "MET_Type7EtFraction/F");
 
 
     //////////////////////////// ELECTRON CANDIDATE BRANCHES ////////////////////////////
@@ -1088,6 +1318,10 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronCandidate_photonIdx", ElectronCandidate_photonIdx, "ElectronCandidate_photonIdx[nElectronCandidate]/I");
     tree_out->Branch("ElectronCandidate_isotrackIdx", ElectronCandidate_isotrackIdx, "ElectronCandidate_isotrackIdx[nElectronCandidate]/I");
 
+
+    ///////////////////////////////// ACCEPTANCE CRITERIA //////////////////////////////
+
+    tree_out->Branch("passAcceptanceCriteria", &passAcceptanceCriteria, "passAcceptanceCriteria/O");
 
 
     ////////////////////////////// MUON CANDIDATE BRANCHES /////////////////////////////
