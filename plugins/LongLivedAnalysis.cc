@@ -202,6 +202,8 @@ Float_t IsoTrackSel_vy[nIsoTrackMax];
 Float_t IsoTrackSel_vz[nIsoTrackMax];
 Float_t IsoTrackSel_pfIsolationDR03[nIsoTrackMax];
 Float_t IsoTrackSel_miniPFIsolation[nIsoTrackMax];
+Float_t IsoTrackSel_relPfIsolationDR03[nIsoTrackMax];
+Float_t IsoTrackSel_relMiniPFIsolation[nIsoTrackMax];
 Int_t IsoTrackSel_isHighPurityTrack[nIsoTrackMax];
 Int_t IsoTrackSel_numberOfValidTrackerHits[nIsoTrackMax];
 Int_t IsoTrackSel_numberOfValidPixelHits[nIsoTrackMax];
@@ -634,7 +636,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        IsoTrackSel_pfIsolationDR03[i] = pfiso.chargedHadronIso() + pfiso.neutralHadronIso() + pfiso.photonIso() + pfiso.puChargedHadronIso();
        IsoTrackSel_miniPFIsolation[i] = minipfiso.chargedHadronIso() + minipfiso.neutralHadronIso() + minipfiso.photonIso() + minipfiso.puChargedHadronIso();
-
+       IsoTrackSel_relPfIsolationDR03[i] = IsoTrackSel_pfIsolationDR03[i]/isotrack.pt();
+       IsoTrackSel_relMiniPFIsolation[i] = IsoTrackSel_miniPFIsolation[i]/isotrack.pt();
 
        // Quality info:
        IsoTrackSel_isHighPurityTrack[i] = isotrack.isHighPurityTrack();
@@ -1215,6 +1218,8 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_vz", IsoTrackSel_vz, "IsoTrackSel_vz[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_pfIsolationDR03", IsoTrackSel_pfIsolationDR03, "IsoTrackSel_pfIsolationDR03[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_miniPFIsolation", IsoTrackSel_miniPFIsolation, "IsoTrackSel_miniPFIsolation[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_relPfIsolationDR03", IsoTrackSel_relPfIsolationDR03, "IsoTrackSel_relPfIsolationDR03[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_relMiniPFIsolation", IsoTrackSel_relMiniPFIsolation, "IsoTrackSel_relMiniPFIsolation[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_isHighPurityTrack", IsoTrackSel_isHighPurityTrack, "IsoTrackSel_isHighPurityTrack[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidTrackerHits", IsoTrackSel_numberOfValidTrackerHits, "IsoTrackSel_numberOfValidTrackerHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelHits", IsoTrackSel_numberOfValidPixelHits, "IsoTrackSel_numberOfValidPixelHits[nIsoTrack]/I");
