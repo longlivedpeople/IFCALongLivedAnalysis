@@ -14,7 +14,7 @@ longlivedanalyzer = cms.EDAnalyzer('LongLivedAnalysis',
     IsoTrackCollection = cms.InputTag("isolatedTracks"),
     METCollection = cms.InputTag("slimmedMETs"),
     PrimaryVertexCollection = cms.InputTag("offlineSlimmedPrimaryVertices"),
-    bits = cms.InputTag("TriggerResults","","HLT"),
+    bits = cms.InputTag("TriggerResults","","HLT2"),
     prescales = cms.InputTag("patTrigger"),
     objects = cms.InputTag("slimmedPatTrigger"),
 )

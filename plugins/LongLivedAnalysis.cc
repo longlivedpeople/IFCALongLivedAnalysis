@@ -164,9 +164,13 @@ Int_t Event_event;
 Int_t Event_luminosityBlock;
 Int_t Event_run;
 
+//-> TRIGGER TAGS
+Bool_t Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6;
+Bool_t Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8;
 
 //-> PRIMARY VERTEX SELECTION
 Int_t nPV;
+Int_t nTruePV;
 Float_t PV_vx;
 Float_t PV_vy;
 Float_t PV_vz;
@@ -234,6 +238,11 @@ Float_t PhotonSel_hadronicOverEm[nPhotonMax];
 Float_t PhotonSel_full5x5_sigmaIetaIeta[nPhotonMax];
 Int_t PhotonSel_isEB[nPhotonMax];
 Int_t PhotonSel_isEE[nPhotonMax];
+Float_t PhotonSel_r9[nPhotonMax];
+Float_t PhotonSel_ecalIso[nPhotonMax];
+Float_t PhotonSel_hcalIso[nPhotonMax];
+Float_t PhotonSel_caloIso[nPhotonMax];
+Float_t PhotonSel_relIso[nPhotonMax];
 Int_t PhotonSel_isGoodSC[nPhotonMax];
 
 //-> ELECTRON SELECTION
@@ -481,7 +490,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
-   iEvent.getByToken(triggerPrescales_, triggerPrescales);
+   //iEvent.getByToken(triggerPrescales_, triggerPrescales);
 
    iEvent.getByToken(theBeamSpot, beamSpot);
 
@@ -512,12 +521,22 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    BeamSpot_BeamWidthY = beamSpotObject.BeamWidthY();
 
 
+   /////////////////////////////// TRIGGER ACCEPTANCE //////////////////////////////////
+
+   const std::string muonTriggerName = "HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6";
+   //"HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v7"; // default 
+   const std::string photonTriggerName = "HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8";
+   //"HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v9";
+
+   const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
+
+   Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6 = triggerBits->accept(names.triggerIndex(photonTriggerName));
+   Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8 = triggerBits->accept(names.triggerIndex(muonTriggerName));
+
+
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
  
    std::vector<int> iMT; // muon trigger object indexes 
-   const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
-
-   std::string muonTriggerName = "HLT_DoubleMu43NoFiltersNoVtx_v3"; // default 
 
    // Loop to get Muon Trigger objects:
    for (size_t i = 0; i < triggerObjects->size(); i++) 
@@ -531,7 +550,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        obj.unpackFilterLabels(iEvent, *triggerBits);    
 
 
-       bool isMuonTriggerObject = obj.hasPathName( muonTriggerName, true, true );
+       bool isMuonTriggerObject = obj.hasPathName( "HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6", true, true );
 
        if (!isMuonTriggerObject) { continue; }
 
@@ -565,18 +584,18 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    /////  -> Code from twiki here: Print trigger info:
+    
+   //const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
    /* 
-   const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
-
    std::cout << "\n == TRIGGER PATHS= " << std::endl;
     for (unsigned int i = 0, n = triggerBits->size(); i < n; ++i) {
         std::cout << "Trigger " << names.triggerName(i) <<
-                ", prescale " << triggerPrescales->getPrescaleForIndex(i) <<
                 ": " << (triggerBits->accept(i) ? "PASS" : "fail (or not run)")
                 << std::endl;
     }
 
-
+    */
+    /*
     
 
     std::cout << "\n TRIGGER OBJECTS " << std::endl;
@@ -625,10 +644,15 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
 
-
+   nTruePV = 0;
    nPV = primaryvertices->size();
    //const reco::Vertex &thevertex = (*primaryvertices)[0];
+   for (size_t i = 0; i < primaryvertices->size(); i ++){
 
+       const reco::Vertex &current_vertex = (*primaryvertices)[i];
+       if(current_vertex.isValid()){ nTruePV++; }
+
+   }
 
 
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
@@ -749,7 +773,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    nPhoton = iP.size();
-   // Loop over the good photons
+   // Loop over the photons
    for (size_t i = 0; i < iP.size(); ++i){
 
        const pat::Photon & photon = (*photons)[iP.at(i)];
@@ -761,6 +785,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        PhotonSel_full5x5_sigmaIetaIeta[i] = photon.full5x5_sigmaIetaIeta();
        PhotonSel_isEB[i] = photon.isEB();
        PhotonSel_isEE[i] = photon.isEE();
+       PhotonSel_r9[i] = photon.r9();
+
+       PhotonSel_hcalIso[i] = photon.hcalIso();
+       PhotonSel_ecalIso[i] = photon.ecalIso();
+       PhotonSel_caloIso[i] = photon.caloIso();
+       PhotonSel_relIso[i] = photon.caloIso()/photon.et();
 
        if (goodPhoton(photon)){PhotonSel_isGoodSC[i] = 1; }
        else {PhotonSel_isGoodSC[i] = 0; }
@@ -1241,6 +1271,10 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("Event_run", &Event_run, "Event_run/I");
     tree_out->Branch("Event_luminosityBlock", &Event_luminosityBlock, "Event_luminosityBlock/I");
 
+    ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
+
+    tree_out->Branch("Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6", &Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6, "Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6/O");
+    tree_out->Branch("Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8", &Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8, "Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8/O");
 
     ///////////////////////////////// BEAM SPOT BRANCHES ////////////////////////////////
 
@@ -1254,6 +1288,7 @@ void LongLivedAnalysis::beginJob()
     ////////////////////////////// PRIMARY VERTEX BRANCHES //////////////////////////////
 
     tree_out->Branch("nPV", &nPV, "nPV/I");
+    tree_out->Branch("nTruePV", &nTruePV, "nTruePV/I");
     tree_out->Branch("PV_vx", &PV_vx, "PV_vx/F");
     tree_out->Branch("PV_vy", &PV_vy, "PV_vy/F");
     tree_out->Branch("PV_vz", &PV_vz, "PV_vz/F");
@@ -1313,6 +1348,11 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
     tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
     tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
+    tree_out->Branch("PhotonSel_r9", PhotonSel_r9, "PhotonSel_r9[nPhoton]/F");
+    tree_out->Branch("PhotonSel_ecalIso", PhotonSel_ecalIso, "PhotonSel_ecalIso[nPhoton]/F");
+    tree_out->Branch("PhotonSel_hcalIso", PhotonSel_hcalIso, "PhotonSel_hcalIso[nPhoton]/F");
+    tree_out->Branch("PhotonSel_caloIso", PhotonSel_caloIso, "PhotonSel_caloIso[nPhoton]/F");
+    tree_out->Branch("PhotonSel_relIso", PhotonSel_relIso, "PhotonSel_relIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_isGoodSC", PhotonSel_isGoodSC, "PhotonSel_isGoodSC[nPhoton]/I");
 
 
