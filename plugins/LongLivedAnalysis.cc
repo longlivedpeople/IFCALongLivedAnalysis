@@ -32,10 +32,10 @@
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
-
+#include "SimDataFormats/GeneratorProducts/interface/HepMCProduct.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenRunInfoProduct.h"
-
+#include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h" 
 
 #include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
@@ -163,6 +163,9 @@ bool isLongLivedLepton(const reco::GenParticle &p)
 Int_t Event_event;
 Int_t Event_luminosityBlock;
 Int_t Event_run;
+Int_t nPU;
+Int_t nPUTrue;
+Float_t genWeight;
 
 //-> TRIGGER TAGS
 Bool_t Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6;
@@ -375,8 +378,6 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       std::string output_filename;
       edm::ParameterSet parameters;
 
-
-
       edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
       edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
@@ -393,6 +394,12 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // Gen collection
       edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;
+      
+      edm::EDGetTokenT<GenEventInfoProduct>  theGenEventInfoProduct;
+      edm::EDGetTokenT<std::vector<PileupSummaryInfo> >  thePileUpSummary;
+
+      
+
 
       //"Global" variables
       std::vector<int> iT; // track indexes
@@ -400,6 +407,8 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // Class functions
       bool buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrack> > const& isotracks, int idxA, int idxB, bool isEE);
+
+      TH1F *counts, *sum2Weights;
 };
 //=======================================================================================================================================================================================================================//
 
@@ -413,6 +422,8 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    
    parameters = iConfig;
 
+   counts = new TH1F("counts", "", 1, 0, 1);
+   sum2Weights = new TH1F("sum2Weights", "", 1, 0, 1);
 
    theElectronCollection = consumes<edm::View<pat::Electron> >  (parameters.getParameter<edm::InputTag>("ElectronCollection"));
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
@@ -432,6 +443,9 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
 
    theGenParticleCollection = consumes<edm::View<reco::GenParticle> >  (parameters.getParameter<edm::InputTag>("genParticleCollection"));
 
+   theGenEventInfoProduct = consumes<GenEventInfoProduct> (parameters.getParameter<edm::InputTag>("theGenEventInfoProduct"));
+
+   thePileUpSummary = consumes<std::vector<PileupSummaryInfo> > (parameters.getParameter<edm::InputTag>("thePileUpSummary"));
 
 }
 //=======================================================================================================================================================================================================================//
@@ -477,8 +491,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    edm::Handle<edm::View<reco::GenParticle> > genParticles;
 
+   edm::Handle<GenEventInfoProduct> genEvtInfo;
 
-
+   edm::Handle<std::vector<PileupSummaryInfo> > puInfoH;
 
    iEvent.getByToken(theElectronCollection, electrons);
    iEvent.getByToken(thePhotonCollection, photons);
@@ -495,12 +510,15 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(theBeamSpot, beamSpot);
 
    iEvent.getByToken(theGenParticleCollection, genParticles);
+    
+   iEvent.getByToken(theGenEventInfoProduct, genEvtInfo);
+
+   iEvent.getByToken(thePileUpSummary, puInfoH);
+
 
 
    /////////////////////////////////// MC OR DATA //////////////////////////////////////
-
    bool isMC = true;
-
 
    /////////////////////////////////// EVENT INFO //////////////////////////////////////
 
@@ -509,8 +527,18 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    Event_run = iEvent.id().run();
    Event_luminosityBlock = iEvent.id().luminosityBlock();
    
+   genWeight = (float) genEvtInfo->weight();
+   counts->Fill(0.5);
+   sum2Weights->Fill(0.5, genWeight*genWeight);
 
+   //////////////////////////////////// PILE UP ////////////////////////////////////////
 
+   for(size_t i=0;i<puInfoH->size();++i) {
+       if( puInfoH->at(i).getBunchCrossing() == 0) {
+            nPU = puInfoH->at(i).getPU_NumInteractions();
+            nPUTrue = puInfoH->at(i).getTrueNumInteractions();                                          
+       }
+   }
    //////////////////////////////////// BEAM SPOT //////////////////////////////////////
 
    reco::BeamSpot beamSpotObject = *beamSpot;
@@ -1270,6 +1298,10 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("Event_event", &Event_event, "Event_event/I");
     tree_out->Branch("Event_run", &Event_run, "Event_run/I");
     tree_out->Branch("Event_luminosityBlock", &Event_luminosityBlock, "Event_luminosityBlock/I");
+    
+    tree_out->Branch("nPU", &nPU, "nPU/I");
+    tree_out->Branch("nPUTrue", &nPUTrue, "nPUTrue/I");
+    tree_out->Branch("genWeight", &genWeight, "genWeight/F");
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
 
@@ -1466,9 +1498,10 @@ void LongLivedAnalysis::beginJob()
 void LongLivedAnalysis::endJob() 
 {
 
-
     file_out->cd();
     tree_out->Write();
+    counts->Write();
+    sum2Weights->Write();
     file_out->Close();
 
 }
