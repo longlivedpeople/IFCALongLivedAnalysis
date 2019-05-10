@@ -152,6 +152,20 @@ bool isLongLivedLepton(const reco::GenParticle &p)
 }
 
 
+float getDeltaR(float phi1, float eta1, float phi2, float eta2)
+{
+
+    float dPhi = fabs(phi1 - phi2);
+    if (dPhi > 3.14) {dPhi = 2*3.14 - dPhi;}
+    float dEta = eta1 - eta2;
+
+    float dR = sqrt(dPhi*dPhi + dEta*dEta);
+
+    return dR;
+
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// DATA DEFINITION //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -566,6 +580,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
  
    std::vector<int> iMT; // muon trigger object indexes 
 
+   std::cout << triggerObjects->size() << std::endl;
+
    // Loop to get Muon Trigger objects:
    for (size_t i = 0; i < triggerObjects->size(); i++) 
    {
@@ -623,7 +639,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
     }
 
     */
-    /*
+    
     
 
     std::cout << "\n TRIGGER OBJECTS " << std::endl;
@@ -667,7 +683,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
     }
     std::cout << std::endl;
 
-   */
+   
 
 
    ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
@@ -1019,123 +1035,109 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////////////////////////////////////////////////////////////
 
 
-   int e = 0; // index of the electron candidate
-   int m = 0; // index of the muon candidate
-   float deltaR_min; // variable ot found the minimum deltaR
-
-   std::vector<int> matched_clusters; // free clusters to match
-
-   std::vector<int> matched_triggerObjects; // free trigger objects to match
-
-   int m_cluster;
-   int m_triggerObject;
+   // Variable initiallization
+   std::vector<int> matched_tracks, matched_SC, matched_triggerObjects;
+   float dRMin = 0; 
+   float dRThreshold = 0.1;
+   float dR;
+   int matching_type = 0; // 0 if electron; 1 if muon
+   int tmin, scmin, tomin, li;
 
 
-   // Loop over the isolated tracks to do a lepton matching
-   for (size_t i = 0; i < iT.size(); ++i){
+   while (1){
 
-       const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(i)];
-       
-       // Matching variables initiallization:
-       deltaR_min = 10.; 
-       m_cluster = -99;
-       m_triggerObject = -99;
+       dRMin = 99999; // redefinicion
+       matching_type = 99;
 
-       // Electron matching
-       for (size_t jp = 0; jp < iP.size(); ++jp){
+       // Loop over the tracks
+       for (size_t t = 0; t < iT.size(); t ++){
 
+           const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(t)];
 
-           const pat::Photon & photon = (*photons)[iP.at(jp)];
-
-           // If the photon does not fulfill the preselection requirements the lepton candidate is not reconstructed
-           if (!goodPhoton(photon)) { continue; }
-
-           float deltaPhi = fabs(photon.phi() - isotrack.phi());
-           float deltaEta = fabs(photon.eta() - isotrack.eta());
-           float deltaR = sqrt(deltaPhi*deltaPhi + deltaEta*deltaEta);
-
-           if (deltaR < 0.1 && deltaR < deltaR_min){
-
-               m_cluster = jp;
-               deltaR_min = deltaR;
-
-           }           
-
-       }
+           if(std::find(matched_tracks.begin(), matched_tracks.end(), t) != matched_tracks.end()){ continue; }
+           if(!goodTrack(isotrack)){ continue; }
 
 
-       // Muon matching
-       for (size_t jm = 0; jm < iMT.size(); ++jm){
+           // Loop over the superclusters
+           for (size_t sc = 0; sc < iP.size(); sc++){
 
+               const pat::Photon & photon = (*photons)[iP.at(sc)];
 
-           pat::TriggerObjectStandAlone obj = (*triggerObjects)[iMT.at(jm)];
+               if(std::find(matched_SC.begin(), matched_SC.end(), sc) != matched_SC.end()){ continue; }
+               if (!goodPhoton(photon)){ continue; }
+              
+               // ------------ SC matching -------------
+               dR = getDeltaR(isotrack.phi(), isotrack.eta(), photon.phi(), photon.eta());
+                      
+               if (dR < dRMin){
 
-           obj.unpackPathNames(names);
-           obj.unpackFilterLabels(iEvent, *triggerBits);
+                   dRMin = dR;
+                   matching_type = 0;
+                   scmin = sc;
+                   tmin = t;
 
-           float deltaPhi = fabs(obj.phi() - isotrack.phi());
-           float deltaEta = fabs(obj.eta() - isotrack.eta());
-           float deltaR = sqrt(deltaPhi*deltaPhi + deltaEta*deltaEta);
-
-           if (deltaR < 0.1 && deltaR < deltaR_min){
-
-               m_triggerObject = jm; m_cluster = -99;
-               deltaR_min = deltaR;
-
+               }
            }
 
+
+           // Loop over the muon trigger objecs
+           for (size_t to = 0; to < iMT.size(); to++){
+
+               pat::TriggerObjectStandAlone muon = (*triggerObjects)[iMT.at(to)];
+
+               if(std::find(matched_triggerObjects.begin(), matched_triggerObjects.end(), to) != matched_triggerObjects.end()){ continue; }
+
+               // ------------ trigger Object matching --------------
+               dR = getDeltaR(isotrack.phi(), isotrack.eta(), muon.phi(), muon.eta());
+
+               std::cout << dR << std::endl;
+
+               if (dR < dRMin){
+
+                   dRMin = dR;
+                   matching_type = 1;
+                   tomin = to;
+                   tmin = t;
+
+               }
+           }
        }
 
 
-       // Final lepton matching
-       if (m_cluster == -99 && m_triggerObject == -99){ continue; // no matching
-       }
-       else if(m_cluster == -99 && m_triggerObject != -99){ // muon candidate found
-       
-            pat::TriggerObjectStandAlone obj = (*triggerObjects)[iMT.at(m_triggerObject)];
+       if (dRMin > dRThreshold){ break; } // Here we go out the while loop
 
-            obj.unpackPathNames(names);
-            obj.unpackFilterLabels(iEvent, *triggerBits);
-  
-            if(std::find(matched_triggerObjects.begin(), matched_triggerObjects.end(), m_triggerObject) != matched_triggerObjects.end()){ continue; }
- 
-            MuonCandidate_pt[m] = isotrack.pt();
-            MuonCandidate_phi[m] = isotrack.phi();
-            MuonCandidate_eta[m] = isotrack.eta();
-            MuonCandidate_muonTriggerObjectIdx[m] = m_triggerObject;
-            MuonCandidate_isotrackIdx[m] = i;
-            matched_triggerObjects.push_back(m_triggerObject);
+       if (matching_type == 0){
 
-            m++; // Next muon candidate
+           li = matched_SC.size();
+           ElectronCandidate_pt[li] = (*isotracks)[tmin].pt();
+           ElectronCandidate_eta[li] = (*isotracks)[tmin].eta();
+           ElectronCandidate_phi[li] = (*isotracks)[tmin].phi();
+           ElectronCandidate_et[li] = (*photons)[scmin].et();
+           ElectronCandidate_photonIdx[li] = scmin;
+           ElectronCandidate_isotrackIdx[li] = tmin;
+
+           matched_SC.push_back(scmin); matched_tracks.push_back(tmin);
 
 
-       }
-       else if(m_cluster != -99 && m_triggerObject == -99){ // electron candidate found
-     
-           if(std::find(matched_clusters.begin(), matched_clusters.end(), m_cluster) != matched_clusters.end()){ continue; }
+       } else if (matching_type == 1){
 
-           const pat::Photon & photon = (*photons)[iP.at(m_cluster)];
+           li = matched_triggerObjects.size();
+           
+           MuonCandidate_pt[li] = (*isotracks)[tmin].pt();
+           MuonCandidate_eta[li] = (*isotracks)[tmin].eta();
+           MuonCandidate_phi[li] = (*isotracks)[tmin].phi();
+           MuonCandidate_muonTriggerObjectIdx[li] = tomin;
+           MuonCandidate_isotrackIdx[li] = tmin;
 
-           ElectronCandidate_pt[e] = isotrack.pt();
-           ElectronCandidate_et[e] = photon.et();
-           ElectronCandidate_phi[e] = isotrack.phi();
-           ElectronCandidate_eta[e] = isotrack.eta();
-           ElectronCandidate_photonIdx[e] = m_cluster;
-           ElectronCandidate_isotrackIdx[e] = i;
-           matched_clusters.push_back(m_cluster);
-               
-           e++; // Next electron candidate
+           matched_triggerObjects.push_back(tomin); matched_tracks.push_back(tmin);
 
        }
-
-
+         
    }
- 
-   nElectronCandidate = e; // number of electron candidates = last idx filled + 1
-   nMuonCandidate = m; // number of muon candidates = last idx filled + 1
 
+   nElectronCandidate = matched_SC.size();
+   nMuonCandidate = matched_triggerObjects.size();
 
- 
  
    /////////////////////////////////////////////////////////////////////////////////////
    ////////////////////////////////// VERTEX REFITTING /////////////////////////////////
