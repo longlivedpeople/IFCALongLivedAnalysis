@@ -339,6 +339,7 @@ Int_t nMuonCandidate;
 Float_t MuonCandidate_pt[nMuonCandidateMax];
 Float_t MuonCandidate_eta[nMuonCandidateMax];
 Float_t MuonCandidate_phi[nMuonCandidateMax];
+Float_t MuonCandidate_triggerPt[nMuonCandidateMax];
 Int_t MuonCandidate_muonTriggerObjectIdx[nMuonCandidateMax];
 Int_t MuonCandidate_isotrackIdx[nMuonCandidateMax];
 
@@ -580,7 +581,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
  
    std::vector<int> iMT; // muon trigger object indexes 
 
-   std::cout << triggerObjects->size() << std::endl;
 
    // Loop to get Muon Trigger objects:
    for (size_t i = 0; i < triggerObjects->size(); i++) 
@@ -640,7 +640,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
     */
     
-    
+   /* 
 
     std::cout << "\n TRIGGER OBJECTS " << std::endl;
 
@@ -683,7 +683,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
     }
     std::cout << std::endl;
 
-   
+   */
 
 
    ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
@@ -1035,14 +1035,18 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////////////////////////////////////////////////////////////
 
 
-   // Variable initiallization
-   std::vector<int> matched_tracks, matched_SC, matched_triggerObjects;
-   float dRMin = 0; 
-   float dRThreshold = 0.1;
-   float dR;
-   int matching_type = 0; // 0 if electron; 1 if muon
-   int tmin, scmin, tomin, li;
+   // Variable initiallization:
 
+   std::vector<int> matched_tracks, matched_SC, matched_triggerObjects; // std vectors with matched objects to avoid overlapping
+
+   float dRMin = 99999; // dR to minimize as high as possible in the beginning
+   float dRThreshold = 0.1; // Maximum dR to do the lepton matching
+   float dR; // Computation of dR
+   int matching_type = 0; // 0 if electron; 1 if muon
+   int tmin, scmin, tomin, li; // minimum track, minimum SC, minimum trigger object, reconstructed lepton index
+
+
+   // while loop that looks for the minimum matchings and stops when the dRThreshold is reached:
 
    while (1){
 
@@ -1054,16 +1058,21 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
            const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(t)];
 
+           // pass if the track is associated already:
            if(std::find(matched_tracks.begin(), matched_tracks.end(), t) != matched_tracks.end()){ continue; }
+           // pass if the track does not fulfil the prerequisites:
            if(!goodTrack(isotrack)){ continue; }
 
 
-           // Loop over the superclusters
+           // Loop over the superclusters:
            for (size_t sc = 0; sc < iP.size(); sc++){
 
                const pat::Photon & photon = (*photons)[iP.at(sc)];
 
+               // pass if the SC is associated to other track:
                if(std::find(matched_SC.begin(), matched_SC.end(), sc) != matched_SC.end()){ continue; }
+
+               // pass if the SC does not fulfil the prerequisites:
                if (!goodPhoton(photon)){ continue; }
               
                // ------------ SC matching -------------
@@ -1085,12 +1094,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
                pat::TriggerObjectStandAlone muon = (*triggerObjects)[iMT.at(to)];
 
+               // pass if the trigger muon is associated to other track
                if(std::find(matched_triggerObjects.begin(), matched_triggerObjects.end(), to) != matched_triggerObjects.end()){ continue; }
 
                // ------------ trigger Object matching --------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), muon.phi(), muon.eta());
-
-               std::cout << dR << std::endl;
 
                if (dR < dRMin){
 
@@ -1126,7 +1134,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            MuonCandidate_pt[li] = (*isotracks)[tmin].pt();
            MuonCandidate_eta[li] = (*isotracks)[tmin].eta();
            MuonCandidate_phi[li] = (*isotracks)[tmin].phi();
-           MuonCandidate_muonTriggerObjectIdx[li] = tomin;
+           MuonCandidate_triggerPt[li] = (*triggerObjects)[tomin].pt();
+           MuonCandidate_muonTriggerObjectIdx[li] = tomin; // not well defined
            MuonCandidate_isotrackIdx[li] = tmin;
 
            matched_triggerObjects.push_back(tomin); matched_tracks.push_back(tmin);
@@ -1469,6 +1478,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonCandidate_pt", MuonCandidate_pt, "MuonCandidate_pt[nMuonCandidate]/F");
     tree_out->Branch("MuonCandidate_eta", MuonCandidate_eta, "MuonCandidate_eta[nMuonCandidate]/F");
     tree_out->Branch("MuonCandidate_phi", MuonCandidate_phi, "MuonCandidate_phi[nMuonCandidate]/F");
+    tree_out->Branch("MuonCandidate_triggerPt", MuonCandidate_triggerPt, "MuonCandidate_triggerPt[nMuonCandidate]/F");
     tree_out->Branch("MuonCandidate_muonTriggerObjectIdx", MuonCandidate_muonTriggerObjectIdx, "MuonCandidate_muonTriggerObjectIdx[nMuonCandidate]/I");
     tree_out->Branch("MuonCandidate_isotrackIdx", MuonCandidate_isotrackIdx, "MuonCandidate_isotrackIdx[nMuonCandidate]/I");
 
