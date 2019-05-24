@@ -805,7 +805,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    // Select good photons
-   for (size_t i = 0; i < photons->size(); ++i){
+   for (size_t i = 0; i < photons->size(); i++){
        
        // this is the place to put any preselection if required
        iP.push_back(i);
@@ -818,7 +818,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    nPhoton = iP.size();
    // Loop over the photons
-   for (size_t i = 0; i < iP.size(); ++i){
+   for (size_t i = 0; i < iP.size(); i++){
 
        const pat::Photon & photon = (*photons)[iP.at(i)];
 
@@ -1054,7 +1054,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        matching_type = 99;
 
        // Loop over the tracks
-       for (size_t t = 0; t < iT.size(); t ++){
+       for (size_t t = 0; t < iT.size(); t++){
 
            const pat::IsolatedTrack & isotrack = (*isotracks)[iT.at(t)];
 
@@ -1078,7 +1078,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                // ------------ SC matching -------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), photon.phi(), photon.eta());
                       
-               if (dR < dRMin){
+               if (dR < dRMin && fabs(isotrack.pt() - photon.pt())/isotrack.pt() < 0.4){
 
                    dRMin = dR;
                    matching_type = 0;
@@ -1100,17 +1100,23 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                // ------------ trigger Object matching --------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), muon.phi(), muon.eta());
 
-               if (dR < dRMin){
+               if (dR < dRMin && fabs(isotrack.pt() - muon.pt())/isotrack.pt() < 0.4){
+
+                   /*
+                   std::cout<< "new: " << "\t"<< isotrack.phi() << "\t" << isotrack.eta() << "\t" << muon.phi() << "\t" << muon.eta() << std::endl;
+                   std::cout << dR << std::endl;
+                   */
 
                    dRMin = dR;
                    matching_type = 1;
-                   tomin = to;
+                   tomin = to; // careful cause it is not a muon trigger object of the ntuples
                    tmin = t;
 
                }
            }
        }
 
+       
 
        if (dRMin > dRThreshold){ break; } // Here we go out the while loop
 
