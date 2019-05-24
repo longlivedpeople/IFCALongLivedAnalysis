@@ -1078,7 +1078,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                // ------------ SC matching -------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), photon.phi(), photon.eta());
                       
-               if (dR < dRMin && fabs(isotrack.pt() - photon.pt())/isotrack.pt() < 0.4){
+               if (dR < dRMin){
 
                    dRMin = dR;
                    matching_type = 0;
@@ -1100,7 +1100,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                // ------------ trigger Object matching --------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), muon.phi(), muon.eta());
 
-               if (dR < dRMin && fabs(isotrack.pt() - muon.pt())/isotrack.pt() < 0.4){
+               if (dR < dRMin){
 
                    /*
                    std::cout<< "new: " << "\t"<< isotrack.phi() << "\t" << isotrack.eta() << "\t" << muon.phi() << "\t" << muon.eta() << std::endl;
