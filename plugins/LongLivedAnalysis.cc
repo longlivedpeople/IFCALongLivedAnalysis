@@ -982,127 +982,222 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    //////////////////////////////// GENLEPTON MATCHING ////////////////////////////////
 
-   std::vector<int> genMatchedTracks;
-   std::vector<int> genMatchedMuons;
-   std::vector<int> genMatchedPhotons;
+   std::vector<int> genMatchedGen;
+   std::vector<int> genMatchedObject;
 
-   float objectdR = 99;
-   float objectdRmin = 0.1;
-   float trackdR = 99;
-   float trackdRmin = 0.1;
+   float gdR = 99;
+   float gdRMin = 99;
+   int gindex = 99; // matched genparticle index
+   int oindex = 99; // matched object index
 
-   for (int i = 0; i < nGenLepton; i++)
+   // Note: While loops and 2D grid exploring stops when there is no pair below the dR threshold (0.1)
+
+
+   // ----> Track matching
+
+   // 2D grid double loop:
+   while (1) 
    {
 
-       // Threshold o do matching:
-       objectdRmin = 0.1;
-       trackdRmin = 0.1;
+       gdRMin = 99;
+       gindex = 99;
+       oindex = 99;
 
-       // Default values:
-       GenLeptonSel_objectMatch[i] = 99;
-       GenLeptonSel_trackMatch[i] = 99;
-       GenLeptonSel_objectdR[i] = 99;
-       GenLeptonSel_trackdR[i] = 99;
-       GenLeptonSel_hasValidPair[i] = 0;
-       GenLeptonSel_pairdR[i] = 99;
 
-       for (int j = 0; j < nIsoTrack; j++)
+       for (int i = 0; i < nGenLepton; i++)
        {
+           if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
 
-           if(std::find(genMatchedTracks.begin(), genMatchedTracks.end(), i) != genMatchedTracks.end()){ continue; }
-
-           // Track matching
-           trackdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
-
-           if (trackdR < trackdRmin)
+           for (int j = 0; j < nIsoTrack; j++)
            {
 
-               GenLeptonSel_trackMatch[i] = j;
-               trackdRmin = trackdR;
-               GenLeptonSel_trackdR[i] = trackdR;
+               if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
+
+               // Track matching
+               gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
+
+               if (gdR < gdRMin)
+               {
+
+                   gindex = i;
+                   oindex = j;
+                   gdRMin = gdR;
+
+               }
 
            }
 
-        }
-
-        // Muon channel:
-
-        if (abs(GenLeptonSel_pdgId[i]) == 13)
-        {
-            for (int k = 0; k < nMuonTriggerObject; k++)
-            {
-
-                if(std::find(genMatchedMuons.begin(), genMatchedMuons.end(), i) != genMatchedMuons.end()){ continue; }
-
-                objectdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], MuonTriggerObjectSel_phi[k], MuonTriggerObjectSel_eta[k]);
-
-                if (objectdR < objectdRmin)              
-                {
-
-                    GenLeptonSel_objectMatch[i] = k;
-                    objectdRmin = objectdR;
-                    GenLeptonSel_objectdR[i] = objectdR;
-
-                }
-            }
-        }
-
-        // Electron channel:
-
-        if (abs(GenLeptonSel_pdgId[i]) == 11)
-        {
-            for (int k = 0; k < nPhoton; k++)
-            {
-
-                if(std::find(genMatchedPhotons.begin(), genMatchedPhotons.end(), i) != genMatchedPhotons.end()){ continue; }
-
-                objectdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], PhotonSel_phi[k], PhotonSel_eta[k]);
-                   
-                if (objectdR < objectdRmin)
-                {
-
-                    GenLeptonSel_objectMatch[i] = k;
-                    objectdRmin = objectdR;
-                    GenLeptonSel_objectdR[i] = objectdR;
-
-                } 
-            }
-
-        }
+       }
 
 
-        std::cout << GenLeptonSel_trackdR[i] << std::endl;
+       if (gdRMin > 0.1){ break; }
 
+       GenLeptonSel_trackMatch[gindex] = oindex;
+       GenLeptonSel_trackdR[gindex] = gdRMin;
 
-        // If there is a proper match we store the indexes to not use them again
-        if (GenLeptonSel_trackMatch[i] != 99){ genMatchedTracks.push_back(GenLeptonSel_trackMatch[i]); }
-        if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_objectMatch[i] != 99) { genMatchedMuons.push_back(GenLeptonSel_objectMatch[i]); }
-        if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_objectMatch[i] != 99) { genMatchedPhotons.push_back(GenLeptonSel_objectMatch[i]); }
+       genMatchedGen.push_back(gindex);
+       genMatchedObject.push_back(oindex);
 
+   }
 
-        if (GenLeptonSel_trackMatch[i] != 99 && GenLeptonSel_objectMatch[i] != 99)
-        {
+   // Fill default values:
+   for (int i = 0; i < nGenLepton; i++)
+   {
 
-            GenLeptonSel_hasValidPair[i] = 1;
+   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
 
-            if (abs(GenLeptonSel_pdgId[i]) == 13)
-            {
+   GenLeptonSel_trackMatch[i] = 99;
+   GenLeptonSel_trackdR[i] = 99;
 
-                GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[GenLeptonSel_objectMatch[i]], MuonTriggerObjectSel_eta[GenLeptonSel_objectMatch[i]]);
-
-            }
-
-            if (abs(GenLeptonSel_pdgId[i]) == 11)
-            {
-
-                GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[GenLeptonSel_objectMatch[i]], PhotonSel_eta[GenLeptonSel_objectMatch[i]]);
-
-            }
-
-        }
    }
 
 
+   // ----> Clear the variables
+   genMatchedGen.clear(); genMatchedObject.clear();
+
+
+   
+   // ----> SuperCluster / Photon matching
+
+   // 2D grid double loop:
+   while (1) 
+   {
+
+       gdRMin = 99;
+       gindex = 99;
+       oindex = 99;
+
+
+       for (int i = 0; i < nGenLepton; i++)
+       {
+           if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+           if (abs(GenLeptonSel_pdgId[i]) != 11){ continue; } // check if it is an electron
+
+
+           for (int j = 0; j < nPhoton; j++)
+           {
+
+               if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
+
+               // Track matching
+               gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], PhotonSel_phi[j], PhotonSel_eta[j]);
+
+               if (gdR < gdRMin)
+               {
+
+                   gindex = i;
+                   oindex = j;
+                   gdRMin = gdR;
+
+               }
+
+           }
+
+       }
+
+
+       if (gdRMin > 0.1){ break; }
+
+       GenLeptonSel_objectMatch[gindex] = oindex;
+       GenLeptonSel_objectdR[gindex] = gdRMin;
+
+       genMatchedGen.push_back(gindex);
+       genMatchedObject.push_back(oindex);
+
+   }
+
+
+   // ----> Clear just the object vector variable:
+   genMatchedObject.clear();
+
+
+   // ----> Muon trigger object matching
+
+   // 2D grid double loop:
+   while (1) 
+   {
+
+       gdRMin = 99;
+       gindex = 99;
+       oindex = 99;
+
+
+       for (int i = 0; i < nGenLepton; i++)
+       {
+           if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+           if (abs(GenLeptonSel_pdgId[i]) != 13){ continue; } // check if it is a muon
+
+
+           for (int j = 0; j < nMuonTriggerObject; j++)
+           {
+
+               if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
+
+               // Track matching
+               gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
+
+               if (gdR < gdRMin)
+               {
+
+                   gindex = i;
+                   oindex = j;
+                   gdRMin = gdR;
+
+               }
+
+           }
+
+       }
+
+
+       if (gdRMin > 0.1){ break; }
+
+       GenLeptonSel_objectMatch[gindex] = oindex;
+       GenLeptonSel_objectdR[gindex] = gdRMin;
+
+       genMatchedGen.push_back(gindex);
+       genMatchedObject.push_back(oindex);
+
+   }
+
+   // Fill default values:
+   for (int i = 0; i < nGenLepton; i++)
+   {
+
+   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+
+   GenLeptonSel_objectMatch[i] = 99;
+   GenLeptonSel_objectdR[i] = 99;
+
+   }
+
+
+   // --> Pair variables
+   
+   for (int i = 0; i < nGenLepton; i++)
+   {
+
+       GenLeptonSel_pairdR[i] = 99; GenLeptonSel_hasValidPair[i] = 0;
+
+       if (GenLeptonSel_objectMatch[i] == 99 || GenLeptonSel_trackMatch[i] == 99){ continue; }
+
+       GenLeptonSel_hasValidPair[i] = 1;
+
+       if (abs(GenLeptonSel_pdgId[i]) == 11)
+       {
+
+           GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[GenLeptonSel_objectMatch[i]], PhotonSel_eta[GenLeptonSel_objectMatch[i]]);
+
+       }
+
+       if (abs(GenLeptonSel_pdgId[i]) == 13)
+       {
+
+           GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[GenLeptonSel_objectMatch[i]], MuonTriggerObjectSel_eta[GenLeptonSel_objectMatch[i]]);
+
+       }
+
+   }
 
 
 
