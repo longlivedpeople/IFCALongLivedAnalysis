@@ -166,6 +166,19 @@ float getDeltaR(float phi1, float eta1, float phi2, float eta2)
 }
 
 
+float checkRelativeMatching(float ratio, float a, float b)
+{
+
+   // ratio: maximum ratio that is allowed for the matching to be true
+
+   if (fabs(a - b)/a > ratio){ return false; }
+
+   return true;
+
+}
+
+
+
 /////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// DATA DEFINITION //////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -288,6 +301,13 @@ Float_t GenLeptonSel_phi[nGenLeptonMax];
 Int_t GenLeptonSel_pdgId[nGenLeptonMax];
 Float_t GenLeptonSel_dxy[nGenLeptonMax];
 Int_t GenLeptonSel_motherIdx[nGenLeptonMax];
+Int_t GenLeptonSel_objectMatch[nGenLeptonMax];
+Int_t GenLeptonSel_trackMatch[nGenLeptonMax];
+Float_t GenLeptonSel_objectdR[nGenLeptonMax];
+Float_t GenLeptonSel_trackdR[nGenLeptonMax];
+Int_t GenLeptonSel_hasValidPair[nGenLeptonMax];
+Float_t GenLeptonSel_pairdR[nGenLeptonMax];
+
 
 //-> GENNEUTRALINO SELECTION
 const Int_t nGenNeutralinoMax = 500;
@@ -960,6 +980,133 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
 
+   //////////////////////////////// GENLEPTON MATCHING ////////////////////////////////
+
+   std::vector<int> genMatchedTracks;
+   std::vector<int> genMatchedMuons;
+   std::vector<int> genMatchedPhotons;
+
+   float objectdR = 99;
+   float objectdRmin = 0.1;
+   float trackdR = 99;
+   float trackdRmin = 0.1;
+
+   for (int i = 0; i < nGenLepton; i++)
+   {
+
+       // Threshold o do matching:
+       objectdRmin = 0.1;
+       trackdRmin = 0.1;
+
+       // Default values:
+       GenLeptonSel_objectMatch[i] = 99;
+       GenLeptonSel_trackMatch[i] = 99;
+       GenLeptonSel_objectdR[i] = 99;
+       GenLeptonSel_trackdR[i] = 99;
+       GenLeptonSel_hasValidPair[i] = 0;
+       GenLeptonSel_pairdR[i] = 99;
+
+       for (int j = 0; j < nIsoTrack; j++)
+       {
+
+           if(std::find(genMatchedTracks.begin(), genMatchedTracks.end(), i) != genMatchedTracks.end()){ continue; }
+
+           // Track matching
+           trackdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
+
+           if (trackdR < trackdRmin)
+           {
+
+               GenLeptonSel_trackMatch[i] = j;
+               trackdRmin = trackdR;
+               GenLeptonSel_trackdR[i] = trackdR;
+
+           }
+
+        }
+
+        // Muon channel:
+
+        if (abs(GenLeptonSel_pdgId[i]) == 13)
+        {
+            for (int k = 0; k < nMuonTriggerObject; k++)
+            {
+
+                if(std::find(genMatchedMuons.begin(), genMatchedMuons.end(), i) != genMatchedMuons.end()){ continue; }
+
+                objectdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], MuonTriggerObjectSel_phi[k], MuonTriggerObjectSel_eta[k]);
+
+                if (objectdR < objectdRmin)              
+                {
+
+                    GenLeptonSel_objectMatch[i] = k;
+                    objectdRmin = objectdR;
+                    GenLeptonSel_objectdR[i] = objectdR;
+
+                }
+            }
+        }
+
+        // Electron channel:
+
+        if (abs(GenLeptonSel_pdgId[i]) == 11)
+        {
+            for (int k = 0; k < nPhoton; k++)
+            {
+
+                if(std::find(genMatchedPhotons.begin(), genMatchedPhotons.end(), i) != genMatchedPhotons.end()){ continue; }
+
+                objectdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], PhotonSel_phi[k], PhotonSel_eta[k]);
+                   
+                if (objectdR < objectdRmin)
+                {
+
+                    GenLeptonSel_objectMatch[i] = k;
+                    objectdRmin = objectdR;
+                    GenLeptonSel_objectdR[i] = objectdR;
+
+                } 
+            }
+
+        }
+
+
+        std::cout << GenLeptonSel_trackdR[i] << std::endl;
+
+
+        // If there is a proper match we store the indexes to not use them again
+        if (GenLeptonSel_trackMatch[i] != 99){ genMatchedTracks.push_back(GenLeptonSel_trackMatch[i]); }
+        if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_objectMatch[i] != 99) { genMatchedMuons.push_back(GenLeptonSel_objectMatch[i]); }
+        if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_objectMatch[i] != 99) { genMatchedPhotons.push_back(GenLeptonSel_objectMatch[i]); }
+
+
+        if (GenLeptonSel_trackMatch[i] != 99 && GenLeptonSel_objectMatch[i] != 99)
+        {
+
+            GenLeptonSel_hasValidPair[i] = 1;
+
+            if (abs(GenLeptonSel_pdgId[i]) == 13)
+            {
+
+                GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[GenLeptonSel_objectMatch[i]], MuonTriggerObjectSel_eta[GenLeptonSel_objectMatch[i]]);
+
+            }
+
+            if (abs(GenLeptonSel_pdgId[i]) == 11)
+            {
+
+                GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[GenLeptonSel_objectMatch[i]], PhotonSel_eta[GenLeptonSel_objectMatch[i]]);
+
+            }
+
+        }
+   }
+
+
+
+
+
+
    //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
 
    passAcceptanceCriteria = true; // true by default
@@ -1432,6 +1579,15 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenLeptonSel_dxy", GenLeptonSel_dxy, "GenLeptonSel_dxy[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
     tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
+
+    tree_out->Branch("GenLeptonSel_objectMatch", GenLeptonSel_objectMatch, "GenLeptonSel_objectMatch[nGenLepton]/I");
+
+    tree_out->Branch("GenLeptonSel_trackMatch", GenLeptonSel_trackMatch, "GenLeptonSel_trackMatch[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_objectdR", GenLeptonSel_objectdR, "GenLeptonSel_objectdR[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_trackdR", GenLeptonSel_trackdR, "GenLeptonSel_trackdR[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_hasValidPair", GenLeptonSel_hasValidPair, "GenLeptonSel_hasValidPair[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_pairdR", GenLeptonSel_pairdR, "GenLeptonSel_pairdR[nGenLepton]/F");
+    
 
 
     tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");
