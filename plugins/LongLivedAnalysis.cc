@@ -1260,7 +1260,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    std::vector<int> matched_tracks, matched_SC, matched_triggerObjects; // std vectors with matched objects to avoid overlapping
 
    float dRMin = 99999; // dR to minimize as high as possible in the beginning
-   float dRThreshold = 0.2; // Maximum dR to do the lepton matching
+   float dRThreshold = 0.1; // Maximum dR to do the lepton matching
    float dR; // Computation of dR
    int matching_type = 0; // 0 if electron; 1 if muon
    int tmin, scmin, tomin, li; // minimum track, minimum SC, minimum trigger object, reconstructed lepton index
@@ -1298,7 +1298,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                // ------------ SC matching -------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), photon.phi(), photon.eta());
                       
-               if (dR < dRMin && checkRelativeMatching(0.4, isotrack.pt(), photon.pt())){
+               if (dR < dRMin){
 
                    dRMin = dR;
                    matching_type = 0;
@@ -1318,7 +1318,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                // ------------ trigger Object matching --------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), MuonTriggerObjectSel_phi[to], MuonTriggerObjectSel_eta[to]);
 
-               if (dR < dRMin && checkRelativeMatching(0.4, isotrack.pt(), MuonTriggerObjectSel_pt[to])){
+               if (dR < dRMin){
 
                    /*
                    std::cout<< "new: " << "\t"<< isotrack.phi() << "\t" << isotrack.eta() << "\t" << muon.phi() << "\t" << muon.eta() << std::endl;

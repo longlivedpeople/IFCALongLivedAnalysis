@@ -30,6 +30,35 @@ def tuneEmptyHisto(histo, xlabel, color, normed):
     if normed: histo.Scale(1/histo.GetEntries())
 
 
+def tuneEfficiency(c, plot):
+
+    plot.SetMarkerStyle(21)
+    plot.SetMarkerColor(r.kBlack)
+    plot.SetLineWidth(2)
+    plot.SetLineColor(r.kBlack)
+    plot.SetMarkerSize(1.)
+    plot.Draw("AP")
+
+    c.Update()
+
+    histo = plot.GetTotalHistogram()
+    xlimit = histo.GetXaxis().GetBinUpEdge(histo.GetNbinsX())
+
+    graph = plot.GetPaintedGraph();
+    graph.SetMinimum(0.);
+    graph.SetMaximum(1.1);
+    graph.GetXaxis().SetLimits(0., xlimit)
+    graph.GetXaxis().SetTitleOffset(1.3)
+    graph.GetYaxis().SetTitleOffset(1.07)
+    graph.GetXaxis().SetLabelSize(0.035)
+    graph.GetYaxis().SetLabelSize(0.035)
+    graph.GetXaxis().SetTitleSize(0.037)
+    graph.GetYaxis().SetTitleSize(0.037)
+
+    return xlimit
+
+
+
 
 def printJointHistos(histo_list, histo_tags, log = False):
 
