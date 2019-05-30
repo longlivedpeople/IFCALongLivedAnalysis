@@ -1016,7 +1016,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                // Track matching
                gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
 
-               if (gdR < gdRMin)
+               if (gdR < gdRMin )
                {
 
                    gindex = i;
@@ -1030,7 +1030,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        }
 
 
-       if (gdRMin > 0.1){ break; }
+       if (gdRMin > 5){ break; }
 
        GenLeptonSel_trackMatch[gindex] = oindex;
        GenLeptonSel_trackdR[gindex] = gdRMin;
@@ -1073,6 +1073,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
            if (abs(GenLeptonSel_pdgId[i]) != 11){ continue; } // check if it is an electron
 
+           if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
+
 
            for (int j = 0; j < nPhoton; j++)
            {
@@ -1080,9 +1082,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
 
                // Track matching
-               gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], PhotonSel_phi[j], PhotonSel_eta[j]);
+               gdR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
 
-               if (gdR < gdRMin)
+               if (gdR < gdRMin )
                {
 
                    gindex = i;
@@ -1096,10 +1098,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        }
 
 
-       if (gdRMin > 0.1){ break; }
+       if (gdRMin > 5){ break; }
 
        GenLeptonSel_objectMatch[gindex] = oindex;
-       GenLeptonSel_objectdR[gindex] = gdRMin;
+       GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], PhotonSel_phi[oindex], PhotonSel_eta[oindex]);
+       GenLeptonSel_pairdR[gindex] = gdRMin;
 
        genMatchedGen.push_back(gindex);
        genMatchedObject.push_back(oindex);
@@ -1128,15 +1131,17 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            if (abs(GenLeptonSel_pdgId[i]) != 13){ continue; } // check if it is a muon
 
 
+           if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
+
            for (int j = 0; j < nMuonTriggerObject; j++)
            {
 
                if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
 
                // Track matching
-               gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
+               gdR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
 
-               if (gdR < gdRMin)
+               if (gdR < gdRMin )
                {
 
                    gindex = i;
@@ -1150,10 +1155,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        }
 
 
-       if (gdRMin > 0.1){ break; }
+       if (gdRMin > 5){ break; }
 
        GenLeptonSel_objectMatch[gindex] = oindex;
-       GenLeptonSel_objectdR[gindex] = gdRMin;
+       GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], MuonTriggerObjectSel_phi[oindex], MuonTriggerObjectSel_eta[oindex]);
+       GenLeptonSel_pairdR[gindex] = gdRMin;
 
        genMatchedGen.push_back(gindex);
        genMatchedObject.push_back(oindex);
@@ -1168,34 +1174,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    GenLeptonSel_objectMatch[i] = 99;
    GenLeptonSel_objectdR[i] = 99;
-
-   }
-
-
-   // --> Pair variables
-   
-   for (int i = 0; i < nGenLepton; i++)
-   {
-
-       GenLeptonSel_pairdR[i] = 99; GenLeptonSel_hasValidPair[i] = 0;
-
-       if (GenLeptonSel_objectMatch[i] == 99 || GenLeptonSel_trackMatch[i] == 99){ continue; }
-
-       GenLeptonSel_hasValidPair[i] = 1;
-
-       if (abs(GenLeptonSel_pdgId[i]) == 11)
-       {
-
-           GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[GenLeptonSel_objectMatch[i]], PhotonSel_eta[GenLeptonSel_objectMatch[i]]);
-
-       }
-
-       if (abs(GenLeptonSel_pdgId[i]) == 13)
-       {
-
-           GenLeptonSel_pairdR[i] = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[GenLeptonSel_objectMatch[i]], MuonTriggerObjectSel_eta[GenLeptonSel_objectMatch[i]]);
-
-       }
 
    }
 
@@ -1282,7 +1260,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    std::vector<int> matched_tracks, matched_SC, matched_triggerObjects; // std vectors with matched objects to avoid overlapping
 
    float dRMin = 99999; // dR to minimize as high as possible in the beginning
-   float dRThreshold = 0.1; // Maximum dR to do the lepton matching
+   float dRThreshold = 0.2; // Maximum dR to do the lepton matching
    float dR; // Computation of dR
    int matching_type = 0; // 0 if electron; 1 if muon
    int tmin, scmin, tomin, li; // minimum track, minimum SC, minimum trigger object, reconstructed lepton index
@@ -1315,12 +1293,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                if(std::find(matched_SC.begin(), matched_SC.end(), sc) != matched_SC.end()){ continue; }
 
                // pass if the SC does not fulfil the prerequisites:
-               if (!goodPhoton(photon)){ continue; }
+               //if (!goodPhoton(photon)){ continue; }
               
                // ------------ SC matching -------------
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), photon.phi(), photon.eta());
                       
-               if (dR < dRMin){
+               if (dR < dRMin && checkRelativeMatching(0.4, isotrack.pt(), photon.pt())){
 
                    dRMin = dR;
                    matching_type = 0;
@@ -1332,17 +1310,15 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
            // Loop over the muon trigger objecs
-           for (size_t to = 0; to < iMT.size(); to++){
-
-               pat::TriggerObjectStandAlone muon = (*triggerObjects)[iMT.at(to)];
+           for (int to = 0; to < nMuonTriggerObject; to++){
 
                // pass if the trigger muon is associated to other track
                if(std::find(matched_triggerObjects.begin(), matched_triggerObjects.end(), to) != matched_triggerObjects.end()){ continue; }
 
                // ------------ trigger Object matching --------------
-               dR = getDeltaR(isotrack.phi(), isotrack.eta(), muon.phi(), muon.eta());
+               dR = getDeltaR(isotrack.phi(), isotrack.eta(), MuonTriggerObjectSel_phi[to], MuonTriggerObjectSel_eta[to]);
 
-               if (dR < dRMin){
+               if (dR < dRMin && checkRelativeMatching(0.4, isotrack.pt(), MuonTriggerObjectSel_pt[to])){
 
                    /*
                    std::cout<< "new: " << "\t"<< isotrack.phi() << "\t" << isotrack.eta() << "\t" << muon.phi() << "\t" << muon.eta() << std::endl;
@@ -1351,7 +1327,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
                    dRMin = dR;
                    matching_type = 1;
-                   tomin = to; // careful cause it is not a muon trigger object of the ntuples
+                   tomin = to;
                    tmin = t;
 
                }
@@ -1382,7 +1358,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            MuonCandidate_pt[li] = (*isotracks)[tmin].pt();
            MuonCandidate_eta[li] = (*isotracks)[tmin].eta();
            MuonCandidate_phi[li] = (*isotracks)[tmin].phi();
-           MuonCandidate_triggerPt[li] = (*triggerObjects)[tomin].pt();
+           MuonCandidate_triggerPt[li] = MuonTriggerObjectSel_pt[tomin];
            MuonCandidate_muonTriggerObjectIdx[li] = tomin; // not well defined
            MuonCandidate_isotrackIdx[li] = tmin;
 
