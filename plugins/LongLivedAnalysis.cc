@@ -593,8 +593,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
 
-   Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6 = triggerBits->accept(names.triggerIndex(photonTriggerName));
-   Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8 = triggerBits->accept(names.triggerIndex(muonTriggerName));
+   Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6 = triggerBits->accept(names.triggerIndex(muonTriggerName));
+   Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8 = triggerBits->accept(names.triggerIndex(photonTriggerName));
 
 
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
@@ -618,7 +618,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        if (!isMuonTriggerObject) { continue; }
 
-       if (isGoodMuonTriggerObject(obj)) iMT.push_back(i);
+       if (isGoodMuonTriggerObject(obj)){ iMT.push_back(i); }
 
    }
    
@@ -1521,7 +1521,7 @@ void LongLivedAnalysis::beginJob()
     // Output file definition
     output_filename = parameters.getParameter<std::string>("nameOfOutput");
     file_out = new TFile(output_filename.c_str(), "RECREATE");
-    file_out->cd();
+    //file_out->cd();
 
     
     // Output Tree definition

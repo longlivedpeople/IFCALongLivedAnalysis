@@ -1,7 +1,7 @@
 import ROOT as r
 from ROOT import gROOT, TCanvas, TFile, TGraphErrors, TLatex
 from plotTools import *
-
+import os
 
 
 
@@ -20,7 +20,7 @@ print("'Events' tree with " + str(t.GetEntries()) + ' entries \n')
 ############################### Output definition #################################
 
 output_dir = 'plots/'
-
+if not os.path.exists('./'+output_dir): os.mkdir('./'+output_dir)
 
 ############################### Histogram definition ##################################
 
