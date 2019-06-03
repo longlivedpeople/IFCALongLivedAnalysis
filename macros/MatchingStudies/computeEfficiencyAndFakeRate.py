@@ -19,8 +19,8 @@ print("'Events' tree with " + str(t.GetEntries()) + ' entries \n')
 
 ############################### Output definition #################################
 
-output_dir = 'eff_and_fake_plots/'
-if not os.path.exists('./'+output_dir): os.mkdir('./'+output_dir)
+output_dir = '/eos/user/f/fernance/www/LLP/eff_and_fake_plots/'
+if not os.path.exists(output_dir): os.mkdir('./'+output_dir)
 
 ############################### Histogram definition ##################################
 
@@ -43,6 +43,11 @@ fake_dxy_ele = r.TEfficiency("fake_dxy_ele",";Generated |d_{xy}| (cm);Fake rate"
 fake_dxy_mu = r.TEfficiency("fake_dxy_mu",";Generated |d_{xy}| (cm);Fake rate", len(dxy_bin) -1 , dxy_bin)
 
 
+############################### Counters
+total_ele = 0
+total_muon = 0
+reco_ele = 0
+reco_muon = 0
 
 ############################### Loop over the tree entries ##################################
 
@@ -57,13 +62,27 @@ for n in range(0, t.GetEntries()):
 
         reconstructed = False # initially not reconstructed
 
+        if abs(t.GenLeptonSel_pdgId[g]) == 11: total_ele+=1
+        if abs(t.GenLeptonSel_pdgId[g]) == 13: total_muon+=1
+
+
         # if the genlepton does not have a proper association to track or object the genlepton is not reconstructed directly:
 
         if (t.GenLeptonSel_trackMatch == 99 or t.GenLeptonSel_objectMatch == 99 or t.GenLeptonSel_trackdR[g] > 0.1): 
 
-            if abs(t.GenLeptonSel_pdgId[g]) == 11: eff_dxy_ele.Fill(reconstructed, abs(t.GenLeptonSel_dxy[g]))
-            if abs(t.GenLeptonSel_pdgId[g]) == 13: eff_dxy_mu.Fill(reconstructed, abs(t.GenLeptonSel_dxy[g]))
+            if abs(t.GenLeptonSel_pdgId[g]) == 11: 
+                eff_dxy_ele.Fill(reconstructed, abs(t.GenLeptonSel_dxy[g]))
+                eff_dxy_genele.Fill(False, abs(t.GenLeptonSel_dxy[g]))
+            if abs(t.GenLeptonSel_pdgId[g]) == 13: 
+                eff_dxy_mu.Fill(reconstructed, abs(t.GenLeptonSel_dxy[g]))
+                eff_dxy_genmu.Fill(False, abs(t.GenLeptonSel_dxy[g]))
             continue
+
+
+        if abs(t.GenLeptonSel_pdgId[g]) == 11: 
+            eff_dxy_genele.Fill(True, abs(t.GenLeptonSel_dxy[g]))
+        if abs(t.GenLeptonSel_pdgId[g]) == 13: 
+            eff_dxy_genmu.Fill(True, abs(t.GenLeptonSel_dxy[g]))
 
         # if it does, we access the track and object:
 
@@ -85,6 +104,7 @@ for n in range(0, t.GetEntries()):
                 if gt == rt and go == ro:
 
                     reconstructed = True
+                    reco_ele += 1
                     break
 
             eff_dxy_ele.Fill(reconstructed, abs(t.GenLeptonSel_dxy[g]))
@@ -104,6 +124,7 @@ for n in range(0, t.GetEntries()):
                 if gt == rt and go == ro:
 
                     reconstructed = True
+                    reco_muon += 1
                     break
 
 
@@ -151,6 +172,10 @@ for n in range(0, t.GetEntries()):
         fake_dxy_mu.Fill(fake, abs(t.IsoTrackSel_dxy[rt]))
 
 
+print('Electrons:', total_ele, reco_ele)
+print('Muons:', total_muon, reco_muon)
+
+
 
 ############################### Plot in canvas ###############################################
 
@@ -176,7 +201,9 @@ r.gStyle.SetOptStat(0)
 ###### Plotting efficiencies:
 
 efficiencies = [eff_dxy_ele,
-                eff_dxy_mu]
+                eff_dxy_mu,
+                eff_dxy_genele,
+                eff_dxy_genmu]
 
 
 

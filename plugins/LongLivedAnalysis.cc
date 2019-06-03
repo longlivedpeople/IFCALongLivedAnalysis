@@ -106,6 +106,7 @@ bool goodPhoton(const pat::Photon & photon)
     if (photon.hadronicOverEm() > 0.05) { return false; }
     if (photon.isEE() && photon.full5x5_sigmaIetaIeta() > 0.034) { return false; }
     if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
+    if (photon.et() < 25) {return false; }
 
     return true;
 
@@ -113,6 +114,14 @@ bool goodPhoton(const pat::Photon & photon)
 
 bool goodTrack(const pat::IsolatedTrack & track)
 {
+
+    if (!track.isHighPurityTrack()) {return false; }
+    if (track.pt() < 21) {return false; }
+ 
+    const reco::HitPattern &hits = track.hitPattern();
+    if (hits.numberOfValidTrackerHits() < 6) { return false; }
+    if (fabs(track.eta())> 2) {return false; }
+
 
     return true;
 
@@ -281,8 +290,17 @@ Int_t nElectron;
 Float_t ElectronSel_pt[nElectronMax];
 Float_t ElectronSel_eta[nElectronMax];
 Float_t ElectronSel_phi[nElectronMax];
-
-
+Float_t ElectronSel_hadronicOverEm[nElectronMax];
+Float_t ElectronSel_full5x5_sigmaIetaIeta[nElectronMax];
+Int_t ElectronSel_isEB[nElectronMax];
+Int_t ElectronSel_isEE[nElectronMax];
+Float_t ElectronSel_r9[nElectronMax];
+Float_t ElectronSel_ecalIso[nElectronMax];
+Float_t ElectronSel_hcalIso[nElectronMax];
+Float_t ElectronSel_caloIso[nElectronMax];
+Float_t ElectronSel_relIso[nElectronMax];
+Float_t ElectronSel_dxy[nElectronMax];
+Float_t ElectronSel_dxyError[nElectronMax];
 
 //-> MUON TRIGGER OBJECT SELECTION
 const Int_t nMuonTriggerObjectMax = 500;
@@ -292,7 +310,7 @@ Float_t MuonTriggerObjectSel_eta[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
 
 //-> GENLEPTON SELECTION
-const Int_t nGenLeptonMax = 500;
+const Int_t nGenLeptonMax = 10;
 Int_t nGenLepton;
 Float_t GenLeptonSel_pt[nGenLeptonMax];
 Float_t GenLeptonSel_et[nGenLeptonMax];
@@ -307,7 +325,8 @@ Float_t GenLeptonSel_objectdR[nGenLeptonMax];
 Float_t GenLeptonSel_trackdR[nGenLeptonMax];
 Int_t GenLeptonSel_hasValidPair[nGenLeptonMax];
 Float_t GenLeptonSel_pairdR[nGenLeptonMax];
-
+Int_t GenLeptonSel_trackDegeneration[nGenLeptonMax];
+Int_t GenLeptonSel_objectDegeneration[nGenLeptonMax];
 
 //-> GENNEUTRALINO SELECTION
 const Int_t nGenNeutralinoMax = 500;
@@ -826,9 +845,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    // Select good photons
    for (size_t i = 0; i < photons->size(); i++){
+
+       const pat::Photon & photon = (*photons)[i];
        
        // this is the place to put any preselection if required
-       iP.push_back(i);
+       if (goodPhoton(photon)) { iP.push_back(i);}
 
    }
 
@@ -873,6 +894,19 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        ElectronSel_pt[i] = electron.pt();
        ElectronSel_eta[i] = electron.eta();
        ElectronSel_phi[i] = electron.phi();
+       ElectronSel_hadronicOverEm[i] = electron.hadronicOverEm();
+       ElectronSel_full5x5_sigmaIetaIeta[i] = electron.full5x5_sigmaIetaIeta();
+       ElectronSel_isEB[i] = electron.isEB();
+       ElectronSel_isEE[i] = electron.isEE();
+       ElectronSel_r9[i] = electron.r9();
+
+       ElectronSel_hcalIso[i] = electron.hcalIso();
+       ElectronSel_ecalIso[i] = electron.ecalIso();
+       ElectronSel_caloIso[i] = electron.caloIso();
+       ElectronSel_relIso[i] = electron.caloIso()/electron.pt();
+
+       ElectronSel_dxyError[i] = electron.dxyError();
+       ElectronSel_dxy[i] = electron.gsfTrack()->dxy();
 
    }
 
@@ -989,6 +1023,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    float gdRMin = 99;
    int gindex = 99; // matched genparticle index
    int oindex = 99; // matched object index
+
 
    // Note: While loops and 2D grid exploring stops when there is no pair below the dR threshold (0.1)
 
@@ -1176,6 +1211,71 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    GenLeptonSel_objectdR[i] = 99;
 
    }
+
+
+   ////////////////////////// Degeneration
+   float ddR = 99;
+   int track_c;
+   int object_c;
+
+   for (int i = 0; i < nGenLepton; i++)
+   {
+
+       track_c = 0;
+       object_c =  0;
+
+       // Track degeneration:
+       
+       for (int j = 0; j < nIsoTrack; j++)
+       {
+
+           ddR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
+           if (ddR < 0.1){ 
+
+              track_c++;
+
+             }
+
+       }
+
+       GenLeptonSel_trackDegeneration[i] = track_c;
+       GenLeptonSel_objectDegeneration[i] = 99; // default value
+
+       // Only check the object degeneration if there is a valid track
+
+       if (GenLeptonSel_trackMatch[i] == 99 || GenLeptonSel_trackdR[i] > 0.1) { continue; }
+
+       // electron channel
+       if (abs(GenLeptonSel_pdgId[i]) == 11)
+       {
+
+           for(int j = 0; j < nPhoton; j++)
+           {
+
+               ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
+
+               if (ddR < 0.1) {object_c++; }
+
+           }
+
+       }
+       else if (abs(GenLeptonSel_pdgId[i]) == 13) // muon channel
+       {
+
+           for(int j = 0; j < nMuonTriggerObject; j++)
+           {
+
+               ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
+
+               if (ddR < 0.1) {object_c++; }
+
+           }
+
+       }
+
+       GenLeptonSel_objectDegeneration[i] = object_c;
+
+   }  
 
 
 
@@ -1629,6 +1729,17 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronSel_pt", ElectronSel_pt, "ElectronSel_pt[nElectron]/F");
     tree_out->Branch("ElectronSel_eta", ElectronSel_eta, "ElectronSel_eta[nElectron]/F");
     tree_out->Branch("ElectronSel_phi", ElectronSel_phi, "ElectronSel_phi[nElectron]/F");
+    tree_out->Branch("ElectronSel_hadronicOverEm", ElectronSel_hadronicOverEm, "ElectronSel_hadronicOverEm[nElectron]/F");
+    tree_out->Branch("ElectronSel_full5x5_sigmaIetaIeta", ElectronSel_full5x5_sigmaIetaIeta, "ElectronSel_full5x5_sigmaIetaIeta[nElectron]/F");
+    tree_out->Branch("ElectronSel_isEB", ElectronSel_isEB, "ElectronSel_isEB[nElectron]/I");
+    tree_out->Branch("ElectronSel_isEE", ElectronSel_isEE, "ElectronSel_isEE[nElectron]/I");
+    tree_out->Branch("ElectronSel_r9", ElectronSel_r9, "ElectronSel_r9[nElectron]/F");
+    tree_out->Branch("ElectronSel_ecalIso", ElectronSel_ecalIso, "ElectronSel_ecalIso[nElectron]/F");
+    tree_out->Branch("ElectronSel_hcalIso", ElectronSel_hcalIso, "ElectronSel_hcalIso[nElectron]/F");
+    tree_out->Branch("ElectronSel_caloIso", ElectronSel_caloIso, "ElectronSel_caloIso[nElectron]/F");
+    tree_out->Branch("ElectronSel_relIso", ElectronSel_relIso, "ElectronSel_relIso[nElectron]/F");
+    tree_out->Branch("ElectronSel_dxy", ElectronSel_dxy, "ElectronSel_dxy[nElectron]/F");
+    tree_out->Branch("ElectronSel_dxyError", ElectronSel_dxyError, "ElectronSel_dxyError[nElectron]/F");
 
 
 
@@ -1650,14 +1761,14 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenLeptonSel_dxy", GenLeptonSel_dxy, "GenLeptonSel_dxy[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
     tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
-
     tree_out->Branch("GenLeptonSel_objectMatch", GenLeptonSel_objectMatch, "GenLeptonSel_objectMatch[nGenLepton]/I");
-
     tree_out->Branch("GenLeptonSel_trackMatch", GenLeptonSel_trackMatch, "GenLeptonSel_trackMatch[nGenLepton]/I");
     tree_out->Branch("GenLeptonSel_objectdR", GenLeptonSel_objectdR, "GenLeptonSel_objectdR[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_trackdR", GenLeptonSel_trackdR, "GenLeptonSel_trackdR[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_hasValidPair", GenLeptonSel_hasValidPair, "GenLeptonSel_hasValidPair[nGenLepton]/I");
     tree_out->Branch("GenLeptonSel_pairdR", GenLeptonSel_pairdR, "GenLeptonSel_pairdR[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_trackDegeneration", GenLeptonSel_trackDegeneration, "GenLeptonSel_trackDegeneration[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_objectDegeneration", GenLeptonSel_objectDegeneration, "GenLeptonSel_objectDegeneration[nGenLepton]/I");
     
 
 

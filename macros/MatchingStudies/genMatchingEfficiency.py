@@ -19,10 +19,14 @@ print("'Events' tree with " + str(t.GetEntries()) + ' entries \n')
 
 ############################### Output definition #################################
 
-output_dir = 'plots/'
-if not os.path.exists('./'+output_dir): os.mkdir('./'+output_dir)
+output_dir = '/eos/user/f/fernance/www/LLP/plots/'
+if not os.path.exists(output_dir): os.mkdir('./'+output_dir)
 
 ############################### Histogram definition ##################################
+
+#### -> Isolated histos
+histo_nElectronCandidate = r.TH1F("histo_nElectronCandidate", "", 8, 0, 8)
+histo_nMuonCandidate = r.TH1F("histo_nMuonCandidate", "", 8, 0, 8)
 
 #### -> deltaR(gen-tr) for different dxy
 histo_deltaRgt_dxy_0_1 = r.TH1F("histo_deltaRgt_dxy_0_1", "", 30, 0, 3)
@@ -58,6 +62,11 @@ for n in range(0, t.GetEntries()):
 
     t.GetEntry(n)
 
+
+    histo_nElectronCandidate.Fill(t.nElectronCandidate)
+    histo_nMuonCandidate.Fill(t.nMuonCandidate)
+
+
     for g in range(0, t.nGenLepton):
 
         if t.GenLeptonSel_trackMatch[g] == 99: continue
@@ -78,19 +87,19 @@ for n in range(0, t.GetEntries()):
 
             if (abs(t.GenLeptonSel_pdgId[g]) == 11):
             
-                if (dxy <= 1): histo_deltaRtsc_dxy_0_1.Fill(t.GenLeptonSel_objectdR[g])
-                elif (dxy > 1 and dxy <= 2): histo_deltaRtsc_dxy_1_2.Fill(t.GenLeptonSel_objectdR[g])
-                elif (dxy > 2 and dxy <= 4): histo_deltaRtsc_dxy_2_4.Fill(t.GenLeptonSel_objectdR[g])
-                elif (dxy > 4 and dxy <= 8): histo_deltaRtsc_dxy_4_8.Fill(t.GenLeptonSel_objectdR[g])
-                else: histo_deltaRtsc_dxy_8_inf.Fill(t.GenLeptonSel_objectdR[g])
+                if (dxy <= 1): histo_deltaRtsc_dxy_0_1.Fill(t.GenLeptonSel_pairdR[g])
+                elif (dxy > 1 and dxy <= 2): histo_deltaRtsc_dxy_1_2.Fill(t.GenLeptonSel_pairdR[g])
+                elif (dxy > 2 and dxy <= 4): histo_deltaRtsc_dxy_2_4.Fill(t.GenLeptonSel_pairdR[g])
+                elif (dxy > 4 and dxy <= 8): histo_deltaRtsc_dxy_4_8.Fill(t.GenLeptonSel_pairdR[g])
+                else: histo_deltaRtsc_dxy_8_inf.Fill(t.GenLeptonSel_pairdR[g])
 
             if (abs(t.GenLeptonSel_pdgId[g]) == 13):
             
-                if (dxy <= 1): histo_deltaRtmu_dxy_0_1.Fill(t.GenLeptonSel_objectdR[g])
-                elif (dxy > 1 and dxy <= 2): histo_deltaRtmu_dxy_1_2.Fill(t.GenLeptonSel_objectdR[g])
-                elif (dxy > 2 and dxy <= 4): histo_deltaRtmu_dxy_2_4.Fill(t.GenLeptonSel_objectdR[g])
-                elif (dxy > 4 and dxy <= 8): histo_deltaRtmu_dxy_4_8.Fill(t.GenLeptonSel_objectdR[g])
-                else: histo_deltaRtmu_dxy_8_inf.Fill(t.GenLeptonSel_objectdR[g])
+                if (dxy <= 1): histo_deltaRtmu_dxy_0_1.Fill(t.GenLeptonSel_pairdR[g])
+                elif (dxy > 1 and dxy <= 2): histo_deltaRtmu_dxy_1_2.Fill(t.GenLeptonSel_pairdR[g])
+                elif (dxy > 2 and dxy <= 4): histo_deltaRtmu_dxy_2_4.Fill(t.GenLeptonSel_pairdR[g])
+                elif (dxy > 4 and dxy <= 8): histo_deltaRtmu_dxy_4_8.Fill(t.GenLeptonSel_pairdR[g])
+                else: histo_deltaRtmu_dxy_8_inf.Fill(t.GenLeptonSel_pairdR[g])
 
 
         if abs(t.GenLeptonSel_pdgId[g]) == 11: prof_deltaRtsc_vs_dxy.Fill(dxy, t.GenLeptonSel_objectdR[g])
@@ -136,6 +145,27 @@ r.gStyle.SetOptStat(0)
 
 color_set = [r.kRed, r.kBlue, r.kGreen, r.kMagenta, r.kBlack]
 
+###### Plot some distributions
+c1.Clear()
+c1.SetLogy(0)
+
+tuneEmptyHisto(histo_nMuonCandidate, 'nMuonCandidate', r.kRed, normed = False)
+tuneEmptyHisto(histo_nElectronCandidate, 'nElectronCandidate', r.kBlue, normed = False)
+
+printJointHistos([histo_nMuonCandidate], ['nMuonCandidate'], log = False)
+
+latexCMS.Draw()
+latexCMSExtra.Draw()
+c1.SaveAs(output_dir+'histo_nMuonCandidate.png')
+
+
+c1.Clear()
+c1.SetLogy(0)
+printJointHistos([histo_nElectronCandidate], ['nElectronCandidate'], log = False)
+
+latexCMS.Draw()
+latexCMSExtra.Draw()
+c1.SaveAs(output_dir+'histo_nElectronCandidate.png')
 
 ###### Plot deltaR(gen-track) distributions for dxy ranges:
 
