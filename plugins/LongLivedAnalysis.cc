@@ -329,6 +329,8 @@ Float_t ElectronSel_caloIso[nElectronMax];
 Float_t ElectronSel_relIso[nElectronMax];
 Float_t ElectronSel_dxy[nElectronMax];
 Float_t ElectronSel_dxyError[nElectronMax];
+Float_t ElectronSel_dxySignificance[nElectronMax];
+
 
 // -> MUON SELECTION
 const Int_t nMuonMax = 100;
@@ -343,6 +345,7 @@ Float_t MuonSel_caloIso[nMuonMax];
 Float_t MuonSel_relIso[nMuonMax];
 Float_t MuonSel_dxy[nMuonMax];
 Float_t MuonSel_dxyError[nMuonMax];
+Float_t MuonSel_dxySignificance[nMuonMax];
 Int_t MuonSel_isMuon[nMuonMax];
 Int_t MuonSel_isGlobalMuon[nMuonMax];
 Int_t MuonSel_isTrackerMuon[nMuonMax];
@@ -418,6 +421,9 @@ Float_t ElectronCandidate_pt[nElectronCandidateMax];
 Float_t ElectronCandidate_et[nElectronCandidateMax];
 Float_t ElectronCandidate_eta[nElectronCandidateMax];
 Float_t ElectronCandidate_phi[nElectronCandidateMax];
+Float_t ElectronCandidate_dxy[nElectronCandidateMax];
+Float_t ElectronCandidate_dxyError[nElectronCandidateMax];
+Float_t ElectronCandidate_dxySignificance[nElectronCandidateMax];
 Int_t ElectronCandidate_photonIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_isotrackIdx[nElectronCandidateMax];
 
@@ -427,6 +433,9 @@ Int_t nMuonCandidate;
 Float_t MuonCandidate_pt[nMuonCandidateMax];
 Float_t MuonCandidate_eta[nMuonCandidateMax];
 Float_t MuonCandidate_phi[nMuonCandidateMax];
+Float_t MuonCandidate_dxy[nMuonCandidateMax];
+Float_t MuonCandidate_dxyError[nMuonCandidateMax];
+Float_t MuonCandidate_dxySignificance[nMuonCandidateMax];
 Float_t MuonCandidate_triggerPt[nMuonCandidateMax];
 Int_t MuonCandidate_muonTriggerObjectIdx[nMuonCandidateMax];
 Int_t MuonCandidate_isotrackIdx[nMuonCandidateMax];
@@ -979,6 +988,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        ElectronSel_dxyError[i] = electron.dxyError();
        ElectronSel_dxy[i] = electron.gsfTrack()->dxy();
+       ElectronSel_dxySignificance[i] = fabs(ElectronSel_dxy[i])/electron.dxyError();
+
 
    }
 
@@ -1028,6 +1039,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        MuonSel_dxyError[i] = muon.dxyError();
        MuonSel_dxy[i] = muon.muonBestTrack()->dxy();
+       MuonSel_dxySignificance[i] = fabs(MuonSel_dxy[i])/muon.dxyError();
 
    }
 
@@ -1568,6 +1580,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            ElectronCandidate_et[li] = (*photons)[scmin].et();
            ElectronCandidate_photonIdx[li] = scmin;
            ElectronCandidate_isotrackIdx[li] = tmin;
+           ElectronCandidate_dxy[li] = IsoTrackSel_dxy[tmin];
+           ElectronCandidate_dxyError[li] = IsoTrackSel_dxyError[tmin];
+           ElectronCandidate_dxySignificance[li] = IsoTrackSel_dxySignificance[tmin];
+
 
            matched_SC.push_back(scmin); matched_tracks.push_back(tmin);
 
@@ -1582,6 +1598,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            MuonCandidate_triggerPt[li] = MuonTriggerObjectSel_pt[tomin];
            MuonCandidate_muonTriggerObjectIdx[li] = tomin; // not well defined
            MuonCandidate_isotrackIdx[li] = tmin;
+           MuonCandidate_dxy[li] = IsoTrackSel_dxy[tmin];
+           MuonCandidate_dxyError[li] = IsoTrackSel_dxyError[tmin];
+           MuonCandidate_dxySignificance[li] = IsoTrackSel_dxySignificance[tmin];
 
            matched_triggerObjects.push_back(tomin); matched_tracks.push_back(tmin);
 
@@ -1862,6 +1881,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronSel_relIso", ElectronSel_relIso, "ElectronSel_relIso[nElectron]/F");
     tree_out->Branch("ElectronSel_dxy", ElectronSel_dxy, "ElectronSel_dxy[nElectron]/F");
     tree_out->Branch("ElectronSel_dxyError", ElectronSel_dxyError, "ElectronSel_dxyError[nElectron]/F");
+    tree_out->Branch("ElectronSel_dxySignificance", ElectronSel_dxySignificance, "ElectronSel_dxySignificance[nElectron]/F");
 
 
 
@@ -1878,6 +1898,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonSel_relIso", MuonSel_relIso, "MuonSel_relIso[nMuon]/F");
     tree_out->Branch("MuonSel_dxy", MuonSel_dxy, "MuonSel_dxy[nMuon]/F");
     tree_out->Branch("MuonSel_dxyError", MuonSel_dxyError, "MuonSel_dxyError[nMuon]/F");
+    tree_out->Branch("MuonSel_dxySignificance", MuonSel_dxySignificance, "MuonSel_dxySignificance[nMuon]/F");
     tree_out->Branch("MuonSel_isMuon", MuonSel_isMuon, "MuonSel_isMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isGlobalMuon", MuonSel_isGlobalMuon, "MuonSel_isGlobalMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isTrackerMuon", MuonSel_isTrackerMuon, "MuonSel_isTrackerMuon[nMuon]/I");
@@ -1952,7 +1973,9 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronCandidate_phi", ElectronCandidate_phi, "ElectronCandidate_phi[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_photonIdx", ElectronCandidate_photonIdx, "ElectronCandidate_photonIdx[nElectronCandidate]/I");
     tree_out->Branch("ElectronCandidate_isotrackIdx", ElectronCandidate_isotrackIdx, "ElectronCandidate_isotrackIdx[nElectronCandidate]/I");
-
+    tree_out->Branch("ElectronCandidate_dxy", ElectronCandidate_dxy, "ElectronCandidate_dxy[nMuon]/F");
+    tree_out->Branch("ElectronCandidate_dxyError", ElectronCandidate_dxyError, "ElectronCandidate_dxyError[nMuon]/F");
+    tree_out->Branch("ElectronCandidate_dxySignificance", ElectronCandidate_dxySignificance, "ElectronCandidate_dxySignificance[nMuon]/F");
 
     ///////////////////////////////// ACCEPTANCE CRITERIA //////////////////////////////
 
@@ -1968,6 +1991,9 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonCandidate_triggerPt", MuonCandidate_triggerPt, "MuonCandidate_triggerPt[nMuonCandidate]/F");
     tree_out->Branch("MuonCandidate_muonTriggerObjectIdx", MuonCandidate_muonTriggerObjectIdx, "MuonCandidate_muonTriggerObjectIdx[nMuonCandidate]/I");
     tree_out->Branch("MuonCandidate_isotrackIdx", MuonCandidate_isotrackIdx, "MuonCandidate_isotrackIdx[nMuonCandidate]/I");
+    tree_out->Branch("MuonCandidate_dxy", MuonCandidate_dxy, "MuonCandidate_dxy[nMuon]/F");
+    tree_out->Branch("MuonCandidate_dxyError", MuonCandidate_dxyError, "MuonCandidate_dxyError[nMuon]/F");
+    tree_out->Branch("MuonCandidate_dxySignificance", MuonCandidate_dxySignificance, "MuonCandidate_dxySignificance[nMuon]/F");
 
     ////////////////////////////// LL BRANCHES /////////////////////////////
     tree_out->Branch("nLL", &nLL, "nLL/I");
