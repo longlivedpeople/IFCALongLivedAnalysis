@@ -112,6 +112,23 @@ bool goodPhoton(const pat::Photon & photon)
 
 }
 
+
+bool goodElectron(const pat::Electron & electron)
+{
+
+    // Return true if the electron fulfills with the analysis requirements and false instead
+
+    if (fabs(electron.eta()) > 1.4442 && fabs(electron.eta()) < 1.566) { return false; } // narrow EB region to be defined
+    if (electron.hadronicOverEm() > 0.05) { return false; }
+    if (electron.isEE() && electron.full5x5_sigmaIetaIeta() > 0.034) { return false; }
+    if (electron.isEB() && electron.full5x5_sigmaIetaIeta() > 0.012) { return false; }
+    if (electron.et() < 25) {return false; }
+
+    return true;
+
+}
+
+
 bool goodTrack(const pat::IsolatedTrack & track)
 {
 
@@ -132,6 +149,16 @@ bool isGoodMuonTriggerObject( pat::TriggerObjectStandAlone obj)
 {
 
     // Fill
+    return true;
+
+}
+
+
+bool goodMuon( pat::Muon muon)
+{
+
+    if (muon.pt() < 28) { return false; }
+
     return true;
 
 }
@@ -288,6 +315,7 @@ Int_t PhotonSel_isGoodSC[nPhotonMax];
 const Int_t nElectronMax = 100;
 Int_t nElectron;
 Float_t ElectronSel_pt[nElectronMax];
+Float_t ElectronSel_et[nElectronMax];
 Float_t ElectronSel_eta[nElectronMax];
 Float_t ElectronSel_phi[nElectronMax];
 Float_t ElectronSel_hadronicOverEm[nElectronMax];
@@ -301,6 +329,27 @@ Float_t ElectronSel_caloIso[nElectronMax];
 Float_t ElectronSel_relIso[nElectronMax];
 Float_t ElectronSel_dxy[nElectronMax];
 Float_t ElectronSel_dxyError[nElectronMax];
+
+// -> MUON SELECTION
+const Int_t nMuonMax = 100;
+Int_t nMuon;
+Float_t MuonSel_pt[nMuonMax];
+Float_t MuonSel_eta[nMuonMax];
+Float_t MuonSel_phi[nMuonMax];
+Float_t MuonSel_trackIso[nMuonMax];
+Float_t MuonSel_ecalIso[nMuonMax];
+Float_t MuonSel_hcalIso[nMuonMax];
+Float_t MuonSel_caloIso[nMuonMax];
+Float_t MuonSel_relIso[nMuonMax];
+Float_t MuonSel_dxy[nMuonMax];
+Float_t MuonSel_dxyError[nMuonMax];
+Int_t MuonSel_isMuon[nMuonMax];
+Int_t MuonSel_isGlobalMuon[nMuonMax];
+Int_t MuonSel_isTrackerMuon[nMuonMax];
+Int_t MuonSel_isStandAloneMuon[nMuonMax];
+Int_t MuonSel_isLooseMuon[nMuonMax];
+Int_t MuonSel_isMediumMuon[nMuonMax];
+
 
 //-> MUON TRIGGER OBJECT SELECTION
 const Int_t nMuonTriggerObjectMax = 500;
@@ -433,6 +482,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::ParameterSet parameters;
 
       edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
+      edm::EDGetTokenT<edm::View<pat::Muon> > theMuonCollection;   
       edm::EDGetTokenT<edm::View<pat::Photon> > thePhotonCollection;
       edm::EDGetTokenT<edm::View<pat::IsolatedTrack> >  theIsoTrackCollection;
       edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
@@ -480,6 +530,7 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    sum2Weights = new TH1F("sum2Weights", "", 1, 0, 1);
 
    theElectronCollection = consumes<edm::View<pat::Electron> >  (parameters.getParameter<edm::InputTag>("ElectronCollection"));
+   theMuonCollection = consumes<edm::View<pat::Muon> >  (parameters.getParameter<edm::InputTag>("MuonCollection"));
    thePhotonCollection = consumes<edm::View<pat::Photon> > (parameters.getParameter<edm::InputTag>("PhotonCollection"));
    theIsoTrackCollection = consumes<edm::View<pat::IsolatedTrack> >  (parameters.getParameter<edm::InputTag>("IsoTrackCollection"));
    thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
@@ -530,6 +581,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    
 
    edm::Handle<edm::View<pat::Electron> > electrons;
+   edm::Handle<edm::View<pat::Muon> > muons;
    edm::Handle<edm::View<pat::Photon> > photons;
    edm::Handle<edm::View<pat::IsolatedTrack> > isotracks;
    edm::Handle<edm::View<reco::Vertex> > primaryvertices;
@@ -550,6 +602,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<std::vector<PileupSummaryInfo> > puInfoH;
 
    iEvent.getByToken(theElectronCollection, electrons);
+   iEvent.getByToken(theMuonCollection, muons);
    iEvent.getByToken(thePhotonCollection, photons);
    iEvent.getByToken(theIsoTrackCollection, isotracks);
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
@@ -885,13 +938,32 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ///////////////////////////////// ELECTRON FEATURES /////////////////////////////////
 
-   nElectron = electrons->size();
+   
+   std::vector<int> iE; // electron indexes
 
+
+   // Select good photons
    for (size_t i = 0; i < electrons->size(); i++){
+
+       const pat::Electron & electron = (*electrons)[i];
+       
+       // this is the place to put any preselection if required
+       if (goodElectron(electron)) { iE.push_back(i);}
+
+   }
+
+   // Sort good lepton indexes by pt
+   std::sort( std::begin(iE), std::end(iE), [&](int i1, int i2){ return electrons->at(i1).pt() < electrons->at(i2).pt(); });
+
+
+   nElectron = iE.size();
+
+   for (size_t i = 0; i < iE.size(); i++){
 
        const pat::Electron & electron = (* electrons)[i];
 
        ElectronSel_pt[i] = electron.pt();
+       ElectronSel_et[i] = electron.et();
        ElectronSel_eta[i] = electron.eta();
        ElectronSel_phi[i] = electron.phi();
        ElectronSel_hadronicOverEm[i] = electron.hadronicOverEm();
@@ -907,6 +979,55 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        ElectronSel_dxyError[i] = electron.dxyError();
        ElectronSel_dxy[i] = electron.gsfTrack()->dxy();
+
+   }
+
+
+
+   ///////////////////////////////// MUON FEATURES /////////////////////////////////
+
+   std::vector<int> iM; // muon indexes
+
+
+   // Select good muons
+   for (size_t i = 0; i < muons->size(); i++){
+
+       const pat::Muon & muon = (*muons)[i];
+       
+       // this is the place to put any preselection if required
+       if (goodMuon(muon)) { iM.push_back(i);}
+
+   }
+
+   // Sort good lepton indexes by pt
+   std::sort( std::begin(iM), std::end(iM), [&](int i1, int i2){ return muons->at(i1).pt() < muons->at(i2).pt(); });
+
+
+   nMuon = iM.size();
+
+   for (size_t i = 0; i < iM.size(); i++){
+
+       const pat::Muon & muon = (* muons)[i];
+
+       MuonSel_pt[i] = muon.pt();
+       MuonSel_eta[i] = muon.eta();
+       MuonSel_phi[i] = muon.phi();
+
+       MuonSel_trackIso[i] = muon.trackIso();
+       MuonSel_hcalIso[i] = muon.hcalIso();
+       MuonSel_ecalIso[i] = muon.ecalIso();
+       MuonSel_caloIso[i] = muon.caloIso();
+       MuonSel_relIso[i] = muon.trackIso()/muon.pt();
+
+       MuonSel_isMuon[i] = muon.isMuon();
+       MuonSel_isGlobalMuon[i] = muon.isGlobalMuon();
+       MuonSel_isTrackerMuon[i] = muon.isTrackerMuon();
+       MuonSel_isStandAloneMuon[i] = muon.isStandAloneMuon();
+       MuonSel_isLooseMuon[i] = muon.isLooseMuon();
+       MuonSel_isMediumMuon[i] = muon.isMediumMuon();
+
+       MuonSel_dxyError[i] = muon.dxyError();
+       MuonSel_dxy[i] = muon.muonBestTrack()->dxy();
 
    }
 
@@ -1727,6 +1848,7 @@ void LongLivedAnalysis::beginJob()
 
     tree_out->Branch("nElectron", &nElectron, "nElectron/I");
     tree_out->Branch("ElectronSel_pt", ElectronSel_pt, "ElectronSel_pt[nElectron]/F");
+    tree_out->Branch("ElectronSel_et", ElectronSel_et, "ElectronSel_et[nElectron]/F");
     tree_out->Branch("ElectronSel_eta", ElectronSel_eta, "ElectronSel_eta[nElectron]/F");
     tree_out->Branch("ElectronSel_phi", ElectronSel_phi, "ElectronSel_phi[nElectron]/F");
     tree_out->Branch("ElectronSel_hadronicOverEm", ElectronSel_hadronicOverEm, "ElectronSel_hadronicOverEm[nElectron]/F");
@@ -1741,6 +1863,27 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronSel_dxy", ElectronSel_dxy, "ElectronSel_dxy[nElectron]/F");
     tree_out->Branch("ElectronSel_dxyError", ElectronSel_dxyError, "ElectronSel_dxyError[nElectron]/F");
 
+
+
+    ///////////////////////////////// MUON BRANCHES /////////////////////////////////
+
+    tree_out->Branch("nMuon", &nMuon, "nMuon/I");
+    tree_out->Branch("MuonSel_pt", MuonSel_pt, "MuonSel_pt[nMuon]/F");
+    tree_out->Branch("MuonSel_eta", MuonSel_eta, "MuonSel_eta[nMuon]/F");
+    tree_out->Branch("MuonSel_phi", MuonSel_phi, "MuonSel_phi[nMuon]/F");
+    tree_out->Branch("MuonSel_trackIso", MuonSel_trackIso, "MuonSel_trackIso[nMuon]/F");
+    tree_out->Branch("MuonSel_ecalIso", MuonSel_ecalIso, "MuonSel_ecalIso[nMuon]/F");
+    tree_out->Branch("MuonSel_hcalIso", MuonSel_hcalIso, "MuonSel_hcalIso[nMuon]/F");
+    tree_out->Branch("MuonSel_caloIso", MuonSel_caloIso, "MuonSel_caloIso[nMuon]/F");
+    tree_out->Branch("MuonSel_relIso", MuonSel_relIso, "MuonSel_relIso[nMuon]/F");
+    tree_out->Branch("MuonSel_dxy", MuonSel_dxy, "MuonSel_dxy[nMuon]/F");
+    tree_out->Branch("MuonSel_dxyError", MuonSel_dxyError, "MuonSel_dxyError[nMuon]/F");
+    tree_out->Branch("MuonSel_isMuon", MuonSel_isMuon, "MuonSel_isMuon[nMuon]/I");
+    tree_out->Branch("MuonSel_isGlobalMuon", MuonSel_isGlobalMuon, "MuonSel_isGlobalMuon[nMuon]/I");
+    tree_out->Branch("MuonSel_isTrackerMuon", MuonSel_isTrackerMuon, "MuonSel_isTrackerMuon[nMuon]/I");
+    tree_out->Branch("MuonSel_isStandAloneMuon", MuonSel_isStandAloneMuon, "MuonSel_isStandAloneMuon[nMuon]/I");
+    tree_out->Branch("MuonSel_isLooseMuon", MuonSel_isLooseMuon, "MuonSel_isLooseMuon[nMuon]/I");
+    tree_out->Branch("MuonSel_isMediumMuon", MuonSel_isMediumMuon, "MuonSel_isMediumMuon[nMuon]/I");
 
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
