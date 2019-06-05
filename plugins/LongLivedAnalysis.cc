@@ -107,6 +107,7 @@ bool goodPhoton(const pat::Photon & photon)
     if (photon.isEE() && photon.full5x5_sigmaIetaIeta() > 0.034) { return false; }
     if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
     if (photon.et() < 25) {return false; }
+    if (fabs(photon.eta()) > 2) {return false;}
 
     return true;
 
