@@ -6,7 +6,7 @@ from ROOT import TLatex
 def tuneEmptyHisto(histo, xlabel, color, normed):
 
     histo.GetXaxis().SetTitleOffset(1.07)
-    histo.GetYaxis().SetTitleOffset(1.3)
+    histo.GetYaxis().SetTitleOffset(1.45)
     
     histo.GetXaxis().SetTitleSize(0.04)
     histo.GetYaxis().SetTitleSize(0.04)
@@ -59,8 +59,18 @@ def tuneEfficiency(c, plot):
 
 
 
+def printHisto(histo, log = False):
 
-def printJointHistos(histo_list, histo_tags, log = False):
+    ymax = histo.GetMaximum()
+
+    if log: histo.SetMaximum(10*ymax)
+    else: histo.SetMaximum(1.3*ymax)
+
+    histo.Draw('hist')
+
+
+
+def printJointHistos(histo_list, log = False):
 
 
     ymax = 0

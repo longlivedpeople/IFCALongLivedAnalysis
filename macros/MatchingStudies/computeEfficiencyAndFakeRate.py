@@ -3,6 +3,18 @@ from ROOT import gROOT, TCanvas, TFile, TGraphErrors, TLatex
 from plotTools import *
 import numpy as np
 import os
+import math
+
+
+def getDeltaR(phi1, eta1, phi2, eta2):
+
+    deltaEta = abs(eta1 - eta2)
+    deltaPhi = abs(phi1 - phi2)
+
+    if deltaPhi > math.pi: deltaPhi = 2*math.pi - deltaPhi
+
+    return math.sqrt(deltaEta*deltaEta + deltaPhi*deltaPhi)
+
 
 
 ############################### Open the files #################################
@@ -38,6 +50,9 @@ eff_dxy_ele = r.TEfficiency("eff_dxy_ele",";Generated |d_{xy}| (cm);Efficiency",
 eff_dxy_mu = r.TEfficiency("eff_dxy_mu",";Generated |d_{xy}| (cm);Efficiency", len(dxy_bin) -1 , dxy_bin)
 
 
+eff_dxy_cmsele = r.TEfficiency("eff_dxy_cmsele",";Generated |d_{xy}| (cm);Efficiency", len(dxy_bin) -1 , dxy_bin)
+eff_dxy_cmsmu = r.TEfficiency("eff_dxy_cmsmu",";Generated |d_{xy}| (cm);Efficiency", len(dxy_bin) -1 , dxy_bin)
+
 #### -> Fake rate
 fake_dxy_ele = r.TEfficiency("fake_dxy_ele",";Generated |d_{xy}| (cm);Fake rate", len(dxy_bin) -1 , dxy_bin)
 fake_dxy_mu = r.TEfficiency("fake_dxy_mu",";Generated |d_{xy}| (cm);Fake rate", len(dxy_bin) -1 , dxy_bin)
@@ -61,9 +76,42 @@ for n in range(0, t.GetEntries()):
     for g in range(0, t.nGenLepton):
 
         reconstructed = False # initially not reconstructed
+        cms_reconstructed = False # initially not reconstructed by cmssw
+
 
         if abs(t.GenLeptonSel_pdgId[g]) == 11: total_ele+=1
         if abs(t.GenLeptonSel_pdgId[g]) == 13: total_muon+=1
+
+
+        ### cmssw official reconstruction efficiency plots:
+
+        # electron channel:
+
+        if (abs(t.GenLeptonSel_pdgId[g]) == 11):
+
+            for e in range(0, t.nElectron):
+
+                dR = getDeltaR(t.GenLeptonSel_phi[g], t.GenLeptonSel_eta[g], t.ElectronSel_phi[e], t.ElectronSel_eta[e])
+                if dR < 0.1:
+                    cms_reconstructed = True
+                    break
+
+            eff_dxy_cmsele.Fill(cms_reconstructed, abs(t.GenLeptonSel_dxy[g]))
+
+        # muon channel:
+
+        if (abs(t.GenLeptonSel_pdgId[g]) == 13):
+
+            for m in range(0, t.nMuon):
+
+                if not t.MuonSel_isMediumMuon[m]: continue
+
+                dR = getDeltaR(t.GenLeptonSel_phi[g], t.GenLeptonSel_eta[g], t.MuonSel_phi[m], t.MuonSel_eta[m])
+                if dR < 0.1:
+                    cms_reconstructed = True
+                    break
+
+            eff_dxy_cmsmu.Fill(cms_reconstructed, abs(t.GenLeptonSel_dxy[g]))
 
 
         # if the genlepton does not have a proper association to track or object the genlepton is not reconstructed directly:
@@ -79,10 +127,14 @@ for n in range(0, t.GetEntries()):
             continue
 
 
+        # if the genlepton has a track and an object the genele and genmu plots are filled:
+
         if abs(t.GenLeptonSel_pdgId[g]) == 11: 
             eff_dxy_genele.Fill(True, abs(t.GenLeptonSel_dxy[g]))
         if abs(t.GenLeptonSel_pdgId[g]) == 13: 
             eff_dxy_genmu.Fill(True, abs(t.GenLeptonSel_dxy[g]))
+
+
 
         # if it does, we access the track and object:
 
@@ -202,6 +254,8 @@ r.gStyle.SetOptStat(0)
 
 efficiencies = [eff_dxy_ele,
                 eff_dxy_mu,
+                eff_dxy_cmsele,
+                eff_dxy_cmsmu,
                 eff_dxy_genele,
                 eff_dxy_genmu]
 

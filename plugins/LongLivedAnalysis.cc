@@ -123,6 +123,8 @@ bool goodElectron(const pat::Electron & electron)
     if (electron.isEE() && electron.full5x5_sigmaIetaIeta() > 0.034) { return false; }
     if (electron.isEB() && electron.full5x5_sigmaIetaIeta() > 0.012) { return false; }
     if (electron.et() < 25) {return false; }
+    if (fabs(electron.eta()) > 2) {return false;}
+
 
     return true;
 
@@ -158,6 +160,7 @@ bool goodMuon( pat::Muon muon)
 {
 
     if (muon.pt() < 28) { return false; }
+    if (fabs(muon.eta()) > 2) { return false;}
 
     return true;
 

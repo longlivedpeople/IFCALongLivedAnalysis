@@ -27,6 +27,11 @@ if not os.path.exists(output_dir): os.mkdir('./'+output_dir)
 #### -> Isolated histos
 histo_nElectronCandidate = r.TH1F("histo_nElectronCandidate", "", 8, 0, 8)
 histo_nMuonCandidate = r.TH1F("histo_nMuonCandidate", "", 8, 0, 8)
+histo_genlep_trackDegeneration = r.TH1F("histo_genlep_trackDegeneration", "", 6, 0, 6)
+histo_genlep_superclusterDegeneration = r.TH1F("histo_genlep_superclusterDegeneration", "", 3, 0, 3)
+histo_genlep_muonDegeneration = r.TH1F("histo_genlep_muonDegeneration", "", 3, 0, 3)
+
+
 
 #### -> deltaR(gen-tr) for different dxy
 histo_deltaRgt_dxy_0_1 = r.TH1F("histo_deltaRgt_dxy_0_1", "", 30, 0, 3)
@@ -69,6 +74,9 @@ for n in range(0, t.GetEntries()):
 
     for g in range(0, t.nGenLepton):
 
+
+        histo_genlep_trackDegeneration.Fill(t.GenLeptonSel_trackDegeneration[g])
+
         if t.GenLeptonSel_trackMatch[g] == 99: continue
 
         dR = t.GenLeptonSel_trackdR[g]
@@ -80,6 +88,13 @@ for n in range(0, t.GetEntries()):
         elif (dxy > 4 and dxy <= 8): histo_deltaRgt_dxy_4_8.Fill(dR)
         else: histo_deltaRgt_dxy_8_inf.Fill(dR)
 
+
+        ###### object matching histograms
+
+        if t.GenLeptonSel_trackdR[g] < 0.1: 
+
+            if abs(t.GenLeptonSel_pdgId[g]) == 11: histo_genlep_superclusterDegeneration.Fill(t.GenLeptonSel_objectDegeneration[g])
+            if abs(t.GenLeptonSel_pdgId[g]) == 13: histo_genlep_muonDegeneration.Fill(t.GenLeptonSel_objectDegeneration[g])
 
         if t.GenLeptonSel_objectMatch[g] == 99: continue
 
@@ -142,30 +157,46 @@ latexCMS, latexCMSExtra = writeCMS(simulation = True)
 c1 = TCanvas("c1", "", 800, 800)
 c1.SetTicks(1,1)
 r.gStyle.SetOptStat(0)
+r.TGaxis.SetMaxDigits(4)
 
 color_set = [r.kRed, r.kBlue, r.kGreen, r.kMagenta, r.kBlack]
 
 ###### Plot some distributions
-c1.Clear()
-c1.SetLogy(0)
+
+###### Isolated histograms:
+
 
 tuneEmptyHisto(histo_nMuonCandidate, 'nMuonCandidate', r.kRed, normed = False)
-tuneEmptyHisto(histo_nElectronCandidate, 'nElectronCandidate', r.kBlue, normed = False)
+tuneEmptyHisto(histo_nElectronCandidate, 'nElectronCandidate', r.kRed, normed = False)
+tuneEmptyHisto(histo_genlep_trackDegeneration, 'Track degeneration', r.kRed, normed = False)
+tuneEmptyHisto(histo_genlep_superclusterDegeneration, 'Supercluster degeneration', r.kRed, normed = False)
+tuneEmptyHisto(histo_genlep_muonDegeneration, 'Muon degeneration', r.kRed, normed = False)
 
-printJointHistos([histo_nMuonCandidate], ['nMuonCandidate'], log = False)
+list_isohisto = [histo_nMuonCandidate,
+                 histo_nElectronCandidate,
+                 histo_genlep_trackDegeneration,
+                 histo_genlep_superclusterDegeneration,
+                 histo_genlep_muonDegeneration]
 
-latexCMS.Draw()
-latexCMSExtra.Draw()
-c1.SaveAs(output_dir+'histo_nMuonCandidate.png')
+names_isohisto = ['histo_nMuonCandidate',
+                  'histo_nElectronCandidate',
+                  'histo_genlep_trackDegeneration',
+                  'histo_genlep_superclusterDegeneration',
+                  'histo_genlep_muonDegeneration']
 
 
-c1.Clear()
-c1.SetLogy(0)
-printJointHistos([histo_nElectronCandidate], ['nElectronCandidate'], log = False)
+for n in range(0, len(list_isohisto)):
 
-latexCMS.Draw()
-latexCMSExtra.Draw()
-c1.SaveAs(output_dir+'histo_nElectronCandidate.png')
+    c1.Clear()
+    c1.SetLogy(0)
+
+    printHisto(list_isohisto[n], log = False)
+
+    latexCMS.Draw()
+    latexCMSExtra.Draw()
+    c1.SaveAs(output_dir+names_isohisto[n]+'.png')
+
+
 
 ###### Plot deltaR(gen-track) distributions for dxy ranges:
 
@@ -191,7 +222,7 @@ tags_deltaRgt_dxy = ['d_{xy}: [0, 1]',
                      'd_{xy}: [8, inf]']
 
 
-printJointHistos(list_deltaRgt_dxy, tags_deltaRgt_dxy, log = True)
+printJointHistos(list_deltaRgt_dxy, log = True)
 
 leg = drawLegend(list_deltaRgt_dxy, tags_deltaRgt_dxy)
 leg.Draw()
@@ -226,7 +257,7 @@ for n in range(0, len(list_deltaRtsc_dxy)):
 
     tuneEmptyHisto(list_deltaRtsc_dxy[n], '#DeltaR (track - supercluster)  ', color_set[n], normed = True)
 
-printJointHistos(list_deltaRtsc_dxy, tags_deltaRtsc_dxy, log = True)
+printJointHistos(list_deltaRtsc_dxy, log = True)
 
 leg = drawLegend(list_deltaRtsc_dxy, tags_deltaRtsc_dxy)
 leg.Draw()
@@ -260,7 +291,7 @@ for n in range(0, len(list_deltaRtmu_dxy)):
 
     tuneEmptyHisto(list_deltaRtmu_dxy[n], '#DeltaR (track - muon)  ', color_set[n], normed = True)
 
-printJointHistos(list_deltaRtmu_dxy, tags_deltaRtmu_dxy, log = True)
+printJointHistos(list_deltaRtmu_dxy, log = True)
 
 leg = drawLegend(list_deltaRtmu_dxy, tags_deltaRtmu_dxy)
 leg.Draw()
