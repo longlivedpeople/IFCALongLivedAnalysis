@@ -7,7 +7,7 @@ import os
 
 ############################### Open the files #################################
 
-file_name = '/afs/cern.ch/work/f/fernance/private/Long_Lived_Analysis/CMSSW_9_4_4/src/MyAnalysis/IFCALongLivedAnalysis/output.root'
+file_name = '/afs/cern.ch/work/f/fernance/public/Samples/DisplacedSUSY/1500_494_20/output/merged_1500_494_20_output_N200000.root'
 
 File = TFile(file_name)
 t = File.Get("Events")
@@ -117,6 +117,9 @@ for n in range(0, t.GetEntries()):
                 else: histo_deltaRtmu_dxy_8_inf.Fill(t.GenLeptonSel_pairdR[g])
 
 
+        if t.GenLeptonSel_pairdR[g] > 0.1: continue ############### Solo si la gen esta reco
+
+
         if abs(t.GenLeptonSel_pdgId[g]) == 11: prof_deltaRtsc_vs_dxy.Fill(dxy, t.GenLeptonSel_objectdR[g])
         if abs(t.GenLeptonSel_pdgId[g]) == 13: prof_deltaRtmu_vs_dxy.Fill(dxy, t.GenLeptonSel_objectdR[g])
 
@@ -138,7 +141,12 @@ output_file = TFile("output_histos.root", "RECREATE")
 TList.Write()
 
 
+
+
+##############################################################################################
 ############################### Plot in canvas ###############################################
+##############################################################################################
+
 
 gROOT.ProcessLine('.L include/tdrstyle.C')
 gROOT.SetBatch(1)
