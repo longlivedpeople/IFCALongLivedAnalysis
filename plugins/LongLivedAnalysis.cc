@@ -186,14 +186,17 @@ bool goodMuon( pat::Muon muon)
 }
 
 
-float dxy_value(const reco::GenParticle &p)
+float dxy_value(const reco::GenParticle &p, const reco::Vertex &pv)
 {
 
     float vx = p.vx();
     float vy = p.vy();
     float phi = p.phi();
+
+    float pv_x = pv.x();
+    float pv_y = pv.y();
   
-    float dxy = -vx*sin(phi) + vy*cos(phi);
+    float dxy = -(vx-pv_x)*sin(phi) + (vy-pv_y)*cos(phi);
     return dxy;
 
 }
@@ -437,7 +440,7 @@ Float_t MET_Type6EtFraction;
 Float_t MET_Type7EtFraction;
 
 //-> ELECTRON CANDIDATE SELECTION
-const Int_t nElectronCandidateMax = 100;
+const Int_t nElectronCandidateMax = 1000;
 Int_t nElectronCandidate;
 Float_t ElectronCandidate_pt[nElectronCandidateMax];
 Float_t ElectronCandidate_et[nElectronCandidateMax];
@@ -822,6 +825,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+   const reco::Vertex &thePrimaryVertex = (*primaryvertices)[0];
+
+   PV_vx = thePrimaryVertex.x();
+   PV_vy = thePrimaryVertex.y();
+   PV_vz = thePrimaryVertex.z();
+
+
+
    ///////////////////////////////// ISOTRACK FEATURES /////////////////////////////////
    iT.clear();
    
@@ -887,6 +898,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Info extracted form the packedCandidate of the isotrack
        // (PV(), vertex())
        IsoTrackSel_fromPV[i] = isotrack.fromPV(); 
+
+       
        const pat::PackedCandidateRef &pckCand = isotrack.packedCandRef(); // access the packed candidate
       
  
@@ -1128,7 +1141,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
 
        GenLeptonSel_pdgId[i] = genparticle.pdgId();
-       GenLeptonSel_dxy[i] = dxy_value(genparticle);
+       GenLeptonSel_dxy[i] = dxy_value(genparticle, thePrimaryVertex);
 
 
        // Define the mother index
@@ -1647,9 +1660,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    RefittedPV_nLostTrack = 0;
 
    // Original PV values
-   PV_vx = -99;
-   PV_vy = -99;
-   PV_vz = -99;
+   //PV_vx = -99;
+   //PV_vy = -99;
+   //PV_vz = -99;
 
    // No suceed PV refitting default values
    RefittedPV_vx = -99;
@@ -1668,13 +1681,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Selection criteria for the tracks
        if (packedPFCandidate.fromPV() != 3) continue;
 
-
+       /*
        if(PV_vx == -99 && PV_vy == -99 && PV_vz == -99){ 
 
            const reco::VertexRef &PV = packedPFCandidate.vertexRef(); // access the PV of the candidate
            PV_vx = (*PV).x(); PV_vy = (*PV).y(); PV_vz = (*PV).z();      
  
        }
+       */
 
        RefittedPV_nPFTrack++;
        reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedPFTrack);
