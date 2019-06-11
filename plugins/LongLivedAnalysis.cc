@@ -117,6 +117,21 @@ bool goodPhoton(const pat::Photon & photon)
 bool goodElectron(const pat::Electron & electron)
 {
 
+    /*
+    // Barrel cuts:
+    if (fabs(electron.superCluster()->eta()) <= 1.479)
+    {
+
+       # Combined isolation:
+       float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
+
+       if (electron.full5x5_sigmaIetaIeta() > 0.012) { return false; }
+       if (electron.)
+
+    }
+
+
+
     // Return true if the electron fulfills with the analysis requirements and false instead
 
     if (fabs(electron.eta()) > 1.4442 && fabs(electron.eta()) < 1.566) { return false; } // narrow EB region to be defined
@@ -126,6 +141,9 @@ bool goodElectron(const pat::Electron & electron)
     if (electron.et() < 25) {return false; }
     if (fabs(electron.eta()) > 2) {return false;}
 
+    */
+
+    if (fabs(electron.eta()) > 2) {return false;}
 
     return true;
 
@@ -160,7 +178,7 @@ bool isGoodMuonTriggerObject( pat::TriggerObjectStandAlone obj)
 bool goodMuon( pat::Muon muon)
 {
 
-    if (muon.pt() < 28) { return false; }
+    //if (muon.pt() < 28) { return false; }
     if (fabs(muon.eta()) > 2) { return false;}
 
     return true;
@@ -959,7 +977,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    for (size_t i = 0; i < electrons->size(); i++){
 
        const pat::Electron & electron = (*electrons)[i];
-       
+
        // this is the place to put any preselection if required
        if (goodElectron(electron)) { iE.push_back(i);}
 
@@ -973,7 +991,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    for (size_t i = 0; i < iE.size(); i++){
 
-       const pat::Electron & electron = (* electrons)[i];
+       const pat::Electron & electron = (* electrons)[iE.at(i)];
 
        ElectronSel_pt[i] = electron.pt();
        ElectronSel_et[i] = electron.et();
@@ -1022,7 +1040,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    for (size_t i = 0; i < iM.size(); i++){
 
-       const pat::Muon & muon = (* muons)[i];
+       const pat::Muon & muon = (* muons)[iM.at(i)];
 
        MuonSel_pt[i] = muon.pt();
        MuonSel_eta[i] = muon.eta();
