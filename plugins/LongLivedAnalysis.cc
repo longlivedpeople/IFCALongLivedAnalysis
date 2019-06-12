@@ -290,6 +290,7 @@ Int_t nIsoTrack;
 Float_t IsoTrackSel_pt[nIsoTrackMax];
 Float_t IsoTrackSel_eta[nIsoTrackMax];
 Float_t IsoTrackSel_phi[nIsoTrackMax];
+Int_t IsoTrackSel_charge[nIsoTrackMax];
 Float_t IsoTrackSel_dxy[nIsoTrackMax];
 Float_t IsoTrackSel_dxyError[nIsoTrackMax];
 Float_t IsoTrackSel_dz[nIsoTrackMax];
@@ -355,6 +356,8 @@ Float_t ElectronSel_relIso[nElectronMax];
 Float_t ElectronSel_dxy[nElectronMax];
 Float_t ElectronSel_dxyError[nElectronMax];
 Float_t ElectronSel_dxySignificance[nElectronMax];
+Float_t ElectronSel_dB[nElectronMax];
+Float_t ElectronSel_edB[nElectronMax];
 
 
 // -> MUON SELECTION
@@ -371,6 +374,8 @@ Float_t MuonSel_relIso[nMuonMax];
 Float_t MuonSel_dxy[nMuonMax];
 Float_t MuonSel_dxyError[nMuonMax];
 Float_t MuonSel_dxySignificance[nMuonMax];
+Float_t MuonSel_dB[nMuonMax];
+Float_t MuonSel_edB[nMuonMax];
 Int_t MuonSel_isMuon[nMuonMax];
 Int_t MuonSel_isGlobalMuon[nMuonMax];
 Int_t MuonSel_isTrackerMuon[nMuonMax];
@@ -860,7 +865,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        IsoTrackSel_pt[i] = isotrack.pt();
        IsoTrackSel_eta[i] = isotrack.eta();
        IsoTrackSel_phi[i] = isotrack.phi();
-       
+       IsoTrackSel_charge[i] = isotrack.charge();      
+
+ 
        // Isolation info:
        
        const pat::PFIsolation &pfiso = isotrack.pfIsolationDR03();
@@ -1025,6 +1032,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        ElectronSel_dxy[i] = electron.gsfTrack()->dxy();
        ElectronSel_dxySignificance[i] = fabs(ElectronSel_dxy[i])/electron.dxyError();
 
+       ElectronSel_dB[i] = electron.dB();
+       ElectronSel_edB[i] = electron.edB();
 
    }
 
@@ -1075,6 +1084,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        MuonSel_dxyError[i] = muon.dxyError();
        MuonSel_dxy[i] = muon.muonBestTrack()->dxy();
        MuonSel_dxySignificance[i] = fabs(MuonSel_dxy[i])/muon.dxyError();
+
+
+       MuonSel_dB[i] = muon.dB();
+       MuonSel_edB[i] = muon.edB();
 
    }
 
@@ -1134,6 +1147,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
+   // variables to avoid radiative effects on leptons
+   int rad = 0;
+   int rad_2 = 0;
+ 
 
    // Loop over the selected genleptons
    for(size_t i = 0; i < iGL.size(); i++){
@@ -1160,8 +1177,26 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Get the last genlepton (to avoid radiative effects):
        if (genparticle.numberOfDaughters() > 0){
 
-           const reco::Candidate *d = genparticle.daughter(0);
-           while(d->numberOfDaughters()> 0 && d->daughter(0)->pdgId() == d->pdgId()){ d = d->daughter(0); }
+           // look for the correct daughter
+           for (size_t j = 0; j < genparticle.numberOfDaughters(); j++)
+           {
+              if (genparticle.pdgId() == genparticle.daughter(j)->pdgId()) {rad = j; break; }
+           }
+
+           const reco::Candidate *d = genparticle.daughter(rad);
+
+           //while(d->numberOfDaughters()> 0 && d->daughter(0)->pdgId() == d->pdgId()){ d = d->daughter(0); }
+           while(d->numberOfDaughters()> 0)
+           {
+
+               for(size_t j = 0; j < d->numberOfDaughters(); j++)
+               {
+                  if (d->pdgId() == d->daughter(j)->pdgId()) {rad_2 = j; break;}
+               }
+
+               d = d->daughter(rad_2);
+
+           }
 
            GenLeptonSel_pt[i] = d->pt();
            GenLeptonSel_et[i] = d->et();
@@ -1852,6 +1887,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_pt", IsoTrackSel_pt, "IsoTrackSel_pt[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_eta", IsoTrackSel_eta, "IsoTrackSel_eta[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_phi", IsoTrackSel_phi, "IsoTrackSel_phi[nIsoTrack]/F");
+    tree_out->Branch("IsoTrackSel_charge", IsoTrackSel_charge, "IsoTrackSel_charge[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_dxy", IsoTrackSel_dxy, "IsoTrackSel_dxy[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_dxyError", IsoTrackSel_dxyError, "IsoTrackSel_dxyError[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_dz", IsoTrackSel_dz, "IsoTrackSel_dz[nIsoTrack]/F");
@@ -1918,7 +1954,8 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronSel_dxy", ElectronSel_dxy, "ElectronSel_dxy[nElectron]/F");
     tree_out->Branch("ElectronSel_dxyError", ElectronSel_dxyError, "ElectronSel_dxyError[nElectron]/F");
     tree_out->Branch("ElectronSel_dxySignificance", ElectronSel_dxySignificance, "ElectronSel_dxySignificance[nElectron]/F");
-
+    tree_out->Branch("ElectronSel_dB", ElectronSel_dB, "ElectronSel_dB[nElectron]/F");
+    tree_out->Branch("ElectronSel_edB", ElectronSel_edB, "ElectronSel_edB[nElectron]/F");
 
 
     ///////////////////////////////// MUON BRANCHES /////////////////////////////////
@@ -1942,6 +1979,8 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonSel_isLooseMuon", MuonSel_isLooseMuon, "MuonSel_isLooseMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isMediumMuon", MuonSel_isMediumMuon, "MuonSel_isMediumMuon[nMuon]/I");
 
+    tree_out->Branch("MuonSel_dB", MuonSel_dB, "MuonSel_dB[nMuon]/F");
+    tree_out->Branch("MuonSel_edB", MuonSel_edB, "MuonSel_edB[nMuon]/F");
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
     //
