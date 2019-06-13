@@ -117,31 +117,39 @@ bool goodPhoton(const pat::Photon & photon)
 bool goodElectron(const pat::Electron & electron)
 {
 
-    /*
+    float ecal_energy_inverse = 1.0/electron.ecalEnergy();
+    float eSCoverP = electron.eSuperClusterOverP();
+
     // Barrel cuts:
     if (fabs(electron.superCluster()->eta()) <= 1.479)
     {
 
-       # Combined isolation:
-       float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
+       // Combined isolation:
+       //float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
 
-       if (electron.full5x5_sigmaIetaIeta() > 0.012) { return false; }
-       if (electron.)
+       if (electron.full5x5_sigmaIetaIeta() > 0.011) { return false; }
+       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00477) { return false; }
+       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.222) { return false; }
+       if (electron.hadronicOverEm() > 0.298) { return false; }
+       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.241) {return false; }
+       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
+       if (electron.passConversionVeto() == 0) {return false;}
+
+
+    // Endcap cuts
+    } else if (fabs(electron.superCluster()->eta()) > 1.479) {
+
+
+       if (electron.full5x5_sigmaIetaIeta() > 0.0314) { return false; }
+       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00868) { return false; }
+       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.213) { return false; }
+       if (electron.hadronicOverEm() > 0.101) { return false; }
+       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.14) {return false; }
+       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
+       if (electron.passConversionVeto() == 0) {return false;}
 
     }
 
-
-
-    // Return true if the electron fulfills with the analysis requirements and false instead
-
-    if (fabs(electron.eta()) > 1.4442 && fabs(electron.eta()) < 1.566) { return false; } // narrow EB region to be defined
-    if (electron.hadronicOverEm() > 0.05) { return false; }
-    if (electron.isEE() && electron.full5x5_sigmaIetaIeta() > 0.034) { return false; }
-    if (electron.isEB() && electron.full5x5_sigmaIetaIeta() > 0.012) { return false; }
-    if (electron.et() < 25) {return false; }
-    if (fabs(electron.eta()) > 2) {return false;}
-
-    */
 
     if (fabs(electron.eta()) > 2) {return false;}
 
@@ -211,6 +219,18 @@ bool isLongLivedLepton(const reco::GenParticle &p)
     return true;
 
 }
+
+
+bool isZLepton(const reco::GenParticle &p)
+{
+
+    if (!( abs(p.pdgId()) == 11 || abs(p.pdgId()) == 13)){ return false; }
+    if (abs(p.mother()->pdgId()) != 23){ return false; }
+
+    return true;
+
+}
+
 
 
 float getDeltaR(float phi1, float eta1, float phi2, float eta2)
@@ -409,6 +429,10 @@ Int_t GenLeptonSel_hasValidPair[nGenLeptonMax];
 Float_t GenLeptonSel_pairdR[nGenLeptonMax];
 Int_t GenLeptonSel_trackDegeneration[nGenLeptonMax];
 Int_t GenLeptonSel_objectDegeneration[nGenLeptonMax];
+Float_t GenLeptonSel_vx[nGenLeptonMax];
+Float_t GenLeptonSel_vy[nGenLeptonMax];
+Float_t GenLeptonSel_vz[nGenLeptonMax];
+
 
 //-> GENNEUTRALINO SELECTION
 const Int_t nGenNeutralinoMax = 500;
@@ -1159,6 +1183,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        GenLeptonSel_pdgId[i] = genparticle.pdgId();
        GenLeptonSel_dxy[i] = dxy_value(genparticle, thePrimaryVertex);
+       GenLeptonSel_vx[i] = genparticle.vx();
+       GenLeptonSel_vy[i] = genparticle.vy();
+       GenLeptonSel_vz[i] = genparticle.vz();
+
+
 
 
        // Define the mother index
@@ -1998,6 +2027,9 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenLeptonSel_eta", GenLeptonSel_eta, "GenLeptonSel_eta[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_phi", GenLeptonSel_phi, "GenLeptonSel_phi[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_dxy", GenLeptonSel_dxy, "GenLeptonSel_dxy[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_vx", GenLeptonSel_vx, "GenLeptonSel_vx[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_vy", GenLeptonSel_vy, "GenLeptonSel_vy[nGenLepton]/F");
+    tree_out->Branch("GenLeptonSel_vz", GenLeptonSel_vz, "GenLeptonSel_vz[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
     tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
     tree_out->Branch("GenLeptonSel_objectMatch", GenLeptonSel_objectMatch, "GenLeptonSel_objectMatch[nGenLepton]/I");
