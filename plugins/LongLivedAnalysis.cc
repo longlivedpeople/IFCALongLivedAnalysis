@@ -88,7 +88,7 @@
 #include "TLorentzVector.h"
 #include "TTree.h"
 #include "TFile.h"
-
+#include "TVector3.h"
 
 //=======================================================================================================================================================================================================================//
 
@@ -533,13 +533,19 @@ const Int_t nLLMax = 1000;
 Int_t nLL;
 Float_t LL_Lxy[nLLMax];
 Float_t LL_Ixy[nLLMax];
+Float_t LL_minLxy[nLLMax];
+Float_t LL_minIxy[nLLMax];
 Float_t LL_Mass[nLLMax];
-Float_t LL_normalisedChiSquared[nLLMax];
+Float_t LL_normalizedChi2[nLLMax];
 
-Float_t LLSel_Lxy;
+Float_t LLSel_Lxy;//vtx displacement
 Float_t LLSel_Ixy;
+Float_t LLSel_minLxy;// min displacement  of the 2 tracks
+Float_t LLSel_minIxy;
 Float_t LLSel_Mass;
-Float_t LLSel_normalisedChiSquared;
+Float_t LLSel_normalizedChi2;
+Float_t LLSel_cosAlpha;//cos of the angle between the 2 tracks
+Float_t LLSel_dPhi;
 Int_t LLSel_isMM;
 Int_t LLSel_isEE;
 
@@ -547,14 +553,18 @@ Int_t LLSel_isEE;
 Int_t nEE;
 Float_t EE_Lxy[nLLMax];
 Float_t EE_Ixy[nLLMax];
+Float_t EE_minLxy[nLLMax];
+Float_t EE_minIxy[nLLMax];
 Float_t EE_Mass[nLLMax];
-Float_t EE_normalisedChiSquared[nLLMax];
+Float_t EE_normalizedChi2[nLLMax];
 
 Int_t nMM;
 Float_t MM_Lxy[nLLMax];
 Float_t MM_Ixy[nLLMax];
+Float_t MM_minLxy[nLLMax];
+Float_t MM_minIxy[nLLMax];
 Float_t MM_Mass[nLLMax];
-Float_t MM_normalisedChiSquared[nLLMax];
+Float_t MM_normalizedChi2[nLLMax];
 
 
 
@@ -1876,7 +1886,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    LLSel_Lxy = -99;
    LLSel_Ixy = -99;
+   LLSel_minLxy = -99;
+   LLSel_minIxy = -99;
    LLSel_Mass = -99;
+   LLSel_normalizedChi2 = -99;
+   LLSel_cosAlpha = -99;
+   LLSel_dPhi = -99;
    LLSel_isEE = 0;
    LLSel_isMM = 0;
    for (int i = 1; i < nElectronCandidate; i++) {
@@ -2188,18 +2203,32 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("nLL", &nLL, "nLL/I");
     tree_out->Branch("LL_Lxy", LL_Lxy, "LL_Lxy[nLL]/F");
     tree_out->Branch("LL_Ixy", LL_Ixy, "LL_Ixy[nLL]/F");
+    tree_out->Branch("LL_minLxy", LL_minLxy, "LL_minLxy[nLL]/F");
+    tree_out->Branch("LL_minIxy", LL_minIxy, "LL_minIxy[nLL]/F");
     tree_out->Branch("LL_Mass", LL_Mass, "LL_Mass[nLL]/F");
+    tree_out->Branch("LL_normalizedChi2", LL_normalizedChi2, "LL_normalizedChi2[nLL]/F");
     tree_out->Branch("nEE", &nEE, "nEE/I");
     tree_out->Branch("EE_Lxy", EE_Lxy, "EE_Lxy[nEE]/F");
     tree_out->Branch("EE_Ixy", EE_Ixy, "EE_Ixy[nEE]/F");
+    tree_out->Branch("EE_minLxy", EE_minLxy, "EE_minLxy[nEE]/F");
+    tree_out->Branch("EE_minIxy", EE_minIxy, "EE_minIxy[nEE]/F");
     tree_out->Branch("EE_Mass", EE_Mass, "EE_Mass[nEE]/F");
+    tree_out->Branch("EE_normalizedChi2", EE_normalizedChi2, "EE_normalizedChi2[nEE]/F");
     tree_out->Branch("nMM", &nMM, "nMM/I");
     tree_out->Branch("MM_Lxy", MM_Lxy, "MM_Lxy[nMM]/F");
     tree_out->Branch("MM_Ixy", MM_Ixy, "MM_Ixy[nMM]/F");
+    tree_out->Branch("MM_minLxy", MM_minLxy, "MM_minLxy[nMM]/F");
+    tree_out->Branch("MM_minIxy", MM_minIxy, "MM_minIxy[nMM]/F");
     tree_out->Branch("MM_Mass", MM_Mass, "MM_Mass[nMM]/F");
+    tree_out->Branch("MM_normalizedChi2", MM_normalizedChi2, "MM_normalizedChi2[nMM]/F");
     tree_out->Branch("LLSel_Lxy", &LLSel_Lxy, "LLSel_Lxy/F");
     tree_out->Branch("LLSel_Ixy", &LLSel_Ixy, "LLSel_Ixy/F");
+    tree_out->Branch("LLSel_minLxy", &LLSel_minLxy, "LLSel_minLxy/F");
+    tree_out->Branch("LLSel_minIxy", &LLSel_minIxy, "LLSel_minIxy/F");
     tree_out->Branch("LLSel_Mass", &LLSel_Mass, "LLSel_Mass/F");
+    tree_out->Branch("LLSel_normalizedChi2", &LLSel_normalizedChi2, "LLSel_normalizedChi2/F");
+    tree_out->Branch("LLSel_cosAlpha", &LLSel_cosAlpha, "LLSel_cosAlpha/F");
+    tree_out->Branch("LLSel_dPhi", &LLSel_dPhi, "LLSel_dPhi/F");
     tree_out->Branch("LLSel_isEE", &LLSel_isEE, "LLSel_isEE/I");
     tree_out->Branch("LLSel_isMM", &LLSel_isMM, "LLSel_isMM/I");
 }
@@ -2287,13 +2316,20 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
       //std::cout << "secVkin.nTrack =" << secVkin.numberOfTracks() << std::endl;
       //std::cout << "secVkin.nTrack =" << secVkin.weightedVectorSum().M() << std::endl;
 
+      const reco::Track isorecotrkA = pckCandA->pseudoTrack();
+      const reco::Track isorecotrkB = pckCandB->pseudoTrack();
       LL_Lxy[nLL] = vMeas.value();
       LL_Ixy[nLL] = vMeas.significance();
+      double minLxy = (fabs(isorecotrkA.dxy()/isorecotrkA.dxyError()) < fabs(isorecotrkB.dxy())/isorecotrkB.dxyError())? isorecotrkA.dxy(): isorecotrkB.dxy();
+      double minIxy = (fabs(isorecotrkA.dxy()/isorecotrkA.dxyError()) < fabs(isorecotrkB.dxy())/isorecotrkB.dxyError())? isorecotrkA.dxy()/isorecotrkA.dxyError(): isorecotrkB.dxy()/isorecotrkB.dxyError();
+      LL_minLxy[nLL] = minLxy;
+      LL_minIxy[nLL] = minIxy;
+      LL_normalizedChi2[nLL] = myVertex.normalisedChiSquared();
       LL_Mass[nLL] = secVkin.weightedVectorSum().M(); 
 
       //we update the value if it has not been initialized or if it has been and the new LL is more displaced
       if ( (!LLSel_isEE && !LLSel_isMM) ||
-	   ( (LLSel_isEE || LLSel_isMM) && (fabs(LL_Ixy[nLL]) < fabs(LLSel_Ixy)) ) )
+	   ( (LLSel_isEE || LLSel_isMM) && (fabs(LL_minIxy[nLL]) > fabs(LLSel_minIxy)) ) )
 	{
 	  if (isEE) {
 	    LLSel_isEE = true;
@@ -2306,7 +2342,21 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
 
 	  LLSel_Lxy = vMeas.value();
 	  LLSel_Ixy = vMeas.significance();
+	  LLSel_minLxy = minLxy;
+	  LLSel_minIxy = minIxy;
+	  LLSel_normalizedChi2 = myVertex.normalisedChiSquared();
 	  LLSel_Mass = secVkin.weightedVectorSum().M(); 
+
+	  TVector3 vec3A(isorecotrkA.px(), isorecotrkA.py(), isorecotrkA.pz()); 
+	  TVector3 vec3B(isorecotrkB.px(), isorecotrkB.py(), isorecotrkB.pz()); 
+	  TVector3 divec3 = vec3A + vec3B;
+	  //TVector3 vtxvec3(secV.x(),secV.y(),secV.z());
+	  //OOOOOOOOOOOOOOOJOOOOOOOOOO (default value for PV?, if we find secondary vertex there should be a PV in any case)
+	  TVector3 vtxvec3(secV.x() - PV_vx, secV.y() - PV_vy, secV.z() - PV_vz);
+
+	  LLSel_cosAlpha = TMath::Cos(vec3A.Angle(vec3B));
+	  LLSel_dPhi = divec3.DeltaPhi(vtxvec3);
+
       }
 
       nLL++;
@@ -2314,12 +2364,18 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
       if (isEE) {
 	EE_Lxy[nEE] = vMeas.value();
 	EE_Ixy[nEE] = vMeas.significance();
+	EE_minLxy[nEE] = minLxy;
+	EE_minIxy[nEE] = minIxy;
+        EE_normalizedChi2[nEE] = myVertex.normalisedChiSquared();
 	EE_Mass[nEE] = secVkin.weightedVectorSum().M(); 
 	nEE++;
       }
       else {
 	MM_Lxy[nMM] = vMeas.value();
 	MM_Ixy[nMM] = vMeas.significance();
+	MM_minLxy[nMM] = minLxy;
+	MM_minIxy[nMM] = minIxy;
+        MM_normalizedChi2[nMM] = myVertex.normalisedChiSquared();
 	MM_Mass[nMM] = secVkin.weightedVectorSum().M(); 
 	nMM++;
       }
