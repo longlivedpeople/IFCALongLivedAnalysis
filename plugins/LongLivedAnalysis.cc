@@ -1752,7 +1752,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            ElectronCandidate_pt[li] = (*isotracks)[iT.at(tmin)].pt();
            ElectronCandidate_eta[li] = (*isotracks)[iT.at(tmin)].eta();
            ElectronCandidate_phi[li] = (*isotracks)[iT.at(tmin)].phi();
-           ElectronCandidate_et[li] = (*photons)[scmin].et();
+           ElectronCandidate_et[li] = (*photons)[iP.at(scmin)].et();
            ElectronCandidate_photonIdx[li] = scmin;
            ElectronCandidate_isotrackIdx[li] = tmin;
            ElectronCandidate_dxy[li] = IsoTrackSel_dxy[tmin];
