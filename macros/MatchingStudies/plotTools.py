@@ -73,14 +73,14 @@ def tuneEfficiency(c, plot):
 
     graph = plot.GetPaintedGraph();
     graph.SetMinimum(0.);
-    graph.SetMaximum(1.1);
+    graph.SetMaximum(1.2);
     graph.GetXaxis().SetLimits(0., xlimit)
-    graph.GetXaxis().SetTitleOffset(1.3)
-    graph.GetYaxis().SetTitleOffset(1.07)
-    graph.GetXaxis().SetLabelSize(0.035)
-    graph.GetYaxis().SetLabelSize(0.035)
-    graph.GetXaxis().SetTitleSize(0.037)
-    graph.GetYaxis().SetTitleSize(0.037)
+    #graph.GetXaxis().SetTitleOffset(1.3)
+    #graph.GetYaxis().SetTitleOffset(1.07)
+    #graph.GetXaxis().SetLabelSize(0.035)
+    #graph.GetYaxis().SetLabelSize(0.035)
+    #graph.GetXaxis().SetTitleSize(0.037)
+    #graph.GetYaxis().SetTitleSize(0.037)
 
     return xlimit
 
@@ -101,19 +101,19 @@ def plotJointEfficiency(c, plot_list):
 
         c.Update()
 
-    histo = plot_list[0].GetTotalHistogram()
-    xlimit = histo.GetXaxis().GetBinUpEdge(histo.GetNbinsX())
+        histo = plot_list[p].GetTotalHistogram()
+        xlimit = histo.GetXaxis().GetBinUpEdge(histo.GetNbinsX())
 
-    graph = plot_list[0].GetPaintedGraph();
-    graph.SetMinimum(0.);
-    graph.SetMaximum(1.1);
-    graph.GetXaxis().SetLimits(0., xlimit)
-    graph.GetXaxis().SetTitleOffset(1.3)
-    graph.GetYaxis().SetTitleOffset(1.07)
-    graph.GetXaxis().SetLabelSize(0.035)
-    graph.GetYaxis().SetLabelSize(0.035)
-    graph.GetXaxis().SetTitleSize(0.037)
-    graph.GetYaxis().SetTitleSize(0.037)
+        graph = plot_list[p].GetPaintedGraph();
+        graph.SetMinimum(0.);
+        graph.SetMaximum(1.1);
+        graph.GetXaxis().SetLimits(0., xlimit)
+    #graph.GetXaxis().SetTitleOffset(1.3)
+    #graph.GetYaxis().SetTitleOffset(1.07)
+    #graph.GetXaxis().SetLabelSize(0.035)
+    #graph.GetYaxis().SetLabelSize(0.035)
+    #graph.GetXaxis().SetTitleSize(0.037)
+    #graph.GetYaxis().SetTitleSize(0.037)
 
     return xlimit
 

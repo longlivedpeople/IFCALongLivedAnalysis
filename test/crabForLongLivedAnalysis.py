@@ -3,7 +3,7 @@ config = Configuration()
 
 config.section_('General')
 config.General.transferLogs = True
-config.General.requestName = 'FirstDisplacedSUSYAnalysisLongLived'
+config.General.requestName = '1500-494-160_DisplacedSUSY_NTuple'
 
 config.section_('JobType')
 config.JobType.pluginName = 'Analysis'

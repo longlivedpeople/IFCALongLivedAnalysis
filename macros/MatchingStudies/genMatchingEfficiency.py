@@ -7,7 +7,9 @@ import os
 
 ############################### Open the files #################################
 
-file_name = '/afs/cern.ch/work/f/fernance/public/Samples/DisplacedSUSY/1500_494_20/output/merged_1500_494_20_output_N200000.root'
+#file_name = '/afs/cern.ch/work/f/fernance/public/Samples/DisplacedSUSY/1500_494_20/output/merged_1500_494_20_output_N200000.root'
+file_name = '/afs/cern.ch/work/f/fernance/private/Long_Lived_Analysis/CMSSW_9_4_4/src/MyAnalysis/IFCALongLivedAnalysis/output.root'
+
 
 File = TFile(file_name)
 t = File.Get("Events")

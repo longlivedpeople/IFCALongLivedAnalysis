@@ -403,6 +403,7 @@ Float_t ElectronSel_dxyError[nElectronMax];
 Float_t ElectronSel_dxySignificance[nElectronMax];
 Float_t ElectronSel_dB[nElectronMax];
 Float_t ElectronSel_edB[nElectronMax];
+Int_t ElectronSel_isLoose[nElectronMax];
 
 
 // -> MUON SELECTION
@@ -1112,6 +1113,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        ElectronSel_dB[i] = electron.dB();
        ElectronSel_edB[i] = electron.edB();
+
+       ElectronSel_isLoose[i] = electron.electronID("cutBasedElectronID-Summer16-80X-V1-loose");
+
 
    }
 
@@ -2071,6 +2075,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronSel_dxySignificance", ElectronSel_dxySignificance, "ElectronSel_dxySignificance[nElectron]/F");
     tree_out->Branch("ElectronSel_dB", ElectronSel_dB, "ElectronSel_dB[nElectron]/F");
     tree_out->Branch("ElectronSel_edB", ElectronSel_edB, "ElectronSel_edB[nElectron]/F");
+    tree_out->Branch("ElectronSel_isLoose", ElectronSel_isLoose, "ElectronSel_isLoose[nElectron]/I");
 
 
     ///////////////////////////////// MUON BRANCHES /////////////////////////////////
