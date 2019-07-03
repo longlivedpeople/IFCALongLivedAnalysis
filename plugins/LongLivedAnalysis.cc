@@ -232,10 +232,12 @@ float dxy_value(const reco::GenParticle &p, const reco::Vertex &pv)
 bool isLongLivedLepton(const reco::GenParticle &p)
 {
 
-    if (!( abs(p.pdgId()) == 11 || abs(p.pdgId()) == 13)){ return false; }
-    if (abs(p.mother()->pdgId()) != 1000022){ return false; }
+    bool LLP = false;
 
-    return true;
+    if (!( abs(p.pdgId()) == 11 || abs(p.pdgId()) == 13)){ return false; }
+    if (abs(p.mother()->pdgId()) == 1000022 or abs(p.mother()->pdgId()) == 54){ LLP = true; }
+
+    return LLP;
 
 }
 
@@ -1213,7 +1215,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
         if (abs(genparticle.pdgId()) == 1000022 && (abs(genparticle.daughter(0)->pdgId()) != 1000022) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
             iGN.push_back(i);
             continue;
-
+        } else if (abs(genparticle.pdgId()) == 54 && (abs(genparticle.daughter(0)->pdgId()) != 54) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
+            iGN.push_back(i);
+            continue;
         }
    } 
 
@@ -1244,7 +1248,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        const reco::Candidate *m = genparticle.mother();
    
        // To avoid radiative effects of the neutralino: 
-       while((abs(m->pdgId()) == 100022)){ m = m->mother(); }
+       while((abs(m->pdgId()) == 100022) or (abs(m->pdgId()) == 54)){ m = m->mother(); }
 
        GenNeutralinoSel_Lxy[i] = sqrt((m->vx()-genparticle.daughter(0)->vx())*(m->vx()-genparticle.daughter(0)->vx()) + (m->vy()-genparticle.daughter(0)->vy())*(m->vy()-genparticle.daughter(0)->vy()));
 
