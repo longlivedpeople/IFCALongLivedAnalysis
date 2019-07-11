@@ -554,20 +554,40 @@ Int_t LLSel_isEE;
 
 
 Int_t nEE;
+Int_t EE_idxA[nLLMax];
+Int_t EE_idxB[nLLMax];
 Float_t EE_Lxy[nLLMax];
 Float_t EE_Ixy[nLLMax];
 Float_t EE_minLxy[nLLMax];
 Float_t EE_minIxy[nLLMax];
 Float_t EE_Mass[nLLMax];
 Float_t EE_normalizedChi2[nLLMax];
+Float_t EE_leadingPt[nLLMax];
+Float_t EE_subleadingPt[nLLMax];
+Float_t EE_leadingEt[nLLMax];
+Float_t EE_subleadingEt[nLLMax];
+Float_t EE_cosAlpha[nLLMax];
+Float_t EE_dPhi[nLLMax];
+Float_t EE_relisoA[nLLMax];
+Float_t EE_relisoB[nLLMax];
+Float_t EE_invMass[nLLMax];
 
 Int_t nMM;
+Int_t MM_idxA[nLLMax];
+Int_t MM_idxB[nLLMax];
 Float_t MM_Lxy[nLLMax];
 Float_t MM_Ixy[nLLMax];
 Float_t MM_minLxy[nLLMax];
 Float_t MM_minIxy[nLLMax];
 Float_t MM_Mass[nLLMax];
 Float_t MM_normalizedChi2[nLLMax];
+Float_t MM_leadingPt[nLLMax];
+Float_t MM_subleadingPt[nLLMax];
+Float_t MM_cosAlpha[nLLMax];
+Float_t MM_dPhi[nLLMax];
+Float_t MM_relisoA[nLLMax];
+Float_t MM_relisoB[nLLMax];
+Float_t MM_invMass[nLLMax];
 
 
 
@@ -971,6 +991,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Hit info:
        const reco::HitPattern &hits = isotrack.hitPattern();
 
+       //std::cout << hits.getHitPattern(reco::HitPattern::TRACK_HITS, 0) << std::endl;
+       //std::cout << isotrack.bestTrack()->innerPosition() << std::endl;
+
        IsoTrackSel_numberOfValidTrackerHits[i] = hits.numberOfValidTrackerHits();
        IsoTrackSel_numberOfValidPixelHits[i] = hits.numberOfValidPixelHits();
        IsoTrackSel_numberOfValidPixelBarrelHits[i] = hits.numberOfValidPixelBarrelHits();
@@ -987,7 +1010,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        
        const pat::PackedCandidateRef &pckCand = isotrack.packedCandRef(); // access the packed candidate
-      
+     
  
        if (isotrack.fromPV() > -1){ // check it has a PV
 
@@ -2216,20 +2239,43 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("LL_minIxy", LL_minIxy, "LL_minIxy[nLL]/F");
     tree_out->Branch("LL_Mass", LL_Mass, "LL_Mass[nLL]/F");
     tree_out->Branch("LL_normalizedChi2", LL_normalizedChi2, "LL_normalizedChi2[nLL]/F");
+
     tree_out->Branch("nEE", &nEE, "nEE/I");
+    tree_out->Branch("EE_idxA", EE_idxA, "EE_idxA[nEE]/I");
+    tree_out->Branch("EE_idxB", EE_idxB, "EE_idxB[nEE]/I");
     tree_out->Branch("EE_Lxy", EE_Lxy, "EE_Lxy[nEE]/F");
     tree_out->Branch("EE_Ixy", EE_Ixy, "EE_Ixy[nEE]/F");
     tree_out->Branch("EE_minLxy", EE_minLxy, "EE_minLxy[nEE]/F");
     tree_out->Branch("EE_minIxy", EE_minIxy, "EE_minIxy[nEE]/F");
     tree_out->Branch("EE_Mass", EE_Mass, "EE_Mass[nEE]/F");
     tree_out->Branch("EE_normalizedChi2", EE_normalizedChi2, "EE_normalizedChi2[nEE]/F");
+    tree_out->Branch("EE_leadingPt", EE_leadingPt, "EE_leadingPt[nEE]/F");
+    tree_out->Branch("EE_subleadingPt", EE_subleadingPt, "EE_subleadingPt[nEE]/F");
+    tree_out->Branch("EE_leadingEt", EE_leadingEt, "EE_leadingEt[nEE]/F");
+    tree_out->Branch("EE_subleadingEt", EE_subleadingEt, "EE_subleadingEt[nEE]/F");
+    tree_out->Branch("EE_cosAlpha", EE_cosAlpha, "EE_cosAlpha[nEE]/F");
+    tree_out->Branch("EE_dPhi", EE_dPhi, "EE_dPhi[nEE]/F");
+    tree_out->Branch("EE_relisoA", EE_relisoA, "EE_relisoA[nEE]/F");
+    tree_out->Branch("EE_relisoB", EE_relisoB, "EE_relisoB[nEE]/F");
+    tree_out->Branch("EE_invMass", EE_invMass, "EE_invMass[nEE]/F");
+
     tree_out->Branch("nMM", &nMM, "nMM/I");
+    tree_out->Branch("MM_idxA", MM_idxA, "MM_idxA[nMM]/I");
+    tree_out->Branch("MM_idxB", MM_idxB, "MM_idxB[nMM]/I");
     tree_out->Branch("MM_Lxy", MM_Lxy, "MM_Lxy[nMM]/F");
     tree_out->Branch("MM_Ixy", MM_Ixy, "MM_Ixy[nMM]/F");
     tree_out->Branch("MM_minLxy", MM_minLxy, "MM_minLxy[nMM]/F");
     tree_out->Branch("MM_minIxy", MM_minIxy, "MM_minIxy[nMM]/F");
     tree_out->Branch("MM_Mass", MM_Mass, "MM_Mass[nMM]/F");
     tree_out->Branch("MM_normalizedChi2", MM_normalizedChi2, "MM_normalizedChi2[nMM]/F");
+    tree_out->Branch("MM_leadingPt", MM_leadingPt, "MM_leadingPt[nMM]/F");
+    tree_out->Branch("MM_subleadingPt", MM_subleadingPt, "MM_subleadingPt[nMM]/F");
+    tree_out->Branch("MM_cosAlpha", MM_cosAlpha, "MM_cosAlpha[nMM]/F");
+    tree_out->Branch("MM_dPhi", MM_dPhi, "MM_dPhi[nMM]/F");
+    tree_out->Branch("MM_relisoA", MM_relisoA, "MM_relisoA[nMM]/F");
+    tree_out->Branch("MM_relisoB", MM_relisoB, "MM_relisoB[nMM]/F");
+    tree_out->Branch("MM_invMass", MM_invMass, "MM_invMass[nMM]/F");
+
     tree_out->Branch("LLSel_Lxy", &LLSel_Lxy, "LLSel_Lxy/F");
     tree_out->Branch("LLSel_Ixy", &LLSel_Ixy, "LLSel_Ixy/F");
     tree_out->Branch("LLSel_minLxy", &LLSel_minLxy, "LLSel_minLxy/F");
@@ -2335,6 +2381,24 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
       LL_minIxy[nLL] = minIxy;
       LL_normalizedChi2[nLL] = myVertex.normalisedChiSquared();
       LL_Mass[nLL] = secVkin.weightedVectorSum().M(); 
+      double leadingPt = (isorecotrkA.pt()>isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
+      double subleadingPt = (isorecotrkA.pt()<isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
+
+      // cosAlha and dPhi global computation:
+      TVector3 vec3A(isorecotrkA.px(), isorecotrkA.py(), isorecotrkA.pz()); 
+      TVector3 vec3B(isorecotrkB.px(), isorecotrkB.py(), isorecotrkB.pz()); 
+      TVector3 divec3 = vec3A + vec3B;
+      TVector3 vtxvec3(secV.x() - PV_vx, secV.y() - PV_vy, secV.z() - PV_vz);
+      double cosAlpha = TMath::Cos(vec3A.Angle(vec3B));
+      double dPhi = divec3.DeltaPhi(vtxvec3);
+
+      // Isolation of both candidates
+      const pat::PFIsolation &pfisoA = it_A.pfIsolationDR03();
+      double relisoA = (pfisoA.chargedHadronIso() + pfisoA.neutralHadronIso() + pfisoA.photonIso() + pfisoA.puChargedHadronIso())/it_A.pt();
+      const pat::PFIsolation &pfisoB = it_B.pfIsolationDR03();
+      double relisoB = (pfisoB.chargedHadronIso() + pfisoB.neutralHadronIso() + pfisoB.photonIso() + pfisoB.puChargedHadronIso())/it_B.pt();
+
+      // ########################## LLSel choice ################################
 
       //we update the value if it has not been initialized or if it has been and the new LL is more displaced
       if ( (!LLSel_isEE && !LLSel_isMM) ||
@@ -2356,36 +2420,66 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
 	  LLSel_normalizedChi2 = myVertex.normalisedChiSquared();
 	  LLSel_Mass = secVkin.weightedVectorSum().M(); 
 
-	  TVector3 vec3A(isorecotrkA.px(), isorecotrkA.py(), isorecotrkA.pz()); 
-	  TVector3 vec3B(isorecotrkB.px(), isorecotrkB.py(), isorecotrkB.pz()); 
-	  TVector3 divec3 = vec3A + vec3B;
-	  //TVector3 vtxvec3(secV.x(),secV.y(),secV.z());
-	  //OOOOOOOOOOOOOOOJOOOOOOOOOO (default value for PV?, if we find secondary vertex there should be a PV in any case)
-	  TVector3 vtxvec3(secV.x() - PV_vx, secV.y() - PV_vy, secV.z() - PV_vz);
-
-	  LLSel_cosAlpha = TMath::Cos(vec3A.Angle(vec3B));
-	  LLSel_dPhi = divec3.DeltaPhi(vtxvec3);
+	  LLSel_cosAlpha = cosAlpha;
+	  LLSel_dPhi = dPhi;
 
       }
 
       nLL++;
 
+
+      // ####### Fill the dilepton candidates information
+
       if (isEE) {
+        EE_idxA[nEE] = idxA;
+        EE_idxB[nEE] = idxB;
 	EE_Lxy[nEE] = vMeas.value();
 	EE_Ixy[nEE] = vMeas.significance();
 	EE_minLxy[nEE] = minLxy;
 	EE_minIxy[nEE] = minIxy;
         EE_normalizedChi2[nEE] = myVertex.normalisedChiSquared();
 	EE_Mass[nEE] = secVkin.weightedVectorSum().M(); 
+        EE_leadingPt[nEE] = leadingPt;
+        EE_subleadingPt[nEE] = subleadingPt;
+        EE_leadingEt[nEE] = (ElectronCandidate_et[idxA] > ElectronCandidate_et[idxB])? ElectronCandidate_et[idxA]: ElectronCandidate_et[idxB];
+        EE_subleadingEt[nEE] = (ElectronCandidate_et[idxA] < ElectronCandidate_et[idxB])? ElectronCandidate_et[idxA]: ElectronCandidate_et[idxB];
+        EE_cosAlpha[nEE] = cosAlpha;
+        EE_dPhi[nEE] = dPhi;
+        EE_relisoA[nEE] = relisoA;
+        EE_relisoB[nEE] = relisoB;
+
+        // Invariant mass computed for electrons
+        TLorentzVector TLA; 
+        TLA.SetPtEtaPhiM(isorecotrkA.pt(), isorecotrkA.eta(), isorecotrkA.phi(), 0.510/1000.0);
+        TLorentzVector TLB; 
+        TLB.SetPtEtaPhiM(isorecotrkB.pt(), isorecotrkB.eta(), isorecotrkB.phi(), 0.510/1000.0);
+        EE_invMass[nEE] = (TLA + TLB).M();
+
 	nEE++;
       }
       else {
+        MM_idxA[nMM] = idxA;
+        MM_idxB[nMM] = idxB;
 	MM_Lxy[nMM] = vMeas.value();
 	MM_Ixy[nMM] = vMeas.significance();
 	MM_minLxy[nMM] = minLxy;
 	MM_minIxy[nMM] = minIxy;
         MM_normalizedChi2[nMM] = myVertex.normalisedChiSquared();
 	MM_Mass[nMM] = secVkin.weightedVectorSum().M(); 
+        MM_leadingPt[nMM] = leadingPt;
+        MM_subleadingPt[nMM] = subleadingPt;
+        MM_cosAlpha[nMM] = cosAlpha;
+        MM_dPhi[nMM] = dPhi;
+        MM_relisoA[nMM] = relisoA;
+        MM_relisoB[nMM] = relisoB;
+
+        // Invariant mass computed for muons
+        TLorentzVector TLA; 
+        TLA.SetPtEtaPhiM(isorecotrkA.pt(), isorecotrkA.eta(), isorecotrkA.phi(), 105.658/1000.0);
+        TLorentzVector TLB; 
+        TLB.SetPtEtaPhiM(isorecotrkB.pt(), isorecotrkB.eta(), isorecotrkB.phi(), 105.658/1000.0);
+        MM_invMass[nMM] = (TLA + TLB).M();
+
 	nMM++;
       }
     }
