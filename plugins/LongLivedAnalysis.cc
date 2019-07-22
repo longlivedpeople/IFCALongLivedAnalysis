@@ -972,10 +972,16 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        const pat::PFIsolation &pfiso = isotrack.pfIsolationDR03();
        const pat::PFIsolation &minipfiso = isotrack.miniPFIsolation();
 
-       IsoTrackSel_pfIsolationDR03[i] = pfiso.chargedHadronIso() + pfiso.neutralHadronIso() + pfiso.photonIso() + pfiso.puChargedHadronIso();
-       IsoTrackSel_miniPFIsolation[i] = minipfiso.chargedHadronIso() + minipfiso.neutralHadronIso() + minipfiso.photonIso() + minipfiso.puChargedHadronIso();
+       double neutralIso = fmax(0.0, pfiso.photonIso() + pfiso.neutralHadronIso() - 0.5*pfiso.puChargedHadronIso());
+       double chargedIso = pfiso.chargedHadronIso();
+       IsoTrackSel_pfIsolationDR03[i] = neutralIso + chargedIso;
        IsoTrackSel_relPfIsolationDR03[i] = IsoTrackSel_pfIsolationDR03[i]/isotrack.pt();
+
+       double miniNeutralIso = fmax(0.0, minipfiso.photonIso() + minipfiso.neutralHadronIso() - 0.5*minipfiso.puChargedHadronIso());
+       double miniChargedIso = minipfiso.chargedHadronIso();
+       IsoTrackSel_miniPFIsolation[i] = miniNeutralIso + miniChargedIso;
        IsoTrackSel_relMiniPFIsolation[i] = IsoTrackSel_miniPFIsolation[i]/isotrack.pt();
+
 
        // Quality info:
        IsoTrackSel_isHighPurityTrack[i] = isotrack.isHighPurityTrack();
@@ -2375,14 +2381,25 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
       const reco::Track isorecotrkB = pckCandB->pseudoTrack();
       LL_Lxy[nLL] = vMeas.value();
       LL_Ixy[nLL] = vMeas.significance();
-      double minLxy = (fabs(isorecotrkA.dxy()/isorecotrkA.dxyError()) < fabs(isorecotrkB.dxy())/isorecotrkB.dxyError())? isorecotrkA.dxy(): isorecotrkB.dxy();
-      double minIxy = (fabs(isorecotrkA.dxy()/isorecotrkA.dxyError()) < fabs(isorecotrkB.dxy())/isorecotrkB.dxyError())? isorecotrkA.dxy()/isorecotrkA.dxyError(): isorecotrkB.dxy()/isorecotrkB.dxyError();
+      double minLxy = (fabs(it_A.dxy()/it_A.dxyError()) < fabs(it_B.dxy())/it_B.dxyError())? it_A.dxy(): it_B.dxy();
+      double minIxy = (fabs(it_A.dxy()/it_A.dxyError()) < fabs(it_B.dxy())/it_B.dxyError())? it_A.dxy()/it_A.dxyError(): it_B.dxy()/it_B.dxyError();
       LL_minLxy[nLL] = minLxy;
       LL_minIxy[nLL] = minIxy;
       LL_normalizedChi2[nLL] = myVertex.normalisedChiSquared();
       LL_Mass[nLL] = secVkin.weightedVectorSum().M(); 
       double leadingPt = (isorecotrkA.pt()>isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
       double subleadingPt = (isorecotrkA.pt()<isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
+
+      //std::cout << fabs(it_A.dxy()/it_A.dxyError()) << std::endl;
+      //std::cout << fabs(isorecotrkA.dxy()/isorecotrkA.dxyError()) << std::endl;
+      //std::cout << fabs(pckCandA->bestTrack()->dxy()/pckCandA->bestTrack()->dxyError()) << std::endl;
+      //std::cout << fabs(pckCandA->dxy()/pckCandA->dxyError()) << std::endl;
+
+      std::cout << fabs(it_A.dxyError()) << std::endl;
+      std::cout << fabs(isorecotrkA.dxyError()) << std::endl;
+      std::cout << fabs(pckCandA->bestTrack()->dxyError()) << std::endl;
+      std::cout << fabs(pckCandA->dxyError()) << std::endl;
+
 
       // cosAlha and dPhi global computation:
       TVector3 vec3A(isorecotrkA.px(), isorecotrkA.py(), isorecotrkA.pz()); 
@@ -2394,9 +2411,9 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
 
       // Isolation of both candidates
       const pat::PFIsolation &pfisoA = it_A.pfIsolationDR03();
-      double relisoA = (pfisoA.chargedHadronIso() + pfisoA.neutralHadronIso() + pfisoA.photonIso() + pfisoA.puChargedHadronIso())/it_A.pt();
+      double relisoA = (fmax(0.0, pfisoA.photonIso() + pfisoA.neutralHadronIso() - 0.5*pfisoA.puChargedHadronIso()) + pfisoA.chargedHadronIso())/it_A.pt();
       const pat::PFIsolation &pfisoB = it_B.pfIsolationDR03();
-      double relisoB = (pfisoB.chargedHadronIso() + pfisoB.neutralHadronIso() + pfisoB.photonIso() + pfisoB.puChargedHadronIso())/it_B.pt();
+      double relisoB = (fmax(0.0, pfisoB.photonIso() + pfisoB.neutralHadronIso() - 0.5*pfisoB.puChargedHadronIso()) + pfisoB.chargedHadronIso())/it_B.pt();
 
       // ########################## LLSel choice ################################
 
