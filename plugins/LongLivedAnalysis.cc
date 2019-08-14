@@ -37,6 +37,8 @@
 #include "SimDataFormats/GeneratorProducts/interface/GenRunInfoProduct.h"
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h" 
 
+#include "PhysicsTools/Utilities/interface/LumiReWeighting.h"
+
 #include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
@@ -294,6 +296,7 @@ Int_t Event_luminosityBlock;
 Int_t Event_run;
 Int_t nPU;
 Int_t nPUTrue;
+Float_t wPU;
 Float_t genWeight;
 
 //-> TRIGGER TAGS
@@ -612,6 +615,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       virtual void endJob() override;
 
       std::string output_filename;
+      bool _isData;
       edm::ParameterSet parameters;
 
       edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
@@ -630,12 +634,12 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<reco::BeamSpot> theBeamSpot;
 
       // Gen collection
-      edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;
-      
+      edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;      
       edm::EDGetTokenT<GenEventInfoProduct>  theGenEventInfoProduct;
-      edm::EDGetTokenT<std::vector<PileupSummaryInfo> >  thePileUpSummary;
 
-      
+      // PU reweighting
+      edm::EDGetTokenT<std::vector<PileupSummaryInfo> >  thePileUpSummary;
+      edm::LumiReWeighting lumi_weights;
 
 
       //"Global" variables
@@ -656,7 +660,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
 {
    usesResource("TFileService");
-   
+  
    parameters = iConfig;
 
    counts = new TH1F("counts", "", 1, 0, 1);
@@ -684,6 +688,9 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    theGenEventInfoProduct = consumes<GenEventInfoProduct> (parameters.getParameter<edm::InputTag>("theGenEventInfoProduct"));
 
    thePileUpSummary = consumes<std::vector<PileupSummaryInfo> > (parameters.getParameter<edm::InputTag>("thePileUpSummary"));
+
+   // PU reweighting setup:
+   //lumi_weights = edm::LumiReWeighting("test/PUreweighting/2016/2016MCPileupHistogram.root", "test/PUreweighting/2016/2016DataPileupHistogram.root", "pileup", "pileup");
 
 }
 //=======================================================================================================================================================================================================================//
@@ -721,17 +728,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<pat::PackedCandidate> > packedPFCandidates;
    edm::Handle<edm::View<pat::PackedCandidate> > lostTracks;
    edm::Handle<edm::View<pat::MET> > METs;
-
    edm::Handle<edm::TriggerResults> triggerBits;
    edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
    edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
-
    edm::Handle<reco::BeamSpot> beamSpot;
-
    edm::Handle<edm::View<reco::GenParticle> > genParticles;
-
    edm::Handle<GenEventInfoProduct> genEvtInfo;
-
    edm::Handle<std::vector<PileupSummaryInfo> > puInfoH;
 
    iEvent.getByToken(theElectronCollection, electrons);
@@ -742,43 +744,58 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(thePackedPFCandidateCollection, packedPFCandidates);
    iEvent.getByToken(theLostTracksCollection, lostTracks);
    iEvent.getByToken(theMETCollection, METs);
-
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
    //iEvent.getByToken(triggerPrescales_, triggerPrescales);
-
    iEvent.getByToken(theBeamSpot, beamSpot);
 
-   iEvent.getByToken(theGenParticleCollection, genParticles);
-    
-   iEvent.getByToken(theGenEventInfoProduct, genEvtInfo);
 
-   iEvent.getByToken(thePileUpSummary, puInfoH);
+   if (!_isData){
+      
+       iEvent.getByToken(theGenParticleCollection, genParticles);    
+       iEvent.getByToken(theGenEventInfoProduct, genEvtInfo);
+       iEvent.getByToken(thePileUpSummary, puInfoH);
 
+       lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
+   }
+   
 
-   /////////////////////////////////// MC OR DATA //////////////////////////////////////
-   bool isMC = true;
 
    /////////////////////////////////// EVENT INFO //////////////////////////////////////
 
-   
+   // General event information:
    Event_event = iEvent.id().event();
    Event_run = iEvent.id().run();
    Event_luminosityBlock = iEvent.id().luminosityBlock();
    
-   genWeight = (float) genEvtInfo->weight();
    counts->Fill(0.5);
-   sum2Weights->Fill(0.5, genWeight*genWeight);
+
+   // Monte Carlo (only) information:
+   if (!_isData){
+       genWeight = (float) genEvtInfo->weight();
+       sum2Weights->Fill(0.5, genWeight*genWeight);
+   }
 
    //////////////////////////////////// PILE UP ////////////////////////////////////////
 
-   for(size_t i=0;i<puInfoH->size();++i) {
-       if( puInfoH->at(i).getBunchCrossing() == 0) {
-            nPU = puInfoH->at(i).getPU_NumInteractions();
-            nPUTrue = puInfoH->at(i).getTrueNumInteractions();                                          
+   nPUTrue = -1; // True number of primary vertices (default)
+   wPU = 1; // Pile-up reweighting factor
+
+   // Compute the lumi weight for each event:
+   if (!_isData){
+
+       for(size_t i=0;i<puInfoH->size();++i) {
+           if( puInfoH->at(i).getBunchCrossing() == 0) {
+                nPU = puInfoH->at(i).getPU_NumInteractions();
+                nPUTrue = puInfoH->at(i).getTrueNumInteractions();
+                continue;                                          
+           }
        }
+       wPU = lumi_weights.weight(nPUTrue); // PU weight
+
    }
+
    //////////////////////////////////// BEAM SPOT //////////////////////////////////////
 
    reco::BeamSpot beamSpotObject = *beamSpot;
@@ -791,13 +808,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    /////////////////////////////// TRIGGER ACCEPTANCE //////////////////////////////////
 
+   // Trigger names:
    const std::string muonTriggerName = "HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6";
-   //"HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v7"; // default 
    const std::string photonTriggerName = "HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8";
-   //"HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v9";
 
    const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
 
+   // Flag definition:
    Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6 = triggerBits->accept(names.triggerIndex(muonTriggerName));
    Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8 = triggerBits->accept(names.triggerIndex(photonTriggerName));
 
@@ -829,12 +846,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    
 
 
-   // Sort the muon trigger objects by pt
+   // Sort the muon trigger objects by pt:
    std::sort( std::begin(iMT), std::end(iMT), [&](int i1, int i2){ return triggerObjects->at(i1).pt() < triggerObjects->at(i2).pt(); });
 
 
 
-   // Fill the muon trigger objects features
+   // Fill the muon trigger objects features:
    nMuonTriggerObject = iMT.size();
 
    for (size_t i = 0; i < iMT.size(); i++){
@@ -913,9 +930,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
 
+   // General PV's information:
    nTruePV = 0;
    nPV = primaryvertices->size();
-   //const reco::Vertex &thevertex = (*primaryvertices)[0];
+
    for (size_t i = 0; i < primaryvertices->size(); i ++){
 
        const reco::Vertex &current_vertex = (*primaryvertices)[i];
@@ -923,14 +941,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    }
 
-
+   // The PV information:
    const reco::Vertex &thePrimaryVertex = (*primaryvertices)[0];
 
    PV_vx = thePrimaryVertex.x();
    PV_vy = thePrimaryVertex.y();
    PV_vz = thePrimaryVertex.z();
 
-   // Distances with respect to the beam spot
+   // Distances with respect to the beam spot:
    PV_xyFromBS = sqrt((PV_vx - BeamSpot_x0)*(PV_vx - BeamSpot_x0) + (PV_vy - BeamSpot_y0)*(PV_vy - BeamSpot_y0));
    PV_zFromBS = PV_vz - BeamSpot_z0;
 
@@ -1232,418 +1250,430 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    std::vector<int> iGL; // Generated lepton indexes
    std::vector<int> iGN; // Generated neutralino indexes
 
-   for(size_t i = 0; i < genParticles->size(); i++) {
+   if (!_isData)
+   {
+
+       for(size_t i = 0; i < genParticles->size(); i++) {
 
 
-        const reco::GenParticle &genparticle = (*genParticles)[i];
+	   const reco::GenParticle &genparticle = (*genParticles)[i];
 
-        // Check if it is a lepton comming from a long lived neutralino:
-        if (isLongLivedLepton(genparticle)){ iGL.push_back(i); continue; }
+	   // Check if it is a lepton comming from a long lived neutralino:
+	   if (isLongLivedLepton(genparticle)){ iGL.push_back(i); continue; }
 
-        // Check if it is a longlived neutralino (correct id and after all radiative emission)
-        if (abs(genparticle.pdgId()) == 1000022 && (abs(genparticle.daughter(0)->pdgId()) != 1000022) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
-            iGN.push_back(i);
-            continue;
-        } else if (abs(genparticle.pdgId()) == 54 && (abs(genparticle.daughter(0)->pdgId()) != 54) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
-            iGN.push_back(i);
-            continue;
-        }
-   } 
-
-
-   // Number of generated leptons:
-   nGenLepton = iGL.size();
-
-   // Number of generated neutralinos:
-   nGenNeutralino = iGN.size();
-
-   // Sort the leptons and neutralinos by pt
-   std::sort( std::begin(iGL), std::end(iGL), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
-   std::sort( std::begin(iGN), std::end(iGN), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
+	   // Check if it is a longlived neutralino (correct id and after all radiative emission)
+	   if (abs(genparticle.pdgId()) == 1000022 && (abs(genparticle.daughter(0)->pdgId()) != 1000022) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
+	       iGN.push_back(i);
+	       continue;
+	   } else if (abs(genparticle.pdgId()) == 54 && (abs(genparticle.daughter(0)->pdgId()) != 54) && (abs(genparticle.daughter(0)->pdgId()) != 22)){
+	       iGN.push_back(i);
+	       continue;
+	   }
+       } 
 
 
-   // Loop over the selected neutralinos
-   for(size_t i = 0; i < iGN.size(); i++){
+       // Number of generated leptons:
+       nGenLepton = iGL.size();
 
-       const reco::GenParticle &genparticle = (*genParticles)[iGN.at(i)];
+       // Number of generated neutralinos:
+       nGenNeutralino = iGN.size();
 
-       GenNeutralinoSel_pt[i] = genparticle.pt();
-       GenNeutralinoSel_eta[i] = genparticle.eta();
-       GenNeutralinoSel_phi[i] = genparticle.phi();
-       GenNeutralinoSel_pdgId[i] = genparticle.pdgId();
-
-       // Generated transverse decay length of the neutralino
-
-       const reco::Candidate *m = genparticle.mother();
-   
-       // To avoid radiative effects of the neutralino: 
-       while((abs(m->pdgId()) == 100022) or (abs(m->pdgId()) == 54)){ m = m->mother(); }
-
-       GenNeutralinoSel_Lxy[i] = sqrt((m->vx()-genparticle.daughter(0)->vx())*(m->vx()-genparticle.daughter(0)->vx()) + (m->vy()-genparticle.daughter(0)->vy())*(m->vy()-genparticle.daughter(0)->vy()));
-
-   }
+       // Sort the leptons and neutralinos by pt
+       std::sort( std::begin(iGL), std::end(iGL), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
+       std::sort( std::begin(iGN), std::end(iGN), [&](int i1, int i2){ return genParticles->at(i1).pt() < genParticles->at(i2).pt(); });
 
 
-   // variables to avoid radiative effects on leptons
-   int rad = 0;
-   int rad_2 = 0;
- 
+       // Loop over the selected neutralinos
+       for(size_t i = 0; i < iGN.size(); i++){
 
-   // Loop over the selected genleptons
-   for(size_t i = 0; i < iGL.size(); i++){
+	   const reco::GenParticle &genparticle = (*genParticles)[iGN.at(i)];
 
-       const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
+	   GenNeutralinoSel_pt[i] = genparticle.pt();
+	   GenNeutralinoSel_eta[i] = genparticle.eta();
+	   GenNeutralinoSel_phi[i] = genparticle.phi();
+	   GenNeutralinoSel_pdgId[i] = genparticle.pdgId();
 
-       GenLeptonSel_pdgId[i] = genparticle.pdgId();
-       GenLeptonSel_dxy[i] = dxy_value(genparticle, thePrimaryVertex);
-       GenLeptonSel_vx[i] = genparticle.vx();
-       GenLeptonSel_vy[i] = genparticle.vy();
-       GenLeptonSel_vz[i] = genparticle.vz();
+	   // Generated transverse decay length of the neutralino
 
+	   const reco::Candidate *m = genparticle.mother();
 
+	   // To avoid radiative effects of the neutralino: 
+	   while((abs(m->pdgId()) == 100022) or (abs(m->pdgId()) == 54)){ m = m->mother(); }
 
-
-       // Define the mother index
-       GenLeptonSel_motherIdx[i] = -99;
-       if(genparticle.mother()->pt() == GenNeutralinoSel_pt[0]){
-
-           GenLeptonSel_motherIdx[i] = 0;
-
-       } else if (genparticle.mother()->pt() == GenNeutralinoSel_pt[1]){
-
-           GenLeptonSel_motherIdx[i] = 1;
-
-       }
-       
-
-       // Get the last genlepton (to avoid radiative effects):
-       if (genparticle.numberOfDaughters() > 0){
-
-           // look for the correct daughter
-           for (size_t j = 0; j < genparticle.numberOfDaughters(); j++)
-           {
-              if (genparticle.pdgId() == genparticle.daughter(j)->pdgId()) {rad = j; break; }
-           }
-
-           const reco::Candidate *d = genparticle.daughter(rad);
-
-           //while(d->numberOfDaughters()> 0 && d->daughter(0)->pdgId() == d->pdgId()){ d = d->daughter(0); }
-           while(d->numberOfDaughters()> 0)
-           {
-
-               for(size_t j = 0; j < d->numberOfDaughters(); j++)
-               {
-                  if (d->pdgId() == d->daughter(j)->pdgId()) {rad_2 = j; break;}
-               }
-
-               d = d->daughter(rad_2);
-
-           }
-
-           GenLeptonSel_pt[i] = d->pt();
-           GenLeptonSel_et[i] = d->et();
-           GenLeptonSel_eta[i] = d->eta();
-           GenLeptonSel_phi[i] = d->phi();
-
-       } else {
-
-           GenLeptonSel_pt[i] = genparticle.pt();
-           GenLeptonSel_et[i] = genparticle.et();
-           GenLeptonSel_eta[i] = genparticle.eta();
-           GenLeptonSel_phi[i] = genparticle.phi();
+	   GenNeutralinoSel_Lxy[i] = sqrt((m->vx()-genparticle.daughter(0)->vx())*(m->vx()-genparticle.daughter(0)->vx()) + (m->vy()-genparticle.daughter(0)->vy())*(m->vy()-genparticle.daughter(0)->vy()));
 
        }
 
 
+       // variables to avoid radiative effects on leptons
+       int rad = 0;
+       int rad_2 = 0;
+
+
+       // Loop over the selected genleptons
+       for(size_t i = 0; i < iGL.size(); i++){
+
+	   const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
+
+	   GenLeptonSel_pdgId[i] = genparticle.pdgId();
+	   GenLeptonSel_dxy[i] = dxy_value(genparticle, thePrimaryVertex);
+	   GenLeptonSel_vx[i] = genparticle.vx();
+	   GenLeptonSel_vy[i] = genparticle.vy();
+	   GenLeptonSel_vz[i] = genparticle.vz();
+
+
+
+
+	   // Define the mother index
+	   GenLeptonSel_motherIdx[i] = -99;
+	   if(genparticle.mother()->pt() == GenNeutralinoSel_pt[0]){
+
+	       GenLeptonSel_motherIdx[i] = 0;
+
+	   } else if (genparticle.mother()->pt() == GenNeutralinoSel_pt[1]){
+
+	       GenLeptonSel_motherIdx[i] = 1;
+
+	   }
+
+
+	   // Get the last genlepton (to avoid radiative effects):
+	   if (genparticle.numberOfDaughters() > 0){
+
+	       // look for the correct daughter
+	       for (size_t j = 0; j < genparticle.numberOfDaughters(); j++)
+	       {
+		   if (genparticle.pdgId() == genparticle.daughter(j)->pdgId()) {rad = j; break; }
+	       }
+
+	       const reco::Candidate *d = genparticle.daughter(rad);
+
+	       //while(d->numberOfDaughters()> 0 && d->daughter(0)->pdgId() == d->pdgId()){ d = d->daughter(0); }
+	       while(d->numberOfDaughters()> 0)
+	       {
+
+		   for(size_t j = 0; j < d->numberOfDaughters(); j++)
+		   {
+		       if (d->pdgId() == d->daughter(j)->pdgId()) {rad_2 = j; break;}
+		   }
+
+		   d = d->daughter(rad_2);
+
+	       }
+
+	       GenLeptonSel_pt[i] = d->pt();
+	       GenLeptonSel_et[i] = d->et();
+	       GenLeptonSel_eta[i] = d->eta();
+	       GenLeptonSel_phi[i] = d->phi();
+
+	   } else {
+
+	       GenLeptonSel_pt[i] = genparticle.pt();
+	       GenLeptonSel_et[i] = genparticle.et();
+	       GenLeptonSel_eta[i] = genparticle.eta();
+	       GenLeptonSel_phi[i] = genparticle.phi();
+
+	   }
+
+
+       }
+
    }
-
-
 
    //////////////////////////////// GENLEPTON MATCHING ////////////////////////////////
 
-   std::vector<int> genMatchedGen;
-   std::vector<int> genMatchedObject;
 
-   float gdR = 99;
-   float gdRMin = 99;
-   int gindex = 99; // matched genparticle index
-   int oindex = 99; // matched object index
-
-
-   // Note: While loops and 2D grid exploring stops when there is no pair below the dR threshold (0.1)
-
-
-   // ----> Track matching
-
-   // 2D grid double loop:
-   while (1) 
+   if (!_isData)
    {
 
-       gdRMin = 99;
-       gindex = 99;
-       oindex = 99;
+       std::vector<int> genMatchedGen;
+       std::vector<int> genMatchedObject;
 
+       float gdR = 99;
+       float gdRMin = 99;
+       int gindex = 99; // matched genparticle index
+       int oindex = 99; // matched object index
+
+
+       // Note: While loops and 2D grid exploring stops when there is no pair below the dR threshold (0.1)
+
+
+       // ----> Track matching
+
+       // 2D grid double loop:
+       while (1) 
+       {
+
+	   gdRMin = 99;
+	   gindex = 99;
+	   oindex = 99;
+
+
+	   for (int i = 0; i < nGenLepton; i++)
+	   {
+	       if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+
+	       for (int j = 0; j < nIsoTrack; j++)
+	       {
+
+		   if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
+
+		   // Track matching
+		   gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
+
+		   if (gdR < gdRMin )
+		   {
+
+		       gindex = i;
+		       oindex = j;
+		       gdRMin = gdR;
+
+		   }
+
+	       }
+
+	   }
+
+
+	   if (gdRMin > 5){ break; }
+
+	   GenLeptonSel_trackMatch[gindex] = oindex;
+	   GenLeptonSel_trackdR[gindex] = gdRMin;
+
+	   genMatchedGen.push_back(gindex);
+	   genMatchedObject.push_back(oindex);
+
+       }
+
+       // Fill default values:
+       for (int i = 0; i < nGenLepton; i++)
+       {
+
+	   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+
+	   GenLeptonSel_trackMatch[i] = 99;
+	   GenLeptonSel_trackdR[i] = 99;
+
+       }
+
+
+       // ----> Clear the variables
+       genMatchedGen.clear(); genMatchedObject.clear();
+
+
+
+       // ----> SuperCluster / Photon matching
+
+       // 2D grid double loop:
+       while (1) 
+       {
+
+	   gdRMin = 99;
+	   gindex = 99;
+	   oindex = 99;
+
+
+	   for (int i = 0; i < nGenLepton; i++)
+	   {
+	       if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+	       if (abs(GenLeptonSel_pdgId[i]) != 11){ continue; } // check if it is an electron
+
+	       if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
+
+
+	       for (int j = 0; j < nPhoton; j++)
+	       {
+
+		   if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
+
+		   // Track matching
+		   gdR = getDeltaR(IsoTrackSel_phiExtra[GenLeptonSel_trackMatch[i]], IsoTrackSel_etaExtra[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
+
+		   if (gdR < gdRMin )
+		   {
+
+		       gindex = i;
+		       oindex = j;
+		       gdRMin = gdR;
+
+		   }
+
+	       }
+
+	   }
+
+
+	   if (gdRMin > 5){ break; }
+
+	   GenLeptonSel_objectMatch[gindex] = oindex;
+	   GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], PhotonSel_phi[oindex], PhotonSel_eta[oindex]);
+	   GenLeptonSel_pairdR[gindex] = gdRMin;
+
+	   genMatchedGen.push_back(gindex);
+	   genMatchedObject.push_back(oindex);
+
+       }
+
+
+       // ----> Clear just the object vector variable:
+       genMatchedObject.clear();
+
+
+       // ----> Muon trigger object matching
+
+       // 2D grid double loop:
+       while (1) 
+       {
+
+	   gdRMin = 99;
+	   gindex = 99;
+	   oindex = 99;
+
+
+	   for (int i = 0; i < nGenLepton; i++)
+	   {
+	       if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+	       if (abs(GenLeptonSel_pdgId[i]) != 13){ continue; } // check if it is a muon
+
+
+	       if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
+
+	       for (int j = 0; j < nMuonTriggerObject; j++)
+	       {
+
+		   if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
+
+		   // Track matching
+		   gdR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
+
+		   if (gdR < gdRMin )
+		   {
+
+		       gindex = i;
+		       oindex = j;
+		       gdRMin = gdR;
+
+		   }
+
+	       }
+
+	   }
+
+
+	   if (gdRMin > 5){ break; }
+
+	   GenLeptonSel_objectMatch[gindex] = oindex;
+	   GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], MuonTriggerObjectSel_phi[oindex], MuonTriggerObjectSel_eta[oindex]);
+	   GenLeptonSel_pairdR[gindex] = gdRMin;
+
+	   genMatchedGen.push_back(gindex);
+	   genMatchedObject.push_back(oindex);
+
+       }
+
+       // Fill default values:
+       for (int i = 0; i < nGenLepton; i++)
+       {
+
+	   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+
+	   GenLeptonSel_objectMatch[i] = 99;
+	   GenLeptonSel_objectdR[i] = 99;
+
+       }
+
+
+       ////////////////////////// Degeneration
+       float ddR = 99;
+       int track_c;
+       int object_c;
 
        for (int i = 0; i < nGenLepton; i++)
        {
-           if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
 
-           for (int j = 0; j < nIsoTrack; j++)
-           {
+	   track_c = 0;
+	   object_c =  0;
 
-               if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
+	   // Track degeneration:
 
-               // Track matching
-               gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
+	   for (int j = 0; j < nIsoTrack; j++)
+	   {
 
-               if (gdR < gdRMin )
-               {
+	       ddR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
+	       if (ddR < 0.1){ 
 
-                   gindex = i;
-                   oindex = j;
-                   gdRMin = gdR;
+		   track_c++;
 
-               }
+	       }
 
-           }
+	   }
 
-       }
+	   GenLeptonSel_trackDegeneration[i] = track_c;
+	   GenLeptonSel_objectDegeneration[i] = 99; // default value
 
+	   // Only check the object degeneration if there is a valid track
 
-       if (gdRMin > 5){ break; }
+	   if (GenLeptonSel_trackMatch[i] == 99 || GenLeptonSel_trackdR[i] > 0.1) { continue; }
 
-       GenLeptonSel_trackMatch[gindex] = oindex;
-       GenLeptonSel_trackdR[gindex] = gdRMin;
+	   // electron channel
+	   if (abs(GenLeptonSel_pdgId[i]) == 11)
+	   {
 
-       genMatchedGen.push_back(gindex);
-       genMatchedObject.push_back(oindex);
+	       for(int j = 0; j < nPhoton; j++)
+	       {
 
-   }
+		   ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
 
-   // Fill default values:
-   for (int i = 0; i < nGenLepton; i++)
-   {
+		   if (ddR < 0.1) {object_c++; }
 
-   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
+	       }
 
-   GenLeptonSel_trackMatch[i] = 99;
-   GenLeptonSel_trackdR[i] = 99;
+	   }
+	   else if (abs(GenLeptonSel_pdgId[i]) == 13) // muon channel
+	   {
 
-   }
+	       for(int j = 0; j < nMuonTriggerObject; j++)
+	       {
 
+		   ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
 
-   // ----> Clear the variables
-   genMatchedGen.clear(); genMatchedObject.clear();
+		   if (ddR < 0.1) {object_c++; }
 
+	       }
 
-   
-   // ----> SuperCluster / Photon matching
+	   }
 
-   // 2D grid double loop:
-   while (1) 
-   {
+	   GenLeptonSel_objectDegeneration[i] = object_c;
 
-       gdRMin = 99;
-       gindex = 99;
-       oindex = 99;
-
-
-       for (int i = 0; i < nGenLepton; i++)
-       {
-           if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-           if (abs(GenLeptonSel_pdgId[i]) != 11){ continue; } // check if it is an electron
-
-           if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
-
-
-           for (int j = 0; j < nPhoton; j++)
-           {
-
-               if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
-
-               // Track matching
-               gdR = getDeltaR(IsoTrackSel_phiExtra[GenLeptonSel_trackMatch[i]], IsoTrackSel_etaExtra[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
-
-               if (gdR < gdRMin )
-               {
-
-                   gindex = i;
-                   oindex = j;
-                   gdRMin = gdR;
-
-               }
-
-           }
-
-       }
-
-
-       if (gdRMin > 5){ break; }
-
-       GenLeptonSel_objectMatch[gindex] = oindex;
-       GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], PhotonSel_phi[oindex], PhotonSel_eta[oindex]);
-       GenLeptonSel_pairdR[gindex] = gdRMin;
-
-       genMatchedGen.push_back(gindex);
-       genMatchedObject.push_back(oindex);
+       }  
 
    }
-
-
-   // ----> Clear just the object vector variable:
-   genMatchedObject.clear();
-
-
-   // ----> Muon trigger object matching
-
-   // 2D grid double loop:
-   while (1) 
-   {
-
-       gdRMin = 99;
-       gindex = 99;
-       oindex = 99;
-
-
-       for (int i = 0; i < nGenLepton; i++)
-       {
-           if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-           if (abs(GenLeptonSel_pdgId[i]) != 13){ continue; } // check if it is a muon
-
-
-           if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
-
-           for (int j = 0; j < nMuonTriggerObject; j++)
-           {
-
-               if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
-
-               // Track matching
-               gdR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
-
-               if (gdR < gdRMin )
-               {
-
-                   gindex = i;
-                   oindex = j;
-                   gdRMin = gdR;
-
-               }
-
-           }
-
-       }
-
-
-       if (gdRMin > 5){ break; }
-
-       GenLeptonSel_objectMatch[gindex] = oindex;
-       GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], MuonTriggerObjectSel_phi[oindex], MuonTriggerObjectSel_eta[oindex]);
-       GenLeptonSel_pairdR[gindex] = gdRMin;
-
-       genMatchedGen.push_back(gindex);
-       genMatchedObject.push_back(oindex);
-
-   }
-
-   // Fill default values:
-   for (int i = 0; i < nGenLepton; i++)
-   {
-
-   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-
-   GenLeptonSel_objectMatch[i] = 99;
-   GenLeptonSel_objectdR[i] = 99;
-
-   }
-
-
-   ////////////////////////// Degeneration
-   float ddR = 99;
-   int track_c;
-   int object_c;
-
-   for (int i = 0; i < nGenLepton; i++)
-   {
-
-       track_c = 0;
-       object_c =  0;
-
-       // Track degeneration:
-       
-       for (int j = 0; j < nIsoTrack; j++)
-       {
-
-           ddR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
-           if (ddR < 0.1){ 
-
-              track_c++;
-
-             }
-
-       }
-
-       GenLeptonSel_trackDegeneration[i] = track_c;
-       GenLeptonSel_objectDegeneration[i] = 99; // default value
-
-       // Only check the object degeneration if there is a valid track
-
-       if (GenLeptonSel_trackMatch[i] == 99 || GenLeptonSel_trackdR[i] > 0.1) { continue; }
-
-       // electron channel
-       if (abs(GenLeptonSel_pdgId[i]) == 11)
-       {
-
-           for(int j = 0; j < nPhoton; j++)
-           {
-
-               ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
-
-               if (ddR < 0.1) {object_c++; }
-
-           }
-
-       }
-       else if (abs(GenLeptonSel_pdgId[i]) == 13) // muon channel
-       {
-
-           for(int j = 0; j < nMuonTriggerObject; j++)
-           {
-
-               ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
-
-               if (ddR < 0.1) {object_c++; }
-
-           }
-
-       }
-
-       GenLeptonSel_objectDegeneration[i] = object_c;
-
-   }  
-
-
 
 
    //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
 
    passAcceptanceCriteria = true; // true by default
-   bool passLeadingElectron = false;
 
-   for (size_t i = 0; i < iGL.size(); i++){
+   if (!_isData)
+   {
 
-       if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}
+       bool passLeadingElectron = false;
 
-       if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAcceptanceCriteria = false; break;}
-       if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAcceptanceCriteria = false; break;}
-       if (fabs(GenLeptonSel_eta[i]) > 2){ passAcceptanceCriteria = false; break;}
+       for (size_t i = 0; i < iGL.size(); i++){
+
+	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}
+
+	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAcceptanceCriteria = false; break;}
+	   if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAcceptanceCriteria = false; break;}
+	   if (fabs(GenLeptonSel_eta[i]) > 2){ passAcceptanceCriteria = false; break;}
+
+       }
+
+       if (passLeadingElectron == false) {passAcceptanceCriteria = false;}
+
+       if (GenNeutralinoSel_Lxy[0] > 50 || GenNeutralinoSel_Lxy[1] > 50){ passAcceptanceCriteria = false;}
 
    }
-
-   if (passLeadingElectron == false) {passAcceptanceCriteria = false;}
-   
-   if (GenNeutralinoSel_Lxy[0] > 50 || GenNeutralinoSel_Lxy[1] > 50){ passAcceptanceCriteria = false;}
-
 
    //////////////////////////////////////// MET ////////////////////////////////////////
 
@@ -1658,7 +1688,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    MET_uncorPhi = met.uncorPhi();
    MET_metSignificance = met.metSignificance();
 
-   if (isMC) {
+   if (!_isData) {
 
         MET_genPt = met.genMET()->pt(); 
         MET_genPhi = met.genMET()->phi();
@@ -1985,6 +2015,9 @@ void LongLivedAnalysis::beginJob()
     // Output Tree definition
     tree_out = new TTree("Events", "Events");
 
+    // Analyzer parameters
+    _isData = parameters.getParameter<bool>("isData");
+
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
 
@@ -1994,6 +2027,7 @@ void LongLivedAnalysis::beginJob()
     
     tree_out->Branch("nPU", &nPU, "nPU/I");
     tree_out->Branch("nPUTrue", &nPUTrue, "nPUTrue/I");
+    tree_out->Branch("wPU", &wPU, "wPU/F");
     tree_out->Branch("genWeight", &genWeight, "genWeight/F");
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
@@ -2295,9 +2329,6 @@ void LongLivedAnalysis::beginJob()
 }
 //=======================================================================================================================================================================================================================//
 
-
-
-
 //=======================================================================================================================================================================================================================//
 void LongLivedAnalysis::endJob() 
 {
@@ -2390,15 +2421,6 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
       double leadingPt = (isorecotrkA.pt()>isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
       double subleadingPt = (isorecotrkA.pt()<isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
 
-      //std::cout << fabs(it_A.dxy()/it_A.dxyError()) << std::endl;
-      //std::cout << fabs(isorecotrkA.dxy()/isorecotrkA.dxyError()) << std::endl;
-      //std::cout << fabs(pckCandA->bestTrack()->dxy()/pckCandA->bestTrack()->dxyError()) << std::endl;
-      //std::cout << fabs(pckCandA->dxy()/pckCandA->dxyError()) << std::endl;
-
-      std::cout << fabs(it_A.dxyError()) << std::endl;
-      std::cout << fabs(isorecotrkA.dxyError()) << std::endl;
-      std::cout << fabs(pckCandA->bestTrack()->dxyError()) << std::endl;
-      std::cout << fabs(pckCandA->dxyError()) << std::endl;
 
 
       // cosAlha and dPhi global computation:
