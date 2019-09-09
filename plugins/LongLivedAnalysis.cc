@@ -300,8 +300,8 @@ Float_t wPU;
 Float_t genWeight;
 
 //-> TRIGGER TAGS
-Bool_t Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6;
-Bool_t Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8;
+Bool_t Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10;
+Bool_t Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15;
 
 //-> PRIMARY VERTEX SELECTION
 Int_t nPV;
@@ -441,7 +441,10 @@ Float_t MuonSel_trackerStandalonePosMatch[nMuonMax];
 Float_t MuonSel_kickFinder[nMuonMax];
 Float_t MuonSel_segmentCompatibility[nMuonMax];
 
-
+// -> GENHIGGS
+Float_t GenHiggs_pt;
+Float_t GenHiggs_eta;
+Float_t GenHiggs_phi;
 
 //-> MUON TRIGGER OBJECT SELECTION
 const Int_t nMuonTriggerObjectMax = 500;
@@ -639,8 +642,8 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // PU reweighting
       edm::EDGetTokenT<std::vector<PileupSummaryInfo> >  thePileUpSummary;
-      edm::LumiReWeighting lumi_weights;
-
+      edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
+      //lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
       //"Global" variables
       std::vector<int> iT; // track indexes
@@ -756,7 +759,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        iEvent.getByToken(theGenEventInfoProduct, genEvtInfo);
        iEvent.getByToken(thePileUpSummary, puInfoH);
 
-       lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
+       //lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
    }
    
@@ -809,14 +812,65 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////// TRIGGER ACCEPTANCE //////////////////////////////////
 
    // Trigger names:
+   /*
    const std::string muonTriggerName = "HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6";
    const std::string photonTriggerName = "HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8";
 
    const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
 
+   std::cout << names.size() << std::endl;
+   std::cout << names.triggerIndex("HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6") << std::endl;
+   std::cout << names.triggerIndex("HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v8") << std::endl;
+
+
+
    // Flag definition:
    Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6 = triggerBits->accept(names.triggerIndex(muonTriggerName));
    Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8 = triggerBits->accept(names.triggerIndex(photonTriggerName));
+   */
+
+   // Trigger names declaration
+   std::string muonTriggerName;
+   std::string photonTriggerName;
+ 
+   const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
+
+
+   // Loop over trigger versions
+   std::string version;
+
+   // muons:
+   for (int s = 0; s < 11; s++)
+   {
+
+      version = "HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v" + std::to_string(s);
+      if (names.size() != names.triggerIndex(version)) 
+      {
+
+          muonTriggerName = version;
+          break;         
+
+      }
+   }
+
+   // electrons:
+   for (int s = 0; s < 11; s++)
+   {
+
+      version = "HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v" + std::to_string(s);
+      if (names.size() != names.triggerIndex(version)) 
+      {
+
+          photonTriggerName = version;
+          break;         
+
+      }
+   }
+
+   
+   Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10 = triggerBits->accept(names.triggerIndex(muonTriggerName));
+   Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15 = triggerBits->accept(names.triggerIndex(photonTriggerName));
+
 
 
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
@@ -1249,6 +1303,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    std::vector<int> iGL; // Generated lepton indexes
    std::vector<int> iGN; // Generated neutralino indexes
+   int iH = -1; // Higgs index
 
    if (!_isData)
    {
@@ -1269,8 +1324,26 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 	       iGN.push_back(i);
 	       continue;
 	   }
+
+           if (genparticle.pdgId() == 35 && genparticle.daughter(0)->pdgId() != 35 && genparticle.daughter(0)->pdgId() != 22)
+           {
+               iH = i;
+           }
+
        } 
 
+       // Higgs details
+       GenHiggs_pt = -99;
+       GenHiggs_eta = -99;
+       GenHiggs_phi = -99;
+
+       if (iH != -1)   
+       {
+           
+           GenHiggs_pt =(*genParticles)[iH].pt();
+           GenHiggs_eta = (*genParticles)[iH].eta();
+           GenHiggs_phi = (*genParticles)[iH].phi();
+       }
 
        // Number of generated leptons:
        nGenLepton = iGL.size();
@@ -2032,8 +2105,8 @@ void LongLivedAnalysis::beginJob()
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
 
-    tree_out->Branch("Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6", &Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6, "Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6/O");
-    tree_out->Branch("Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8", &Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8, "Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8/O");
+    tree_out->Branch("Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10", &Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10, "Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10/O");
+    tree_out->Branch("Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15", &Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15, "Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15/O");
 
     ///////////////////////////////// BEAM SPOT BRANCHES ////////////////////////////////
 
@@ -2086,6 +2159,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_relPfIsolationDR03", IsoTrackSel_relPfIsolationDR03, "IsoTrackSel_relPfIsolationDR03[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_relMiniPFIsolation", IsoTrackSel_relMiniPFIsolation, "IsoTrackSel_relMiniPFIsolation[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_isHighPurityTrack", IsoTrackSel_isHighPurityTrack, "IsoTrackSel_isHighPurityTrack[nIsoTrack]/I");
+    /*
     tree_out->Branch("IsoTrackSel_numberOfValidTrackerHits", IsoTrackSel_numberOfValidTrackerHits, "IsoTrackSel_numberOfValidTrackerHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelHits", IsoTrackSel_numberOfValidPixelHits, "IsoTrackSel_numberOfValidPixelHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelBarrelHits", IsoTrackSel_numberOfValidPixelBarrelHits, "IsoTrackSel_numberOfValidPixelBarrelHits[nIsoTrack]/I");
@@ -2099,11 +2173,11 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_PVx", IsoTrackSel_PVx, "IsoTrackSel_PVx[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_PVy", IsoTrackSel_PVy, "IsoTrackSel_PVy[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_PVz", IsoTrackSel_PVz, "IsoTrackSel_PVz[nIsoTrack]/F");
-
+    */
 
     
     ////////////////////////////////// PHOTON BRANCHES //////////////////////////////////
-
+    /*
     tree_out->Branch("nPhoton", &nPhoton, "nPhoton/I");
     tree_out->Branch("PhotonSel_et", PhotonSel_et, "PhotonSel_et[nPhoton]/F");
     tree_out->Branch("PhotonSel_eta", PhotonSel_eta, "PhotonSel_eta[nPhoton]/F");
@@ -2118,10 +2192,11 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_caloIso", PhotonSel_caloIso, "PhotonSel_caloIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_relIso", PhotonSel_relIso, "PhotonSel_relIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_isGoodSC", PhotonSel_isGoodSC, "PhotonSel_isGoodSC[nPhoton]/I");
-
+    */
 
     ///////////////////////////////// ELECTRON BRANCHES /////////////////////////////////
 
+    /*
     tree_out->Branch("nElectron", &nElectron, "nElectron/I");
     tree_out->Branch("ElectronSel_pt", ElectronSel_pt, "ElectronSel_pt[nElectron]/F");
     tree_out->Branch("ElectronSel_et", ElectronSel_et, "ElectronSel_et[nElectron]/F");
@@ -2143,10 +2218,11 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronSel_dB", ElectronSel_dB, "ElectronSel_dB[nElectron]/F");
     tree_out->Branch("ElectronSel_edB", ElectronSel_edB, "ElectronSel_edB[nElectron]/F");
     tree_out->Branch("ElectronSel_isLoose", ElectronSel_isLoose, "ElectronSel_isLoose[nElectron]/I");
-
+    */
 
     ///////////////////////////////// MUON BRANCHES /////////////////////////////////
 
+    /*
     tree_out->Branch("nMuon", &nMuon, "nMuon/I");
     tree_out->Branch("MuonSel_pt", MuonSel_pt, "MuonSel_pt[nMuon]/F");
     tree_out->Branch("MuonSel_eta", MuonSel_eta, "MuonSel_eta[nMuon]/F");
@@ -2177,7 +2253,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonSel_trackerStandalonePosMatch", MuonSel_trackerStandalonePosMatch, "MuonSel_trackerStandalonePosMatch[nMuon]/F");
     tree_out->Branch("MuonSel_kickFinder", MuonSel_kickFinder, "MuonSel_kickFinder[nMuon]/F");
     tree_out->Branch("MuonSel_segmentCompatibility", MuonSel_segmentCompatibility, "MuonSel_segmentCompatibility[nMuon]/F");
-
+    */
 
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
@@ -2189,6 +2265,10 @@ void LongLivedAnalysis::beginJob()
 
 
     //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
+
+    tree_out->Branch("GenHiggs_pt", &GenHiggs_pt, "GenHiggs_pt/F");
+    tree_out->Branch("GenHiggs_eta", &GenHiggs_eta, "GenHiggs_eta/F");
+    tree_out->Branch("GenHiggs_phi", &GenHiggs_phi, "GenHiggs_phi/F");
 
     tree_out->Branch("nGenLepton", &nGenLepton, "nGenLepton/I");
     tree_out->Branch("GenLeptonSel_pt", GenLeptonSel_pt, "GenLeptonSel_pt[nGenLepton]/F");
@@ -2211,18 +2291,19 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenLeptonSel_objectDegeneration", GenLeptonSel_objectDegeneration, "GenLeptonSel_objectDegeneration[nGenLepton]/I");
     
 
-
+    /*
     tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");
     tree_out->Branch("GenNeutralinoSel_pt", GenNeutralinoSel_pt, "GenNeutralinoSel_pt[nGenNeutralino]/F");
     tree_out->Branch("GenNeutralinoSel_eta", GenNeutralinoSel_eta, "GenNeutralinoSel_eta[nGenNeutralino]/F");
     tree_out->Branch("GenNeutralinoSel_phi", GenNeutralinoSel_phi, "GenNeutralinoSel_phi[nGenNeutralino]/F");
     tree_out->Branch("GenNeutralinoSel_Lxy", GenNeutralinoSel_Lxy, "GenNeutralinoSel_Lxy[nGenNeutralino]/F");
     tree_out->Branch("GenNeutralinoSel_pdgId", GenNeutralinoSel_pdgId, "GenNeutralinoSel_pdgId[nGenNeutralino]/I");
-
+    */
     //////////////////////////////////// MET BRANCHES ///////////////////////////////////
 
     tree_out->Branch("MET_pt", &MET_pt, "MET_pt/F");
     tree_out->Branch("MET_phi", &MET_phi, "MET_phi/F");
+    /*
     tree_out->Branch("MET_sumEt", &MET_sumEt, "MET_sumEt/F");
     tree_out->Branch("MET_genPt", &MET_genPt, "MET_genPt/F");
     tree_out->Branch("MET_genPhi", &MET_genPhi, "MET_genPhi/F");
@@ -2238,7 +2319,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MET_MuonEtFraction", &MET_MuonEtFraction, "MET_MuonEtFraction/F");
     tree_out->Branch("MET_Type6EtFraction", &MET_Type6EtFraction, "MET_Type6EtFraction/F");
     tree_out->Branch("MET_Type7EtFraction", &MET_Type7EtFraction, "MET_Type7EtFraction/F");
-
+    */
 
     //////////////////////////// ELECTRON CANDIDATE BRANCHES ////////////////////////////
 
@@ -2272,6 +2353,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonCandidate_dxySignificance", MuonCandidate_dxySignificance, "MuonCandidate_dxySignificance[nMuonCandidate]/F");
 
     ////////////////////////////// LL BRANCHES /////////////////////////////
+    /*
     tree_out->Branch("nLL", &nLL, "nLL/I");
     tree_out->Branch("LL_Lxy", LL_Lxy, "LL_Lxy[nLL]/F");
     tree_out->Branch("LL_Ixy", LL_Ixy, "LL_Ixy[nLL]/F");
@@ -2279,6 +2361,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("LL_minIxy", LL_minIxy, "LL_minIxy[nLL]/F");
     tree_out->Branch("LL_Mass", LL_Mass, "LL_Mass[nLL]/F");
     tree_out->Branch("LL_normalizedChi2", LL_normalizedChi2, "LL_normalizedChi2[nLL]/F");
+    */
 
     tree_out->Branch("nEE", &nEE, "nEE/I");
     tree_out->Branch("EE_idxA", EE_idxA, "EE_idxA[nEE]/I");
