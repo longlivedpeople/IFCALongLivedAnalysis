@@ -483,7 +483,10 @@ Float_t GenNeutralinoSel_pt[nGenNeutralinoMax];
 Float_t GenNeutralinoSel_eta[nGenNeutralinoMax];
 Float_t GenNeutralinoSel_phi[nGenNeutralinoMax];
 Int_t GenNeutralinoSel_pdgId[nGenNeutralinoMax];
+Int_t GenNeutralinoSel_decaypdgId[nGenNeutralinoMax];
+Bool_t GenNeutralinoSel_passAcceptance[nGenNeutralinoMax];
 Float_t GenNeutralinoSel_Lxy[nGenNeutralinoMax];
+
 
 // -> GENERATION ACCEPTANCE CRITERIA
 Bool_t passAcceptanceCriteria;
@@ -1432,11 +1435,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 	   // Define the mother index
 	   GenLeptonSel_motherIdx[i] = -99;
 	   if(genparticle.mother()->pt() == GenNeutralinoSel_pt[0]){
-
+	     if (abs(genparticle.pdgId()) == 11) GenNeutralinoSel_decaypdgId[0] = 11;
+	     if (abs(genparticle.pdgId()) == 13) GenNeutralinoSel_decaypdgId[0] = 13;
 	       GenLeptonSel_motherIdx[i] = 0;
 
 	   } else if (genparticle.mother()->pt() == GenNeutralinoSel_pt[1]){
-
+	     if (abs(genparticle.pdgId()) == 11) GenNeutralinoSel_decaypdgId[1] = 11;
+	     if (abs(genparticle.pdgId()) == 13) GenNeutralinoSel_decaypdgId[1] = 13;
 	       GenLeptonSel_motherIdx[i] = 1;
 
 	   }
@@ -1757,30 +1762,43 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    */
    //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
 
-   /*
-   passAcceptanceCriteria = true; // true by default
+   
 
    if (!_isData)
-   {
+     {
 
-       bool passLeadingElectron = false;
+       for (size_t iN = 0; iN < iGN.size(); iN++) {//loop to the 2 neutralinos
 
-       for (size_t i = 0; i < iGL.size(); i++){
+	 bool passLeadingElectron = false;
+	 bool passAccLL = true;
+	 for (size_t i = 0; i < iGL.size(); i++){
 
-	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}
+	   if (GenLeptonSel_motherIdx[i] != int(iN)) continue;//I only consider daughter leptons from the neutralino in the loop
 
-	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAcceptanceCriteria = false; break;}
-	   if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAcceptanceCriteria = false; break;}
-	   if (fabs(GenLeptonSel_eta[i]) > 2){ passAcceptanceCriteria = false; break;}
+	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}//isn't this a little silly if we have more than one LL candidate?
+
+	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAccLL = false; /*break;*/}
+	   if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAccLL = false; /*break;*/}
+	   if (fabs(GenLeptonSel_eta[i]) > 2){ passAccLL = false; /*break;*/}
+
+	 }
+
+	 if (passLeadingElectron == false && GenNeutralinoSel_decaypdgId[iN] == 11) {passAccLL = false;}
+	 if (GenNeutralinoSel_Lxy[iN] > 50){ passAccLL = false;}
+
+	 GenNeutralinoSel_passAcceptance[iN] = passAccLL;
 
        }
 
-       if (passLeadingElectron == false) {passAcceptanceCriteria = false;}
 
-       if (GenNeutralinoSel_Lxy[0] > 50 || GenNeutralinoSel_Lxy[1] > 50){ passAcceptanceCriteria = false;}
+       passAcceptanceCriteria = true; // true by default
+       for (size_t iN = 0; iN < iGN.size(); iN++) {//loop to the 2 neutralinos
+	 if (!GenNeutralinoSel_passAcceptance[iN]) passAcceptanceCriteria = false;
+       }
+ 
 
    }
-   */
+   
 
    //////////////////////////////////////// MET ////////////////////////////////////////
 
@@ -2358,16 +2376,15 @@ void LongLivedAnalysis::beginJob()
     */
 
     
-    tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");
-    /*
+    tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");  
     tree_out->Branch("GenNeutralinoSel_pt", GenNeutralinoSel_pt, "GenNeutralinoSel_pt[nGenNeutralino]/F");
     tree_out->Branch("GenNeutralinoSel_eta", GenNeutralinoSel_eta, "GenNeutralinoSel_eta[nGenNeutralino]/F");
-    tree_out->Branch("GenNeutralinoSel_phi", GenNeutralinoSel_phi, "GenNeutralinoSel_phi[nGenNeutralino]/F");
-    */
+    tree_out->Branch("GenNeutralinoSel_phi", GenNeutralinoSel_phi, "GenNeutralinoSel_phi[nGenNeutralino]/F"); 
     tree_out->Branch("GenNeutralinoSel_Lxy", GenNeutralinoSel_Lxy, "GenNeutralinoSel_Lxy[nGenNeutralino]/F");
-    /*
     tree_out->Branch("GenNeutralinoSel_pdgId", GenNeutralinoSel_pdgId, "GenNeutralinoSel_pdgId[nGenNeutralino]/I");
-    */
+    tree_out->Branch("GenNeutralinoSel_decaypdgId", GenNeutralinoSel_decaypdgId, "GenNeutralinoSel_decaypdgId[nGenNeutralino]/I");
+    tree_out->Branch("GenNeutralinoSel_passAcceptance", GenNeutralinoSel_passAcceptance, "GenNeutralinoSel_passAcceptance[nGenNeutralino]/O");
+    
     //////////////////////////////////// MET BRANCHES ///////////////////////////////////
 
     tree_out->Branch("MET_pt", &MET_pt, "MET_pt/F");
