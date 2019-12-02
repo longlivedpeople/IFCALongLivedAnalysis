@@ -302,6 +302,10 @@ Float_t genWeight;
 //-> TRIGGER TAGS
 Bool_t Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10;
 Bool_t Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15;
+Bool_t Flag_HLT_SingleElectron;
+Bool_t Flag_HLT_DoubleEG;
+Bool_t Flag_HLT_SingleMuon;
+Bool_t Flag_HLT_DoubleMuon;
 
 //-> PRIMARY VERTEX SELECTION
 Int_t nPV;
@@ -897,6 +901,92 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10 = triggerBits->accept(names.triggerIndex(muonTriggerName));
    Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15 = triggerBits->accept(names.triggerIndex(photonTriggerName));
 
+   int sizemax_hlt = 100;
+   //SingleElectron
+   std::vector<std::string> vs_SingleElectron;
+   vs_SingleElectron.push_back("HLT_Ele27_WPTight_Gsf_v");//HLT_Ele27_WPTight_Gsf_v7
+   vs_SingleElectron.push_back("HLT_Ele27_eta2p1_WPTight_Gsf_v");//HLT_Ele27_eta2p1_WPTight_Gsf_v8
+   bool trigger_SingleElectron = false;
+   for (unsigned int ivs = 0; ivs < vs_SingleElectron.size(); ivs++) {
+     for (int s = 0; s < sizemax_hlt; s++)
+     {
+
+       version = vs_SingleElectron[ivs] + std::to_string(s);//std::cout << "loopVersion= " << version << std::endl;
+	 if (names.size() != names.triggerIndex(version)) 
+	   {
+	     //std::cout << "-------> foundVersion= " << version << std::endl;
+             bool accept = triggerBits->accept(names.triggerIndex(version));
+             if (accept) trigger_SingleElectron = true;
+	     //std::cout << "-------> passTrigger= " << accept << " passAnyTrigger= " << trigger_SingleElectron << std::endl; 
+	     break;         
+	   }
+       }
+     }
+   Flag_HLT_SingleElectron = trigger_SingleElectron;
+
+   std::vector<std::string> vs_DoubleEG;
+   vs_DoubleEG.push_back("HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v");//HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ_v9"
+   bool trigger_DoubleEG = false;
+   for (unsigned int ivs = 0; ivs < vs_DoubleEG.size(); ivs++) {
+     for (int s = 0; s < sizemax_hlt; s++)
+     {
+
+       version = vs_DoubleEG[ivs] + std::to_string(s);//std::cout << "loopVersion= " << version << std::endl;
+	 if (names.size() != names.triggerIndex(version)) 
+	   {
+	     //std::cout << "-------> foundVersion= " << version << std::endl;
+             bool accept = triggerBits->accept(names.triggerIndex(version));
+             if (accept) trigger_DoubleEG = true;
+	     //std::cout << "-------> passTrigger= " << accept << " passAnyTrigger= " << trigger_DoubleEG << std::endl; 
+	     break;         
+	   }
+       }
+     }
+   Flag_HLT_DoubleEG = trigger_DoubleEG;
+
+   std::vector<std::string> vs_SingleMuon;
+   vs_SingleMuon.push_back("HLT_IsoMu24_v");//HLT_IsoMu24_v4
+   vs_SingleMuon.push_back("HLT_TkMu24_eta2p1_v");//HLT_TkMu24_eta2p1_v5
+   bool trigger_SingleMuon = false;
+   for (unsigned int ivs = 0; ivs < vs_SingleMuon.size(); ivs++) {
+     for (int s = 0; s < sizemax_hlt; s++)
+     {
+
+       version = vs_SingleMuon[ivs] + std::to_string(s);//std::cout << "loopVersion= " << version << std::endl;
+	 if (names.size() != names.triggerIndex(version)) 
+	   {
+	     //std::cout << "-------> foundVersion= " << version << std::endl;
+             bool accept = triggerBits->accept(names.triggerIndex(version));
+             if (accept) trigger_SingleMuon = true;
+	     //std::cout << "-------> passTrigger= " << accept << " passAnyTrigger= " << trigger_SingleMuon << std::endl; 
+	     break;         
+	   }
+       }
+     }
+   Flag_HLT_SingleMuon = trigger_SingleMuon;
+
+   std::vector<std::string> vs_DoubleMuon;
+   vs_DoubleMuon.push_back("HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_v");//HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_v6
+   vs_DoubleMuon.push_back("HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_v");//HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_v7
+   vs_DoubleMuon.push_back("HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_v");//HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_v5
+   vs_DoubleMuon.push_back("HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ_v");//HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ_v6
+   bool trigger_DoubleMuon = false;
+   for (unsigned int ivs = 0; ivs < vs_DoubleMuon.size(); ivs++) {
+     for (int s = 0; s < sizemax_hlt; s++)
+     {
+
+       version = vs_DoubleMuon[ivs] + std::to_string(s);//std::cout << "loopVersion= " << version << std::endl;
+	 if (names.size() != names.triggerIndex(version)) 
+	   {
+	     //std::cout << "-------> foundVersion= " << version << std::endl;
+             bool accept = triggerBits->accept(names.triggerIndex(version));
+             if (accept) trigger_DoubleMuon = true;
+	     //std::cout << "-------> passTrigger= " << accept << " passAnyTrigger= " << trigger_DoubleMuon << std::endl; 
+	     break;         
+	   }
+       }
+     }
+   Flag_HLT_DoubleMuon = trigger_DoubleMuon;
 
 
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
@@ -2189,6 +2279,10 @@ void LongLivedAnalysis::beginJob()
 
     tree_out->Branch("Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10", &Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10, "Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10/O");
     tree_out->Branch("Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15", &Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15, "Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15/O");
+    tree_out->Branch("Flag_HLT_SingleElectron", &Flag_HLT_SingleElectron, "Flag_HLT_SingleElectron/O");
+    tree_out->Branch("Flag_HLT_DoubleEG", &Flag_HLT_DoubleEG, "Flag_HLT_DoubleEG/O");
+    tree_out->Branch("Flag_HLT_SingleMuon", &Flag_HLT_SingleMuon, "Flag_HLT_SingleMuon/O");
+    tree_out->Branch("Flag_HLT_DoubleMuon", &Flag_HLT_DoubleMuon, "Flag_HLT_DoubleMuon/O");
 
     ///////////////////////////////// BEAM SPOT BRANCHES ////////////////////////////////
 
