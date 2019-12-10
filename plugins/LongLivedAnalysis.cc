@@ -1953,47 +1953,53 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      eeCandidate.leadingEt = (ElectronCandidate_et[min_i] > ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
      eeCandidate.subleadingEt = (ElectronCandidate_et[min_i] < ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
 
-     EE_idxA[nEE] = min_i;
-     EE_idxB[nEE] = min_j;
-     EE_Lxy[nEE] = eeCandidate.vertexLxy;
-     EE_Ixy[nEE] = eeCandidate.vertexIxy;
-     EE_trackDxy[nEE] = eeCandidate.trackDxy;
-     EE_trackIxy[nEE] = eeCandidate.trackIxy;
-     EE_normalizedChi2[nEE] = eeCandidate.normalizedChi2;
-     EE_mass[nEE] = eeCandidate.mass;
-     EE_leadingPt[nEE] = eeCandidate.leadingPt;
-     EE_subleadingPt[nEE] = eeCandidate.subleadingPt;
-     EE_cosAlpha[nEE] = eeCandidate.cosAlpha;
-     EE_dPhi[nEE] = eeCandidate.dPhi;
-     EE_relisoA[nEE] = eeCandidate.relisoA;
-     EE_relisoB[nEE] = eeCandidate.relisoB;
-     EE_leadingEt[nEE] = eeCandidate.leadingEt;
-     EE_subleadingEt[nEE] = eeCandidate.subleadingEt;
+     if (!_BSMode){
 
+        EE_idxA[nEE] = min_i;
+        EE_idxB[nEE] = min_j;
+        EE_Lxy[nEE] = eeCandidate.vertexLxy;
+        EE_Ixy[nEE] = eeCandidate.vertexIxy;
+        EE_trackDxy[nEE] = eeCandidate.trackDxy;
+        EE_trackIxy[nEE] = eeCandidate.trackIxy;
+        EE_normalizedChi2[nEE] = eeCandidate.normalizedChi2;
+        EE_mass[nEE] = eeCandidate.mass;
+        EE_leadingPt[nEE] = eeCandidate.leadingPt;
+        EE_subleadingPt[nEE] = eeCandidate.subleadingPt;
+        EE_cosAlpha[nEE] = eeCandidate.cosAlpha;
+        EE_dPhi[nEE] = eeCandidate.dPhi;
+        EE_relisoA[nEE] = eeCandidate.relisoA;
+        EE_relisoB[nEE] = eeCandidate.relisoB;
+        EE_leadingEt[nEE] = eeCandidate.leadingEt;
+        EE_subleadingEt[nEE] = eeCandidate.subleadingEt;
+
+     }
      nEE++;
 
      // -> Fill candidates that pass baseline selection:
      if ( passBaselineSelection(eeCandidate) ) {
 
-        leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
+        if (_BSMode) {
 
-        EEBase_idxA[nEEBase] = min_i;
-        EEBase_idxB[nEEBase] = min_j;
-        EEBase_Lxy[nEEBase] = eeCandidate.vertexLxy;
-        EEBase_Ixy[nEEBase] = eeCandidate.vertexIxy;
-        EEBase_trackDxy[nEEBase] = eeCandidate.trackDxy;
-        EEBase_trackIxy[nEEBase] = eeCandidate.trackIxy;
-        EEBase_normalizedChi2[nEEBase] = eeCandidate.normalizedChi2;
-        EEBase_mass[nEEBase] = eeCandidate.mass;
-        EEBase_leadingPt[nEEBase] = eeCandidate.leadingPt;
-        EEBase_subleadingPt[nEEBase] = eeCandidate.subleadingPt;
-        EEBase_cosAlpha[nEEBase] = eeCandidate.cosAlpha;
-        EEBase_dPhi[nEEBase] = eeCandidate.dPhi;
-        EEBase_relisoA[nEEBase] = eeCandidate.relisoA;
-        EEBase_relisoB[nEEBase] = eeCandidate.relisoB;
-        EEBase_leadingEt[nEEBase] = eeCandidate.leadingEt;
-        EEBase_subleadingEt[nEEBase] = eeCandidate.subleadingEt;
+           leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
 
+           EEBase_idxA[nEEBase] = min_i;
+           EEBase_idxB[nEEBase] = min_j;
+           EEBase_Lxy[nEEBase] = eeCandidate.vertexLxy;
+           EEBase_Ixy[nEEBase] = eeCandidate.vertexIxy;
+           EEBase_trackDxy[nEEBase] = eeCandidate.trackDxy;
+           EEBase_trackIxy[nEEBase] = eeCandidate.trackIxy;
+           EEBase_normalizedChi2[nEEBase] = eeCandidate.normalizedChi2;
+           EEBase_mass[nEEBase] = eeCandidate.mass;
+           EEBase_leadingPt[nEEBase] = eeCandidate.leadingPt;
+           EEBase_subleadingPt[nEEBase] = eeCandidate.subleadingPt;
+           EEBase_cosAlpha[nEEBase] = eeCandidate.cosAlpha;
+           EEBase_dPhi[nEEBase] = eeCandidate.dPhi;
+           EEBase_relisoA[nEEBase] = eeCandidate.relisoA;
+           EEBase_relisoB[nEEBase] = eeCandidate.relisoB;
+           EEBase_leadingEt[nEEBase] = eeCandidate.leadingEt;
+           EEBase_subleadingEt[nEEBase] = eeCandidate.subleadingEt;
+
+        }
         nEEBase++;
 
      }
@@ -2052,43 +2058,49 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
      llCandidate mmCandidate(thePrimaryVertex, theTransientTrackBuilder, it_A, it_B, false);
 
-     MM_idxA[nMM] = min_i;
-     MM_idxB[nMM] = min_j;
-     MM_Lxy[nMM] = mmCandidate.vertexLxy;
-     MM_Ixy[nMM] = mmCandidate.vertexIxy;
-     MM_trackDxy[nMM] = mmCandidate.trackDxy;
-     MM_trackIxy[nMM] = mmCandidate.trackIxy;
-     MM_normalizedChi2[nMM] = mmCandidate.normalizedChi2;
-     MM_mass[nMM] = mmCandidate.mass;
-     MM_leadingPt[nMM] = mmCandidate.leadingPt;
-     MM_subleadingPt[nMM] = mmCandidate.subleadingPt;
-     MM_cosAlpha[nMM] = mmCandidate.cosAlpha;
-     MM_dPhi[nMM] = mmCandidate.dPhi;
-     MM_relisoA[nMM] = mmCandidate.relisoA;
-     MM_relisoB[nMM] = mmCandidate.relisoB;
+     if (!_BSMode){
 
+        MM_idxA[nMM] = min_i;
+        MM_idxB[nMM] = min_j;
+        MM_Lxy[nMM] = mmCandidate.vertexLxy;
+        MM_Ixy[nMM] = mmCandidate.vertexIxy;
+        MM_trackDxy[nMM] = mmCandidate.trackDxy;
+        MM_trackIxy[nMM] = mmCandidate.trackIxy;
+        MM_normalizedChi2[nMM] = mmCandidate.normalizedChi2;
+        MM_mass[nMM] = mmCandidate.mass;
+        MM_leadingPt[nMM] = mmCandidate.leadingPt;
+        MM_subleadingPt[nMM] = mmCandidate.subleadingPt;
+        MM_cosAlpha[nMM] = mmCandidate.cosAlpha;
+        MM_dPhi[nMM] = mmCandidate.dPhi;
+        MM_relisoA[nMM] = mmCandidate.relisoA;
+        MM_relisoB[nMM] = mmCandidate.relisoB;
+
+     }
      nMM++;
 
      // -> Fill candidates that pass baseline selection:
      if ( passBaselineSelection(mmCandidate) ) {
 
-        leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
+        if (_BSMode){
+           
+           leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
 
-        MMBase_idxA[nMMBase] = min_i;
-        MMBase_idxB[nMMBase] = min_j;
-        MMBase_Lxy[nMMBase] = mmCandidate.vertexLxy;
-        MMBase_Ixy[nMMBase] = mmCandidate.vertexIxy;
-        MMBase_trackDxy[nMMBase] = mmCandidate.trackDxy;
-        MMBase_trackIxy[nMMBase] = mmCandidate.trackIxy;
-        MMBase_normalizedChi2[nMMBase] = mmCandidate.normalizedChi2;
-        MMBase_mass[nMMBase] = mmCandidate.mass;
-        MMBase_leadingPt[nMMBase] = mmCandidate.leadingPt;
-        MMBase_subleadingPt[nMMBase] = mmCandidate.subleadingPt;
-        MMBase_cosAlpha[nMMBase] = mmCandidate.cosAlpha;
-        MMBase_dPhi[nMMBase] = mmCandidate.dPhi;
-        MMBase_relisoA[nMMBase] = mmCandidate.relisoA;
-        MMBase_relisoB[nMMBase] = mmCandidate.relisoB;
+           MMBase_idxA[nMMBase] = min_i;
+           MMBase_idxB[nMMBase] = min_j;
+           MMBase_Lxy[nMMBase] = mmCandidate.vertexLxy;
+           MMBase_Ixy[nMMBase] = mmCandidate.vertexIxy;
+           MMBase_trackDxy[nMMBase] = mmCandidate.trackDxy;
+           MMBase_trackIxy[nMMBase] = mmCandidate.trackIxy;
+           MMBase_normalizedChi2[nMMBase] = mmCandidate.normalizedChi2;
+           MMBase_mass[nMMBase] = mmCandidate.mass;
+           MMBase_leadingPt[nMMBase] = mmCandidate.leadingPt;
+           MMBase_subleadingPt[nMMBase] = mmCandidate.subleadingPt;
+           MMBase_cosAlpha[nMMBase] = mmCandidate.cosAlpha;
+           MMBase_dPhi[nMMBase] = mmCandidate.dPhi;
+           MMBase_relisoA[nMMBase] = mmCandidate.relisoA;
+           MMBase_relisoB[nMMBase] = mmCandidate.relisoB;
 
+        }
         nMMBase++;
 
      }
