@@ -530,6 +530,9 @@ Float_t EEBase_relisoA[20];
 Float_t EEBase_relisoB[20];
 Float_t EEBase_refittedDxy[20];
 Float_t EEBase_refittedIxy[20];
+Int_t EEBase_fromPVA[20];
+Int_t EEBase_fromPVB[20];
+Int_t EEBase_PVAssociation[20];
 
 
 // -> All MM candidates
@@ -568,6 +571,9 @@ Float_t MMBase_relisoA[20];
 Float_t MMBase_relisoB[20];
 Float_t MMBase_refittedDxy[20];
 Float_t MMBase_refittedIxy[20];
+Int_t MMBase_fromPVA[20];
+Int_t MMBase_fromPVB[20];
+Int_t MMBase_PVAssociation[20];
 
 
 /////////////////////////////////////// OUTPUT //////////////////////////////////////
@@ -1998,6 +2004,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            EEBase_relisoB[nEEBase] = eeCandidate.relisoB;
            EEBase_leadingEt[nEEBase] = eeCandidate.leadingEt;
            EEBase_subleadingEt[nEEBase] = eeCandidate.subleadingEt;
+           EEBase_fromPVA[nEEBase] = eeCandidate.fromPVA;
+           EEBase_fromPVB[nEEBase] = eeCandidate.fromPVB;
+           EEBase_PVAssociation[nEEBase] = eeCandidate.PVAssociation;
 
         }
         nEEBase++;
@@ -2099,6 +2108,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            MMBase_dPhi[nMMBase] = mmCandidate.dPhi;
            MMBase_relisoA[nMMBase] = mmCandidate.relisoA;
            MMBase_relisoB[nMMBase] = mmCandidate.relisoB;
+           MMBase_fromPVA[nMMBase] = mmCandidate.fromPVA;
+           MMBase_fromPVB[nMMBase] = mmCandidate.fromPVB;
+           MMBase_PVAssociation[nMMBase] = mmCandidate.PVAssociation;
 
         }
         nMMBase++;
@@ -2115,12 +2127,18 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    //// ---------------------------------------------------------------------------------- ////
    ////////////////////////////////////////////////////////////////////////////////////////////
 
+   // Auxiliary variables
+   double ptDif = 0.1;
+   double etaDif = 0.05;
+   double phiDif = 0.1;
+
    std::vector<reco::TransientTrack> refit_tracks; // tracks for refitting
    bool excluded = false; // control bool variable to exclude tracks
 
    RefittedPV_nPFTrack = 0;
    RefittedPV_nLostTrack = 0;
    RefittedPV_nExcludedTrack = 0;
+
 
    // No suceed PV refitting default values:
    RefittedPV_vx = -99;
@@ -2141,12 +2159,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
          if (!packedPFCandidate.hasTrackDetails()) continue;
          const reco::Track packedPFTrack = packedPFCandidate.pseudoTrack();
 
-         if (packedPFCandidate.fromPV() != 3) continue;
+         if (packedPFCandidate.fromPV(0) != 3) continue;
 
          excluded = false;
          for (size_t j = 0; j < leptonTracks.size(); j++) {
             pat::IsolatedTrack ltrack = leptonTracks.at(j);
-            if (packedPFTrack.pt() == ltrack.pt() && packedPFTrack.eta() == ltrack.eta() && packedPFTrack.phi() == ltrack.phi()) { excluded = true; break; }
+            if (fabs(packedPFTrack.pt() - ltrack.pt()) < ptDif && fabs(packedPFTrack.eta() - ltrack.eta()) < etaDif && fabs(packedPFTrack.phi() - ltrack.phi()) < phiDif) { excluded = true; break; }
          }
 
          if (excluded) {RefittedPV_nExcludedTrack++; continue;}
@@ -2166,7 +2184,15 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
          if (!lostTrack.hasTrackDetails()) continue;
          const reco::Track packedLostTrack = lostTrack.pseudoTrack();
 
-         if (lostTrack.fromPV() != 3) continue;
+         if (lostTrack.fromPV(0) != 3) continue;
+
+         excluded = false;
+         for (size_t j = 0; j < leptonTracks.size(); j++) {
+            pat::IsolatedTrack ltrack = leptonTracks.at(j);
+            if ( fabs(packedLostTrack.pt() - ltrack.pt()) < ptDif && fabs(packedLostTrack.eta() - ltrack.eta()) < etaDif && fabs(packedLostTrack.phi() - ltrack.phi()) < phiDif) { excluded = true; break; }
+         }
+
+         if (excluded) {RefittedPV_nExcludedTrack++; continue;}
 
          RefittedPV_nLostTrack++;
          reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedLostTrack);
@@ -2534,6 +2560,9 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("EEBase_relisoB", EEBase_relisoB, "EEBase_relisoB[nEEBase]/F");
     tree_out->Branch("EEBase_refittedDxy", EEBase_refittedDxy, "EEBase_refittedDxy[nEEBase]/F");
     tree_out->Branch("EEBase_refittedIxy", EEBase_refittedIxy, "EEBase_refittedIxy[nEEBase]/F");
+    tree_out->Branch("EEBase_fromPVA", EEBase_fromPVA, "EEBase_fromPVA[nEEBase]/I");
+    tree_out->Branch("EEBase_fromPVB", EEBase_fromPVB, "EEBase_fromPVB[nEEBase]/I");
+    tree_out->Branch("EEBase_PVAssociation", EEBase_PVAssociation, "EEBase_PVAssociation[nEEBase]/I");
 
     tree_out->Branch("nMM", &nMM, "nMM/I");
     tree_out->Branch("MM_idxA", MM_idxA, "MM_idxA[nMM]/I");
@@ -2568,6 +2597,9 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MMBase_relisoB", MMBase_relisoB, "MMBase_relisoB[nMMBase]/F");
     tree_out->Branch("MMBase_refittedDxy", MMBase_refittedDxy, "MMBase_refittedDxy[nMMBase]/F");
     tree_out->Branch("MMBase_refittedIxy", MMBase_refittedIxy, "MMBase_refittedIxy[nMMBase]/F");
+    tree_out->Branch("MMBase_fromPVA", MMBase_fromPVA, "MMBase_fromPVA[nMMBase]/I");
+    tree_out->Branch("MMBase_fromPVB", MMBase_fromPVB, "MMBase_fromPVB[nMMBase]/I");
+    tree_out->Branch("MMBase_PVAssociation", MMBase_PVAssociation, "MMBase_PVAssociation[nMMBase]/I");
 
 }
 //=======================================================================================================================================================================================================================//

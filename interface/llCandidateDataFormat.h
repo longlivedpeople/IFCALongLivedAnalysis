@@ -53,6 +53,16 @@ struct llCandidate
    double relisoA = 0;
    double relisoB = 0;
 
+
+   // PV association quality flags: 
+   // 	{0: None of them has participated in the PV fit, 
+   // 	 1: One of them has participated in the PV fit,
+   // 	 2: Both of them have participated in the PV fit}
+   int fromPVA = 0;
+   int fromPVB = 0;
+   int PVAssociation = 0;
+
+
    // Additionally for electrons ( type == 0 ) to be filled manually:
    double leadingEt = 0;
    double subleadingEt = 0;
@@ -148,6 +158,14 @@ struct llCandidate
 
              mass = (la + lb).M();
              ptll = (la + lb).Pt();
+
+             // PV association quality flags:
+             fromPVA = (*pckCand_A).fromPV(0);
+             fromPVB = (*pckCand_B).fromPV(0);
+             
+             if (fromPVA == 3 && fromPVB == 3) { PVAssociation = 2; }
+             else if (fromPVA == 3 || fromPVB == 3) { PVAssociation = 1; }
+             else { PVAssociation = 0; }
 
 
 
