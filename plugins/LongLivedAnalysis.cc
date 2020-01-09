@@ -335,7 +335,6 @@ Float_t PhotonSel_ecalIso[nPhotonMax];
 Float_t PhotonSel_hcalIso[nPhotonMax];
 Float_t PhotonSel_caloIso[nPhotonMax];
 Float_t PhotonSel_relIso[nPhotonMax];
-Int_t PhotonSel_isGoodSC[nPhotonMax];
 
 //-> ELECTRON SELECTION
 const Int_t nElectronMax = 100;
@@ -681,8 +680,6 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
 
    thePileUpSummary = consumes<std::vector<PileupSummaryInfo> > (parameters.getParameter<edm::InputTag>("thePileUpSummary"));
 
-   // PU reweighting setup:
-   //lumi_weights = edm::LumiReWeighting("test/PUreweighting/2016/2016MCPileupHistogram.root", "test/PUreweighting/2016/2016DataPileupHistogram.root", "pileup", "pileup");
 
 }
 //=======================================================================================================================================================================================================================//
@@ -748,7 +745,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        iEvent.getByToken(theGenEventInfoProduct, genEvtInfo);
        iEvent.getByToken(thePileUpSummary, puInfoH);
 
-       //lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
    }
    
@@ -927,7 +923,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    for (size_t i = 0; i < isotracks->size(); i++){
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[i];
-
+       //PABLO: CHECK THIS FUNCTION	
        if (!passIsotrackSelection(isotrack)){ continue; } // some quality cuts
 
        iT.push_back(i);
@@ -950,6 +946,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Basic features:
        IsoTrackSel_pt[i] = isotrack.pt();
        IsoTrackSel_eta[i] = isotrack.eta();
+       //PABLO: CHECK WHETHER WE NEED TO ADD OR SUBTRACT DELTAETA/PHI
        IsoTrackSel_etaExtra[i] = isotrack.eta() + isotrack.deltaEta();
        IsoTrackSel_phi[i] = isotrack.phi();
        IsoTrackSel_phiExtra[i] = isotrack.phi() + isotrack.deltaPhi();
@@ -997,11 +994,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        IsoTrackSel_numberOfValidStripTECHits[i] = hits.numberOfValidStripTECHits();
 
        // Info extracted form the packedCandidate of the isotrack
+       //fromPV: 0 NoPV, 1 PVLoose, 2 PVTight, 3 used in the PV fit
        IsoTrackSel_fromPV[i] = isotrack.fromPV(); 
        
        const pat::PackedCandidateRef &pckCand = isotrack.packedCandRef(); // access the packed candidate
-     
- 
+        
+       //This catches all the isotracks (selected at this point)
        if (isotrack.fromPV() > -1){ // check it has a PV
 
            IsoTrackSel_vx[i] = (*pckCand).vx();
@@ -1014,6 +1012,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            IsoTrackSel_PVz[i] = (*PV).z();
            
        // Impact parameter info:
+           //PABLO: CHECK THE UNCERTAINTIES   
            IsoTrackSel_dxy[i] = (*pckCand).dxy(thePrimaryVertex.position());
            IsoTrackSel_dxyError[i] = isotrack.dxyError();
            IsoTrackSel_dz[i] = (*pckCand).dz(thePrimaryVertex.position());
@@ -1050,6 +1049,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        const pat::Photon & photon = (*photons)[i];
        
        // this is the place to put any preselection if required
+       //PABLO: CHECK PASSPHOTONSELECTION
        if (!passPhotonSelection(photon)) { continue;}
 
        iP.push_back(i);
@@ -1080,8 +1080,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        PhotonSel_caloIso[i] = photon.caloIso();
        PhotonSel_relIso[i] = photon.caloIso()/photon.et();
 
-       if (passPhotonSelection(photon)){PhotonSel_isGoodSC[i] = 1; }
-       else {PhotonSel_isGoodSC[i] = 0; }
 
    }
 
@@ -1144,7 +1142,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    */
 
    ///////////////////////////////// MUON FEATURES /////////////////////////////////
-
+   //PABLO: CHECK WHETHER WE WANT TO HAVE THIS ACTIVATED ALL THE TIME
    /*
    std::vector<int> iM; // muon indexes
 
@@ -1221,7 +1219,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
-
+   //PABLO: MAKE A POLICY FOR GENERATED PARTICLES
    std::vector<int> iGL; // Generated lepton indexes
    std::vector<int> iGN; // Generated neutralino indexes
    int iH = -1; // Higgs index
@@ -1415,7 +1413,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    
 
    //////////////////////////////////////// MET ////////////////////////////////////////
-
+   //CHECK: DO WE WANT TO USE PUPPIMET
    const pat::MET &met = (*METs)[0]; // access the MET object
 
    MET_pt = met.pt();
@@ -1490,11 +1488,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
                dR = getDeltaR(isotrack.phi(), isotrack.eta(), MuonTriggerObjectSel_phi[to], MuonTriggerObjectSel_eta[to]);
 
                if (dR < dRMin){
-
-                   /*
-                   std::cout<< "new: " << "\t"<< isotrack.phi() << "\t" << isotrack.eta() << "\t" << muon.phi() << "\t" << muon.eta() << std::endl;
-                   std::cout << dR << std::endl;
-                   */
 
                    dRMin = dR;
                    matching_type = 1;
@@ -1591,7 +1584,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
          const pat::IsolatedTrack & it_i = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[i])];
          const pat::IsolatedTrack & it_j = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[j])];
-
+         //PABLO: CHECK THIS CLASS
          llCandidate testcandidate(thePrimaryVertex, theTransientTrackBuilder, it_i, it_j, true);
 
          if (!testcandidate.canFitVertex || !testcandidate.hasValidVertex) { continue ;} 
@@ -2049,7 +2042,6 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_hcalIso", PhotonSel_hcalIso, "PhotonSel_hcalIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_caloIso", PhotonSel_caloIso, "PhotonSel_caloIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_relIso", PhotonSel_relIso, "PhotonSel_relIso[nPhoton]/F");
-    tree_out->Branch("PhotonSel_isGoodSC", PhotonSel_isGoodSC, "PhotonSel_isGoodSC[nPhoton]/I");
     */
 
     ///////////////////////////////// ELECTRON BRANCHES /////////////////////////////////
@@ -2319,7 +2311,8 @@ bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) 
    if (track.pt() < 31) { return false; }
    if (fabs(track.eta()) > 2) { return false; }
    const pat::PFIsolation &pfiso = track.pfIsolationDR03();
-   double reliso = (fmax(0.0, pfiso.photonIso() + pfiso.neutralHadronIso() - 0.5*pfiso.puChargedHadronIso()) + pfiso.chargedHadronIso())/track.pt();
+   //PABLO: CHECK WHETHER WE WANT TO USE AN ISOLATION CUT OR NOT. AND IN THAT CASE HOW MUCH.
+   //double reliso = (fmax(0.0, pfiso.photonIso() + pfiso.neutralHadronIso() - 0.5*pfiso.puChargedHadronIso()) + pfiso.chargedHadronIso())/track.pt();
    //if (reliso > 0.5) { return false; }
 
    return true;
