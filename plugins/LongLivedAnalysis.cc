@@ -738,6 +738,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    //iEvent.getByToken(triggerPrescales_, triggerPrescales);
    iEvent.getByToken(theBeamSpot, beamSpot);
 
+   iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
 
    if (!_isData){
       
@@ -1011,13 +1012,20 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            IsoTrackSel_PVy[i] = (*PV).y();
            IsoTrackSel_PVz[i] = (*PV).z();
            
-       // Impact parameter info:
+           // Impact parameter info:
            //PABLO: CHECK THE UNCERTAINTIES   
-           IsoTrackSel_dxy[i] = (*pckCand).dxy(thePrimaryVertex.position());
-           IsoTrackSel_dxyError[i] = isotrack.dxyError();
+
+           // Trajectory computation [following steps in https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideTransientTracks#Examples_including_calculation_o]
+           // Used to compute uncertainty in the transverse impact parameter with respect to primary vertex.
+           reco::TransientTrack isotk = theTransientTrackBuilder->build((*pckCand).pseudoTrack());
+           GlobalPoint vert(thePrimaryVertex.x(), thePrimaryVertex.y(), thePrimaryVertex.z());
+           TrajectoryStateClosestToPoint  traj = isotk.trajectoryStateClosestToPoint(vert);
+
+           IsoTrackSel_dxy[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()));
+           IsoTrackSel_dxyError[i] = traj.perigeeError().transverseImpactParameterError();
            IsoTrackSel_dz[i] = (*pckCand).dz(thePrimaryVertex.position());
-           IsoTrackSel_dzError[i] = isotrack.dzError();
-           IsoTrackSel_dxySignificance[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()))/isotrack.dxyError();
+           IsoTrackSel_dzError[i] = traj.perigeeError().longitudinalImpactParameterError(); 
+           IsoTrackSel_dxySignificance[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()))/traj.perigeeError().transverseImpactParameterError();;
 
        }else{
 
@@ -1548,7 +1556,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    //// -------------------------- LL CANDIDATES RECONSTRUCTION -------------------------- ////                                   
    //// ---------------------------------------------------------------------------------- ////
    ////////////////////////////////////////////////////////////////////////////////////////////
-   iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
+   //iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
 
    double minChi2 = 10000;
    int min_i = 99;
@@ -1881,31 +1889,49 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
             // Electrons:
             for (int i = 0; i < nEEBase; i++){
 
-               const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[EEBase_idxA[i]])];
-               const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[EEBase_idxB[i]])];
-               const pat::PackedCandidateRef &pckA = it_A.packedCandRef();
-               const pat::PackedCandidateRef &pckB = it_B.packedCandRef();
+               if (RefittedPV_nExcludedTrack > 0) {
 
-               double redxyA = (*pckA).dxy(rePV.position());
-               double redxyB = (*pckB).dxy(rePV.position());
+                  const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[EEBase_idxA[i]])];
+                  const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[EEBase_idxB[i]])];
+                  const pat::PackedCandidateRef &pckA = it_A.packedCandRef();
+                  const pat::PackedCandidateRef &pckB = it_B.packedCandRef();
 
-               EEBase_refittedDxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA : redxyB;
-               EEBase_refittedIxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA/it_A.dxyError() : redxyB/it_B.dxyError();
+                  double redxyA = (*pckA).dxy(rePV.position());
+                  double redxyB = (*pckB).dxy(rePV.position());
+
+                  EEBase_refittedDxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA : redxyB;
+                  EEBase_refittedIxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA/it_A.dxyError() : redxyB/it_B.dxyError();
+
+               } else {
+
+                  EEBase_refittedDxy[i] = EEBase_trackDxy[i];
+                  EEBase_refittedIxy[i] = EEBase_trackIxy[i];
+
+               }
 
             } 
             // Muons:
             for (int i = 0; i < nMMBase; i++){
 
-               const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[MMBase_idxA[i]])];
-               const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[MMBase_idxB[i]])];
-               const pat::PackedCandidateRef &pckA = it_A.packedCandRef();
-               const pat::PackedCandidateRef &pckB = it_B.packedCandRef();
+               if (RefittedPV_nExcludedTrack > 0) {
 
-               double redxyA = (*pckA).dxy(rePV.position());
-               double redxyB = (*pckB).dxy(rePV.position());
+                  const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[MMBase_idxA[i]])];
+                  const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[MMBase_idxB[i]])];
+                  const pat::PackedCandidateRef &pckA = it_A.packedCandRef();
+                  const pat::PackedCandidateRef &pckB = it_B.packedCandRef();
 
-               MMBase_refittedDxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA : redxyB;
-               MMBase_refittedIxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA/it_A.dxyError() : redxyB/it_B.dxyError();
+                  double redxyA = (*pckA).dxy(rePV.position());
+                  double redxyB = (*pckB).dxy(rePV.position());
+
+                  MMBase_refittedDxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA : redxyB;
+                  MMBase_refittedIxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA/it_A.dxyError() : redxyB/it_B.dxyError();
+              
+               } else {
+
+                  MMBase_refittedDxy[i] = MMBase_trackDxy[i];
+                  MMBase_refittedIxy[i] = MMBase_trackIxy[i];
+
+               }
 
             }
 
@@ -2111,7 +2137,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("nMuonTriggerObject", &nMuonTriggerObject, "nMuonTriggerObject/I");
     tree_out->Branch("MuonTriggerObjectSel_pt", MuonTriggerObjectSel_pt, "MuonTriggerObjectSel_pt[nMuonTriggerObject]/F");
     tree_out->Branch("MuonTriggerObjectSel_eta", MuonTriggerObjectSel_eta, "MuonTriggerObjectSel_eta[nMuonTriggerObject]/F");
-    tree_out->Branch("MuonTriggerObjectSel_phi", MuonTriggerObjectSel_phi, "MuonTriggerObjectSel_phi[nMuonTriggerObject]/F");
+    tree_out->Branch("MuonTriggerfmadrazocObjectSel_phi", MuonTriggerObjectSel_phi, "MuonTriggerObjectSel_phi[nMuonTriggerObject]/F");
 
 
     //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
