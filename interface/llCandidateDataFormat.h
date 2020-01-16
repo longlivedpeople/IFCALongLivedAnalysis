@@ -124,7 +124,7 @@ struct llCandidate
              leadingPt = (it_A.pt()>it_B.pt())? it_A.pt(): it_B.pt();
              subleadingPt = (it_A.pt()<it_B.pt())? it_A.pt(): it_B.pt();
              trackDxy = (fabs(pckCand_A->dxy(pv.position())/it_A.dxyError()) < fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError())? pckCand_A->dxy(pv.position()): pckCand_B->dxy(pv.position());
-             trackIxy = (fabs(pckCand_A->dxy(pv.position())/it_A.dxyError()) < fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError())? pckCand_A->dxy(pv.position())/it_A.dxyError(): pckCand_B->dxy(pv.position())/it_B.dxyError();
+             trackIxy = (fabs(pckCand_A->dxy(pv.position())/it_A.dxyError()) < fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError())? fabs(pckCand_A->dxy(pv.position()))/it_A.dxyError(): fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError();
              etaA = it_A.eta();
              etaB = it_B.eta();   
 

@@ -14,7 +14,7 @@
 //                                                                                                                                                                                                                       //
 // Authors of the code: Celia Fernandez Madrazo                                                                                                                                                                          //
 //                      Pablo Martinez Ruiz Del Arbol                                                                                                                                                                    //
-//                                                                                                                                                                                                                       //
+//                      Jesus Vizan Garcia                                                                                                                                                                               //
 //=======================================================================================================================================================================================================================//
 //                                                                                                                                                                                                                       //
 // Description: Main analyzer                                                                                                                                                                                            //
@@ -638,6 +638,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       bool passBaselineSelection(llCandidate llc);
       float computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv);
       reco::Vertex getSVCandidate(const pat::PackedCandidateRef &pckCandA, const pat::PackedCandidateRef &pckCandB);
+      float computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv);
 
       // Histograms
       TH1F *counts, *sum2Weights;
@@ -924,7 +925,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    for (size_t i = 0; i < isotracks->size(); i++){
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[i];
-       //PABLO: CHECK THIS FUNCTION	
+
        if (!passIsotrackSelection(isotrack)){ continue; } // some quality cuts
 
        iT.push_back(i);
@@ -947,12 +948,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Basic features:
        IsoTrackSel_pt[i] = isotrack.pt();
        IsoTrackSel_eta[i] = isotrack.eta();
-       //PABLO: CHECK WHETHER WE NEED TO ADD OR SUBTRACT DELTAETA/PHI
-       IsoTrackSel_etaExtra[i] = isotrack.eta() + isotrack.deltaEta();
        IsoTrackSel_phi[i] = isotrack.phi();
-       IsoTrackSel_phiExtra[i] = isotrack.phi() + isotrack.deltaPhi();
        IsoTrackSel_charge[i] = isotrack.charge();      
 
+       // Track extrapolations to ECAL surface (used to do the electron matching)
+       // To be noticed: deltaPhi and deltaEta should be added to the raw values (checked: 16/01/2020)
+       IsoTrackSel_etaExtra[i] = isotrack.eta() + isotrack.deltaEta();
+       IsoTrackSel_phiExtra[i] = isotrack.phi() + isotrack.deltaPhi();
  
        // Isolation info:
        
@@ -972,13 +974,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        // Quality info:
        IsoTrackSel_isHighPurityTrack[i] = isotrack.isHighPurityTrack();
-
-       // Impact parameter info:
-       //IsoTrackSel_dxy[i] = isotrack.dxy();
-       IsoTrackSel_dxyError[i] = isotrack.dxyError();
-       IsoTrackSel_dz[i] = isotrack.dz();
-       IsoTrackSel_dzError[i] = isotrack.dzError();
-       IsoTrackSel_dxySignificance[i] = fabs(isotrack.dxy())/isotrack.dxyError();
 
 
        // Hit info:
@@ -1013,19 +1008,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            IsoTrackSel_PVz[i] = (*PV).z();
            
            // Impact parameter info:
-           //PABLO: CHECK THE UNCERTAINTIES   
-
-           // Trajectory computation [following steps in https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideTransientTracks#Examples_including_calculation_o]
-           // Used to compute uncertainty in the transverse impact parameter with respect to primary vertex.
-           reco::TransientTrack isotk = theTransientTrackBuilder->build((*pckCand).pseudoTrack());
-           GlobalPoint vert(thePrimaryVertex.x(), thePrimaryVertex.y(), thePrimaryVertex.z());
-           TrajectoryStateClosestToPoint  traj = isotk.trajectoryStateClosestToPoint(vert);
-
+           // Uncertainties are checked by means of a Transient Track Builder in method 'computeDxyError()' 
            IsoTrackSel_dxy[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()));
-           IsoTrackSel_dxyError[i] = traj.perigeeError().transverseImpactParameterError();
+           IsoTrackSel_dxyError[i] = computeDxyError(isotrack, thePrimaryVertex);
            IsoTrackSel_dz[i] = (*pckCand).dz(thePrimaryVertex.position());
-           IsoTrackSel_dzError[i] = traj.perigeeError().longitudinalImpactParameterError(); 
-           IsoTrackSel_dxySignificance[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()))/traj.perigeeError().transverseImpactParameterError();;
+           IsoTrackSel_dzError[i] = (*pckCand).dzError(); 
+           IsoTrackSel_dxySignificance[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()))/computeDxyError(isotrack, thePrimaryVertex);
 
        }else{
 
@@ -1056,8 +1044,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        const pat::Photon & photon = (*photons)[i];
        
-       // this is the place to put any preselection if required
-       //PABLO: CHECK PASSPHOTONSELECTION
        if (!passPhotonSelection(photon)) { continue;}
 
        iP.push_back(i);
@@ -1898,9 +1884,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
                   double redxyA = (*pckA).dxy(rePV.position());
                   double redxyB = (*pckB).dxy(rePV.position());
+                  double reIxyA = fabs(redxyA/computeDxyError(it_A, rePV));
+                  double reIxyB = fabs(redxyB/computeDxyError(it_B, rePV));
 
-                  EEBase_refittedDxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA : redxyB;
-                  EEBase_refittedIxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA/it_A.dxyError() : redxyB/it_B.dxyError();
+                  EEBase_refittedDxy[i] = (reIxyA < reIxyB) ? redxyA : redxyB;
+                  EEBase_refittedIxy[i] = (reIxyA < reIxyB) ? reIxyA : reIxyB;
+
 
                } else {
 
@@ -1922,9 +1911,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
                   double redxyA = (*pckA).dxy(rePV.position());
                   double redxyB = (*pckB).dxy(rePV.position());
+                  double reIxyA = fabs(redxyA/computeDxyError(it_A, rePV));
+                  double reIxyB = fabs(redxyB/computeDxyError(it_B, rePV));
 
-                  MMBase_refittedDxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA : redxyB;
-                  MMBase_refittedIxy[i] = (fabs(redxyA/it_A.dxyError()) < fabs(redxyB/it_B.dxyError())) ? redxyA/it_A.dxyError() : redxyB/it_B.dxyError();
+                  MMBase_refittedDxy[i] = (reIxyA < reIxyB) ? redxyA : redxyB;
+                  MMBase_refittedIxy[i] = (reIxyA < reIxyB) ? reIxyA : reIxyB;
               
                } else {
 
@@ -2337,9 +2328,8 @@ bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) 
    if (track.pt() < 31) { return false; }
    if (fabs(track.eta()) > 2) { return false; }
    const pat::PFIsolation &pfiso = track.pfIsolationDR03();
-   //PABLO: CHECK WHETHER WE WANT TO USE AN ISOLATION CUT OR NOT. AND IN THAT CASE HOW MUCH.
-   //double reliso = (fmax(0.0, pfiso.photonIso() + pfiso.neutralHadronIso() - 0.5*pfiso.puChargedHadronIso()) + pfiso.chargedHadronIso())/track.pt();
-   //if (reliso > 0.5) { return false; }
+
+   // To be noticed: Isolation cuts are applied later with the LLCandidate selection
 
    return true;
 }
@@ -2427,6 +2417,29 @@ float LongLivedAnalysis::computeDxy(const pat::IsolatedTrack & track, const reco
 
    double dxy = -(vx - PVx)*sin(phi) + (vy - PVy)*cos(phi);
    return dxy;
+}
+
+
+//=======================================================================================================================================================================================================================//
+
+
+float LongLivedAnalysis::computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv) {
+
+   // Trajectory computation [following steps in https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideTransientTracks#Examples_including_calculation_o]
+   // Used to compute uncertainty in the transverse impact parameter with respect to primary vertex.
+   
+   // Get packedCandidate and transient track:
+   const pat::PackedCandidateRef &pCand = track.packedCandRef();
+   reco::TransientTrack isotk = theTransientTrackBuilder->build((*pCand).pseudoTrack());
+   
+   // Define the new point of reference and the trajectory:
+   GlobalPoint vert(pv.x(), pv.y(), pv.z());
+   TrajectoryStateClosestToPoint  traj = isotk.trajectoryStateClosestToPoint(vert);
+
+   float sigmaXY = traj.perigeeError().transverseImpactParameterError();
+
+   return sigmaXY;
+
 }
 
 //=======================================================================================================================================================================================================================//
