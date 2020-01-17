@@ -41,6 +41,8 @@
 
 #include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
+#include "DataFormats/MuonReco/interface/Muon.h"
+#include "DataFormats/MuonReco/interface/MuonPFIsolation.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
 #include "DataFormats/PatCandidates/interface/Photon.h"
 #include "DataFormats/PatCandidates/interface/IsolatedTrack.h"
@@ -367,16 +369,10 @@ Int_t nMuon;
 Float_t MuonSel_pt[nMuonMax];
 Float_t MuonSel_eta[nMuonMax];
 Float_t MuonSel_phi[nMuonMax];
-Float_t MuonSel_trackIso[nMuonMax];
-Float_t MuonSel_ecalIso[nMuonMax];
-Float_t MuonSel_hcalIso[nMuonMax];
-Float_t MuonSel_caloIso[nMuonMax];
 Float_t MuonSel_relIso[nMuonMax];
-Float_t MuonSel_dxy[nMuonMax];
-Float_t MuonSel_dxyError[nMuonMax];
-Float_t MuonSel_dxySignificance[nMuonMax];
 Float_t MuonSel_dB[nMuonMax];
 Float_t MuonSel_edB[nMuonMax];
+Float_t MuonSel_dBSignificance[nMuonMax];
 Int_t MuonSel_isMuon[nMuonMax];
 Int_t MuonSel_isGlobalMuon[nMuonMax];
 Int_t MuonSel_isTrackerMuon[nMuonMax];
@@ -387,9 +383,6 @@ Int_t MuonSel_isGoodMediumMuon[nMuonMax];
 Int_t MuonSel_isPFMuon[nMuonMax];
 Float_t MuonSel_fractionOfValidTrackerHits[nMuonMax];
 Float_t MuonSel_normGlobalTrackChi2[nMuonMax];
-Float_t MuonSel_trackerStandalonePosMatch[nMuonMax];
-Float_t MuonSel_kickFinder[nMuonMax];
-Float_t MuonSel_segmentCompatibility[nMuonMax];
 
 // -> GENHIGGS
 Float_t GenHiggs_pt;
@@ -632,9 +625,12 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // Class functions
       bool buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrack> > const& isotracks, int idxA, int idxB, bool isEE);
+      bool isLooseElectron(const pat::Electron & electron); 
+      bool isMediumElectron(const pat::Electron & electron); 
       bool passIsotrackSelection(const pat::IsolatedTrack &track);
       bool passPhotonSelection(const pat::Photon &photon);
       bool passL2MuonSelection( pat::TriggerObjectStandAlone obj); 
+      bool passMuonSelection(const pat::Muon &muon);
       bool passBaselineSelection(llCandidate llc);
       float computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv);
       reco::Vertex getSVCandidate(const pat::PackedCandidateRef &pckCandA, const pat::PackedCandidateRef &pckCandB);
@@ -1137,7 +1133,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ///////////////////////////////// MUON FEATURES /////////////////////////////////
    //PABLO: CHECK WHETHER WE WANT TO HAVE THIS ACTIVATED ALL THE TIME
-   /*
    std::vector<int> iM; // muon indexes
 
 
@@ -1161,15 +1156,17 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        const pat::Muon & muon = (* muons)[iM.at(i)];
 
+       // Kinematics:
        MuonSel_pt[i] = muon.pt();
        MuonSel_eta[i] = muon.eta();
        MuonSel_phi[i] = muon.phi();
 
-       MuonSel_trackIso[i] = muon.trackIso();
-       MuonSel_hcalIso[i] = muon.hcalIso();
-       MuonSel_ecalIso[i] = muon.ecalIso();
-       MuonSel_caloIso[i] = muon.caloIso();
-       MuonSel_relIso[i] = muon.trackIso()/muon.pt();
+       // Isolation
+       // Defined as PFIsolation in a cone R < 0.3
+       const reco::MuonPFIsolation & muonpfiso = muon.pfIsolationR03();
+       float muonNeutralIso = fmax(0.0, muonpfiso.sumNeutralHadronEt + muonpfiso.sumPhotonEt - 0.5*muonpfiso.sumPUPt);
+       float muonChargedIso = muonpfiso.sumChargedHadronPt;
+       MuonSel_relIso[i] = (muonNeutralIso + muonChargedIso)/muon.pt();
 
        MuonSel_isMuon[i] = muon.isMuon();
        MuonSel_isGlobalMuon[i] = muon.isGlobalMuon();
@@ -1188,28 +1185,17 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        if (muon.isGlobalMuon()){
  
           MuonSel_normGlobalTrackChi2[i] = muon.globalTrack()->normalizedChi2();
-          MuonSel_trackerStandalonePosMatch[i] = muon.combinedQuality().chi2LocalPosition;
-          MuonSel_kickFinder[i] = muon.combinedQuality().trkKink;
-          MuonSel_segmentCompatibility[i] = muon.segmentCompatibility();
 
        } else {
 
           MuonSel_normGlobalTrackChi2[i] = -99;
-          MuonSel_trackerStandalonePosMatch[i] = -99;
-          MuonSel_kickFinder[i] = -99;
-          MuonSel_segmentCompatibility[i] = -99;
        }
-
-       MuonSel_dxyError[i] = muon.dxyError();
-       MuonSel_dxy[i] = muon.muonBestTrack()->dxy();
-       MuonSel_dxySignificance[i] = fabs(MuonSel_dxy[i])/muon.dxyError();
-
 
        MuonSel_dB[i] = muon.dB();
        MuonSel_edB[i] = muon.edB();
+       MuonSel_dBSignificance[i] = muon.dB()/muon.edB();
 
    }
-   */
 
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
@@ -2089,19 +2075,11 @@ void LongLivedAnalysis::beginJob()
 
     ///////////////////////////////// MUON BRANCHES /////////////////////////////////
 
-    /*
     tree_out->Branch("nMuon", &nMuon, "nMuon/I");
     tree_out->Branch("MuonSel_pt", MuonSel_pt, "MuonSel_pt[nMuon]/F");
     tree_out->Branch("MuonSel_eta", MuonSel_eta, "MuonSel_eta[nMuon]/F");
     tree_out->Branch("MuonSel_phi", MuonSel_phi, "MuonSel_phi[nMuon]/F");
-    tree_out->Branch("MuonSel_trackIso", MuonSel_trackIso, "MuonSel_trackIso[nMuon]/F");
-    tree_out->Branch("MuonSel_ecalIso", MuonSel_ecalIso, "MuonSel_ecalIso[nMuon]/F");
-    tree_out->Branch("MuonSel_hcalIso", MuonSel_hcalIso, "MuonSel_hcalIso[nMuon]/F");
-    tree_out->Branch("MuonSel_caloIso", MuonSel_caloIso, "MuonSel_caloIso[nMuon]/F");
     tree_out->Branch("MuonSel_relIso", MuonSel_relIso, "MuonSel_relIso[nMuon]/F");
-    tree_out->Branch("MuonSel_dxy", MuonSel_dxy, "MuonSel_dxy[nMuon]/F");
-    tree_out->Branch("MuonSel_dxyError", MuonSel_dxyError, "MuonSel_dxyError[nMuon]/F");
-    tree_out->Branch("MuonSel_dxySignificance", MuonSel_dxySignificance, "MuonSel_dxySignificance[nMuon]/F");
     tree_out->Branch("MuonSel_isMuon", MuonSel_isMuon, "MuonSel_isMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isGlobalMuon", MuonSel_isGlobalMuon, "MuonSel_isGlobalMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isTrackerMuon", MuonSel_isTrackerMuon, "MuonSel_isTrackerMuon[nMuon]/I");
@@ -2112,15 +2090,12 @@ void LongLivedAnalysis::beginJob()
 
     tree_out->Branch("MuonSel_dB", MuonSel_dB, "MuonSel_dB[nMuon]/F");
     tree_out->Branch("MuonSel_edB", MuonSel_edB, "MuonSel_edB[nMuon]/F");
+    tree_out->Branch("MuonSel_dBSignificance", MuonSel_dBSignificance, "MuonSel_dBSignificance[nMuon]/F");
 
 
     tree_out->Branch("MuonSel_isPFMuon", MuonSel_isPFMuon, "MuonSel_isPFMuon[nMuon]/I");
     tree_out->Branch("MuonSel_fractionOfValidTrackerHits", MuonSel_fractionOfValidTrackerHits, "MuonSel_fractionOfValidTrackerHits[nMuon]/F");
     tree_out->Branch("MuonSel_normGlobalTrackChi2", MuonSel_normGlobalTrackChi2, "MuonSel_normGlobalTrackChi2[nMuon]/F");
-    tree_out->Branch("MuonSel_trackerStandalonePosMatch", MuonSel_trackerStandalonePosMatch, "MuonSel_trackerStandalonePosMatch[nMuon]/F");
-    tree_out->Branch("MuonSel_kickFinder", MuonSel_kickFinder, "MuonSel_kickFinder[nMuon]/F");
-    tree_out->Branch("MuonSel_segmentCompatibility", MuonSel_segmentCompatibility, "MuonSel_segmentCompatibility[nMuon]/F");
-    */
 
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
@@ -2128,7 +2103,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("nMuonTriggerObject", &nMuonTriggerObject, "nMuonTriggerObject/I");
     tree_out->Branch("MuonTriggerObjectSel_pt", MuonTriggerObjectSel_pt, "MuonTriggerObjectSel_pt[nMuonTriggerObject]/F");
     tree_out->Branch("MuonTriggerObjectSel_eta", MuonTriggerObjectSel_eta, "MuonTriggerObjectSel_eta[nMuonTriggerObject]/F");
-    tree_out->Branch("MuonTriggerfmadrazocObjectSel_phi", MuonTriggerObjectSel_phi, "MuonTriggerObjectSel_phi[nMuonTriggerObject]/F");
+    tree_out->Branch("MuonTriggerObjectSel_phi", MuonTriggerObjectSel_phi, "MuonTriggerObjectSel_phi[nMuonTriggerObject]/F");
 
 
     //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
@@ -2310,7 +2285,87 @@ void LongLivedAnalysis::fillDescriptions(edm::ConfigurationDescriptions& descrip
 }
 
 
+//=======================================================================================================================================================================================================================//
 
+bool isLooseElectron(const pat::Electron & electron) {
+
+    float ecal_energy_inverse = 1.0/electron.ecalEnergy();
+    float eSCoverP = electron.eSuperClusterOverP();
+
+    // Barrel cuts:
+    if (fabs(electron.superCluster()->eta()) <= 1.479) {
+
+       // Combined isolation:
+       //float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
+
+       if (electron.full5x5_sigmaIetaIeta() > 0.011) { return false; }
+       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00477) { return false; }
+       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.222) { return false; }
+       if (electron.hadronicOverEm() > 0.298) { return false; }
+       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.241) {return false; }
+       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
+       if (electron.passConversionVeto() == 0) {return false;}
+
+
+    // Endcap cuts
+    } else if (fabs(electron.superCluster()->eta()) > 1.479) {
+
+
+       if (electron.full5x5_sigmaIetaIeta() > 0.0314) { return false; }
+       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00868) { return false; }
+       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.213) { return false; }
+       if (electron.hadronicOverEm() > 0.101) { return false; }
+       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.14) {return false; }
+       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
+       if (electron.passConversionVeto() == 0) {return false;}
+
+    }
+
+    return true;
+
+}
+
+//=======================================================================================================================================================================================================================//
+
+bool isMediumElectron(const pat::Electron & electron) {
+
+    // Need to be filled correctly (Now they are the requirements for Loose Electrons)
+
+    float ecal_energy_inverse = 1.0/electron.ecalEnergy();
+    float eSCoverP = electron.eSuperClusterOverP();
+
+    // Barrel cuts:
+    if (fabs(electron.superCluster()->eta()) <= 1.479) {
+
+       // Combined isolation:
+       //float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
+
+       if (electron.full5x5_sigmaIetaIeta() > 0.011) { return false; }
+       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00477) { return false; }
+       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.222) { return false; }
+       if (electron.hadronicOverEm() > 0.298) { return false; }
+       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.241) {return false; }
+       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
+       if (electron.passConversionVeto() == 0) {return false;}
+
+
+    // Endcap cuts
+    } else if (fabs(electron.superCluster()->eta()) > 1.479) {
+
+
+       if (electron.full5x5_sigmaIetaIeta() > 0.0314) { return false; }
+       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00868) { return false; }
+       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.213) { return false; }
+       if (electron.hadronicOverEm() > 0.101) { return false; }
+       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.14) {return false; }
+       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
+       if (electron.passConversionVeto() == 0) {return false;}
+
+    }
+
+    return true;
+
+}
 //=======================================================================================================================================================================================================================//
 
 bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) {
@@ -2360,6 +2415,14 @@ bool LongLivedAnalysis::passL2MuonSelection( pat::TriggerObjectStandAlone obj) {
    return true;
 }
 
+//=======================================================================================================================================================================================================================//
+
+bool LongLivedAnalysis::passMuonSelection(const pat::Muon &muon) {
+
+   if (muon.pt() < 31){ return false; }
+   if (fabs(muon.eta()) > 2) { return false; }
+   return true;
+}
 
 //=======================================================================================================================================================================================================================//
 
