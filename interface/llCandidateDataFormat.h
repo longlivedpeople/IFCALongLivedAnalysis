@@ -52,6 +52,8 @@ struct llCandidate
    double dR = 0;
    double relisoA = 0;
    double relisoB = 0;
+   double vx = 0;                  // x coordinate of dilepton vertex
+   double vy = 0;                  // y coordinate of dilepton vertex
 
 
    // PV association quality flags: 
@@ -120,6 +122,8 @@ struct llCandidate
              vertexLxy = vMeas.value();
              vertexIxy = vMeas.significance();
              normalizedChi2 = myVertex.normalisedChiSquared();         
+             vx = secV.x();
+             vy = secV.y();
 
              leadingPt = (it_A.pt()>it_B.pt())? it_A.pt(): it_B.pt();
              subleadingPt = (it_A.pt()<it_B.pt())? it_A.pt(): it_B.pt();
@@ -162,10 +166,10 @@ struct llCandidate
              // PV association quality flags:
              fromPVA = (*pckCand_A).fromPV(0);
              fromPVB = (*pckCand_B).fromPV(0);
-             
+             PVAssociation = 0;             
+
              if (fromPVA == 3 && fromPVB == 3) { PVAssociation = 2; }
-             else if (fromPVA == 3 || fromPVB == 3) { PVAssociation = 1; }
-             else { PVAssociation = 0; }
+             if ((fromPVA == 3 && fromPVB != 3) || (fromPVB == 3 && fromPVA != 3) ) { PVAssociation = 1; }
 
 
 
