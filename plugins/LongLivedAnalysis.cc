@@ -2420,7 +2420,7 @@ bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) 
    if (!pckCand.isNonnull()) { return false; }
 
    // Preselection cuts:
-   if (track.pt() < 31) { return false; }
+   if (track.pt() < 28) { return false; }
    if (fabs(track.eta()) > 2) { return false; }
 
    // To be noticed: Isolation cuts are applied later with the LLCandidate selection
@@ -2440,7 +2440,7 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
 
    // Preselection cuts:
    if (fabs(photon.eta()) > 1.4442) { return false; }
-   if (photon.et() < 25) {return false; }
+   if (photon.et() < 28) {return false; }
 
    return true;
 
@@ -2470,10 +2470,10 @@ bool LongLivedAnalysis::passBaselineSelection(llCandidate llc) {
    // Electron selection:
    if (llc.type == 0) {
 
-      if ( llc.leadingPt < 41 ) { return false; }
+      if ( llc.leadingPt < 45 ) { return false; }
       if ( llc.subleadingPt < 28 ) { return false; }
       if ( llc.leadingEt < 45 ) { return false; }
-      if ( llc.subleadingEt < 25 ) { return false; }
+      if ( llc.subleadingEt < 28 ) { return false; }
       if ( fabs(llc.etaA) > 1.442 || fabs(llc.etaB) > 1.442 ) { return false; }
       if ( fabs(llc.relisoA) > 0.2 || fabs(llc.relisoB) > 0.2 ) { return false; }
       if ( llc.normalizedChi2 > 10 ) { return false; }
