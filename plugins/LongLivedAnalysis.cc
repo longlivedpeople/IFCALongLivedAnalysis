@@ -345,22 +345,14 @@ Float_t ElectronSel_pt[nElectronMax];
 Float_t ElectronSel_et[nElectronMax];
 Float_t ElectronSel_eta[nElectronMax];
 Float_t ElectronSel_phi[nElectronMax];
-Float_t ElectronSel_hadronicOverEm[nElectronMax];
-Float_t ElectronSel_full5x5_sigmaIetaIeta[nElectronMax];
-Int_t ElectronSel_isEB[nElectronMax];
-Int_t ElectronSel_isEE[nElectronMax];
-Float_t ElectronSel_r9[nElectronMax];
-Float_t ElectronSel_trackIso[nElectronMax];
-Float_t ElectronSel_ecalIso[nElectronMax];
-Float_t ElectronSel_hcalIso[nElectronMax];
-Float_t ElectronSel_caloIso[nElectronMax];
-Float_t ElectronSel_relIso[nElectronMax];
 Float_t ElectronSel_dxy[nElectronMax];
 Float_t ElectronSel_dxyError[nElectronMax];
 Float_t ElectronSel_dxySignificance[nElectronMax];
 Float_t ElectronSel_dB[nElectronMax];
 Float_t ElectronSel_edB[nElectronMax];
-Int_t ElectronSel_isLoose[nElectronMax];
+Float_t ElectronSel_isLoose[nElectronMax];
+Float_t ElectronSel_isMedium[nElectronMax];
+Float_t ElectronSel_isTight[nElectronMax];
 
 
 // -> MUON SELECTION
@@ -381,8 +373,6 @@ Int_t MuonSel_isLooseMuon[nMuonMax];
 Int_t MuonSel_isMediumMuon[nMuonMax];
 Int_t MuonSel_isGoodMediumMuon[nMuonMax];
 Int_t MuonSel_isPFMuon[nMuonMax];
-Float_t MuonSel_fractionOfValidTrackerHits[nMuonMax];
-Float_t MuonSel_normGlobalTrackChi2[nMuonMax];
 
 // -> GENHIGGS
 Float_t GenHiggs_pt;
@@ -634,8 +624,6 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // Class functions
       bool buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrack> > const& isotracks, int idxA, int idxB, bool isEE);
-      bool isLooseElectron(const pat::Electron & electron); 
-      bool isMediumElectron(const pat::Electron & electron); 
       bool passIsotrackSelection(const pat::IsolatedTrack &track);
       bool passPhotonSelection(const pat::Photon &photon);
       bool passL2MuonSelection( pat::TriggerObjectStandAlone obj); 
@@ -1089,7 +1077,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    ///////////////////////////////// ELECTRON FEATURES /////////////////////////////////
 
-   /*
+   
    std::vector<int> iE; // electron indexes
 
 
@@ -1118,18 +1106,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        ElectronSel_et[i] = electron.et();
        ElectronSel_eta[i] = electron.eta();
        ElectronSel_phi[i] = electron.phi();
-       ElectronSel_hadronicOverEm[i] = electron.hadronicOverEm();
-       ElectronSel_full5x5_sigmaIetaIeta[i] = electron.full5x5_sigmaIetaIeta();
-       ElectronSel_isEB[i] = electron.isEB();
-       ElectronSel_isEE[i] = electron.isEE();
-       ElectronSel_r9[i] = electron.r9();
-
-       ElectronSel_trackIso[i] = electron.trackIso();
-       ElectronSel_hcalIso[i] = electron.hcalIso();
-       ElectronSel_ecalIso[i] = electron.ecalIso();
-       ElectronSel_caloIso[i] = electron.caloIso();
-       ElectronSel_relIso[i] = electron.caloIso()/electron.pt();
-
        ElectronSel_dxyError[i] = electron.dxyError();
        ElectronSel_dxy[i] = electron.gsfTrack()->dxy();
        ElectronSel_dxySignificance[i] = fabs(ElectronSel_dxy[i])/electron.dxyError();
@@ -1138,11 +1114,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        ElectronSel_edB[i] = electron.edB();
 
        ElectronSel_isLoose[i] = electron.electronID("cutBasedElectronID-Summer16-80X-V1-loose");
+       ElectronSel_isMedium[i] = electron.electronID("cutBasedElectronID-Summer16-80X-V1-medium");
+       ElectronSel_isTight[i] = electron.electronID("cutBasedElectronID-Summer16-80X-V1-tight");
 
 
    }
 
-   */
+   
+
 
    ///////////////////////////////// MUON FEATURES /////////////////////////////////
    //PABLO: CHECK WHETHER WE WANT TO HAVE THIS ACTIVATED ALL THE TIME
@@ -1189,20 +1168,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        MuonSel_isMediumMuon[i] = muon.isMediumMuon();
        MuonSel_isGoodMediumMuon[i] = goodMediumMuon(muon);
        MuonSel_isPFMuon[i] = muon.isPFMuon();
-
-
-       // Quality features:
-
-       if (muon.isGlobalMuon() || muon.isTrackerMuon()) {MuonSel_fractionOfValidTrackerHits[i] = muon.innerTrack()->validFraction(); }
-
-       if (muon.isGlobalMuon()){
- 
-          MuonSel_normGlobalTrackChi2[i] = muon.globalTrack()->normalizedChi2();
-
-       } else {
-
-          MuonSel_normGlobalTrackChi2[i] = -99;
-       }
 
        MuonSel_dB[i] = muon.dB();
        MuonSel_edB[i] = muon.edB();
@@ -2081,29 +2046,19 @@ void LongLivedAnalysis::beginJob()
 
     ///////////////////////////////// ELECTRON BRANCHES /////////////////////////////////
 
-    /*
     tree_out->Branch("nElectron", &nElectron, "nElectron/I");
     tree_out->Branch("ElectronSel_pt", ElectronSel_pt, "ElectronSel_pt[nElectron]/F");
     tree_out->Branch("ElectronSel_et", ElectronSel_et, "ElectronSel_et[nElectron]/F");
     tree_out->Branch("ElectronSel_eta", ElectronSel_eta, "ElectronSel_eta[nElectron]/F");
     tree_out->Branch("ElectronSel_phi", ElectronSel_phi, "ElectronSel_phi[nElectron]/F");
-    tree_out->Branch("ElectronSel_hadronicOverEm", ElectronSel_hadronicOverEm, "ElectronSel_hadronicOverEm[nElectron]/F");
-    tree_out->Branch("ElectronSel_full5x5_sigmaIetaIeta", ElectronSel_full5x5_sigmaIetaIeta, "ElectronSel_full5x5_sigmaIetaIeta[nElectron]/F");
-    tree_out->Branch("ElectronSel_isEB", ElectronSel_isEB, "ElectronSel_isEB[nElectron]/I");
-    tree_out->Branch("ElectronSel_isEE", ElectronSel_isEE, "ElectronSel_isEE[nElectron]/I");
-    tree_out->Branch("ElectronSel_r9", ElectronSel_r9, "ElectronSel_r9[nElectron]/F");
-    tree_out->Branch("ElectronSel_trackIso", ElectronSel_trackIso, "ElectronSel_trackIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_ecalIso", ElectronSel_ecalIso, "ElectronSel_ecalIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_hcalIso", ElectronSel_hcalIso, "ElectronSel_hcalIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_caloIso", ElectronSel_caloIso, "ElectronSel_caloIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_relIso", ElectronSel_relIso, "ElectronSel_relIso[nElectron]/F");
     tree_out->Branch("ElectronSel_dxy", ElectronSel_dxy, "ElectronSel_dxy[nElectron]/F");
     tree_out->Branch("ElectronSel_dxyError", ElectronSel_dxyError, "ElectronSel_dxyError[nElectron]/F");
     tree_out->Branch("ElectronSel_dxySignificance", ElectronSel_dxySignificance, "ElectronSel_dxySignificance[nElectron]/F");
     tree_out->Branch("ElectronSel_dB", ElectronSel_dB, "ElectronSel_dB[nElectron]/F");
     tree_out->Branch("ElectronSel_edB", ElectronSel_edB, "ElectronSel_edB[nElectron]/F");
-    tree_out->Branch("ElectronSel_isLoose", ElectronSel_isLoose, "ElectronSel_isLoose[nElectron]/I");
-    */
+    tree_out->Branch("ElectronSel_isLoose", ElectronSel_isLoose, "ElectronSel_isLoose[nElectron]/F");
+    tree_out->Branch("ElectronSel_isMedium", ElectronSel_isMedium, "ElectronSel_isMedium[nElectron]/F");
+    tree_out->Branch("ElectronSel_isTight", ElectronSel_isTight, "ElectronSel_isTight[nElectron]/F");
 
     ///////////////////////////////// MUON BRANCHES /////////////////////////////////
 
@@ -2119,16 +2074,10 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonSel_isLooseMuon", MuonSel_isLooseMuon, "MuonSel_isLooseMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isMediumMuon", MuonSel_isMediumMuon, "MuonSel_isMediumMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isGoodMediumMuon", MuonSel_isGoodMediumMuon, "MuonSel_isGoodMediumMuon[nMuon]/I");
-
     tree_out->Branch("MuonSel_dB", MuonSel_dB, "MuonSel_dB[nMuon]/F");
     tree_out->Branch("MuonSel_edB", MuonSel_edB, "MuonSel_edB[nMuon]/F");
     tree_out->Branch("MuonSel_dBSignificance", MuonSel_dBSignificance, "MuonSel_dBSignificance[nMuon]/F");
 
-    /*
-    tree_out->Branch("MuonSel_isPFMuon", MuonSel_isPFMuon, "MuonSel_isPFMuon[nMuon]/I");
-    tree_out->Branch("MuonSel_fractionOfValidTrackerHits", MuonSel_fractionOfValidTrackerHits, "MuonSel_fractionOfValidTrackerHits[nMuon]/F");
-    tree_out->Branch("MuonSel_normGlobalTrackChi2", MuonSel_normGlobalTrackChi2, "MuonSel_normGlobalTrackChi2[nMuon]/F");
-    */
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
     //
@@ -2327,86 +2276,6 @@ void LongLivedAnalysis::fillDescriptions(edm::ConfigurationDescriptions& descrip
 
 //=======================================================================================================================================================================================================================//
 
-bool isLooseElectron(const pat::Electron & electron) {
-
-    float ecal_energy_inverse = 1.0/electron.ecalEnergy();
-    float eSCoverP = electron.eSuperClusterOverP();
-
-    // Barrel cuts:
-    if (fabs(electron.superCluster()->eta()) <= 1.479) {
-
-       // Combined isolation:
-       //float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
-
-       if (electron.full5x5_sigmaIetaIeta() > 0.011) { return false; }
-       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00477) { return false; }
-       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.222) { return false; }
-       if (electron.hadronicOverEm() > 0.298) { return false; }
-       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.241) {return false; }
-       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
-       if (electron.passConversionVeto() == 0) {return false;}
-
-
-    // Endcap cuts
-    } else if (fabs(electron.superCluster()->eta()) > 1.479) {
-
-
-       if (electron.full5x5_sigmaIetaIeta() > 0.0314) { return false; }
-       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00868) { return false; }
-       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.213) { return false; }
-       if (electron.hadronicOverEm() > 0.101) { return false; }
-       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.14) {return false; }
-       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
-       if (electron.passConversionVeto() == 0) {return false;}
-
-    }
-
-    return true;
-
-}
-
-//=======================================================================================================================================================================================================================//
-
-bool isMediumElectron(const pat::Electron & electron) {
-
-    // Need to be filled correctly (Now they are the requirements for Loose Electrons)
-
-    float ecal_energy_inverse = 1.0/electron.ecalEnergy();
-    float eSCoverP = electron.eSuperClusterOverP();
-
-    // Barrel cuts:
-    if (fabs(electron.superCluster()->eta()) <= 1.479) {
-
-       // Combined isolation:
-       //float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
-
-       if (electron.full5x5_sigmaIetaIeta() > 0.011) { return false; }
-       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00477) { return false; }
-       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.222) { return false; }
-       if (electron.hadronicOverEm() > 0.298) { return false; }
-       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.241) {return false; }
-       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
-       if (electron.passConversionVeto() == 0) {return false;}
-
-
-    // Endcap cuts
-    } else if (fabs(electron.superCluster()->eta()) > 1.479) {
-
-
-       if (electron.full5x5_sigmaIetaIeta() > 0.0314) { return false; }
-       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00868) { return false; }
-       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.213) { return false; }
-       if (electron.hadronicOverEm() > 0.101) { return false; }
-       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.14) {return false; }
-       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
-       if (electron.passConversionVeto() == 0) {return false;}
-
-    }
-
-    return true;
-
-}
-//=======================================================================================================================================================================================================================//
 
 bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) {
 
