@@ -374,6 +374,44 @@ Int_t MuonSel_isMediumMuon[nMuonMax];
 Int_t MuonSel_isGoodMediumMuon[nMuonMax];
 Int_t MuonSel_isPFMuon[nMuonMax];
 
+// -> AOD MUON COLLECTIONS
+// StandAlone:
+Int_t nSA;
+Float_t SA_pt[20];
+Float_t SA_eta[20];
+Float_t SA_phi[20];
+Float_t SA_dxy[20];
+Float_t SA_q[20];
+// DisplacedStandAlone:
+Int_t nDSA;
+Float_t DSA_pt[20];
+Float_t DSA_eta[20];
+Float_t DSA_phi[20];
+Float_t DSA_dxy[20];
+Float_t DSA_q[20];
+// RefittedStandAlone:
+Int_t nRSA;
+Float_t RSA_pt[20];
+Float_t RSA_eta[20];
+Float_t RSA_phi[20];
+Float_t RSA_dxy[20];
+Float_t RSA_q[20];
+// GlobalMuons:
+Int_t nGM;
+Float_t GM_pt[20];
+Float_t GM_eta[20];
+Float_t GM_phi[20];
+Float_t GM_dxy[20];
+Float_t GM_q[20];
+// DisplacedGlobalMuons 
+Int_t nDGM;
+Float_t DGM_pt[20];
+Float_t DGM_eta[20];
+Float_t DGM_phi[20];
+Float_t DGM_dxy[20];
+Float_t DGM_q[20];
+
+
 // -> GENHIGGS
 Float_t GenHiggs_pt;
 Float_t GenHiggs_eta;
@@ -591,6 +629,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       std::string output_filename;
       bool _isData;
       bool _BSMode;
+      bool _DSAMode;
       edm::ParameterSet parameters;
 
       edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
@@ -608,6 +647,14 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<pat::PackedTriggerPrescales>  triggerPrescales_;
 
       edm::EDGetTokenT<reco::BeamSpot> theBeamSpot;
+
+      // Displaced objects (AOD) tokens:
+      edm::EDGetTokenT<edm::View<reco::Track> > theSACollection; // StandAlone muons
+      edm::EDGetTokenT<edm::View<reco::Track> > theDSACollection; // DisplacedStandAlone
+      edm::EDGetTokenT<edm::View<reco::Track> > theRSACollection; // RefittedStandAlone
+      edm::EDGetTokenT<edm::View<reco::Track> > theGMCollection; // Global muons
+      edm::EDGetTokenT<edm::View<reco::Track> > theDGMCollection; // DisplacedGlobalMuons
+
 
       // Gen collection
       edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;      
@@ -675,6 +722,16 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
 
    thePileUpSummary = consumes<std::vector<PileupSummaryInfo> > (parameters.getParameter<edm::InputTag>("thePileUpSummary"));
 
+   if (_DSAMode) {
+   theSACollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("StandAloneCollection"));
+   theDSACollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("DisplacedStandAloneCollection"));
+   theRSACollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("RefittedStandAloneCollection"));
+   theGMCollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("GlobalMuonCollection"));
+   theDGMCollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("DisplacedGlobalMuonCollection"));
+
+   }
+
+
 
 }
 //=======================================================================================================================================================================================================================//
@@ -703,7 +760,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
    
-
+   // Handle:
    edm::Handle<edm::View<pat::Electron> > electrons;
    edm::Handle<edm::View<pat::Muon> > muons;
    edm::Handle<edm::View<pat::Photon> > photons;
@@ -721,6 +778,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<GenEventInfoProduct> genEvtInfo;
    edm::Handle<std::vector<PileupSummaryInfo> > puInfoH;
 
+   edm::Handle<edm::View<reco::Track> > SAs;
+   edm::Handle<edm::View<reco::Track> > DSAs;
+   edm::Handle<edm::View<reco::Track> > RSAs;
+   edm::Handle<edm::View<reco::Track> > GMs;
+   edm::Handle<edm::View<reco::Track> > DGMs;
+
+   // Get tokens:
    iEvent.getByToken(theElectronCollection, electrons);
    iEvent.getByToken(theMuonCollection, muons);
    iEvent.getByToken(thePhotonCollection, photons);
@@ -736,6 +800,16 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(theBeamSpot, beamSpot);
 
    iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
+
+   if (_DSAMode){
+      iEvent.getByToken(theSACollection, SAs);
+      iEvent.getByToken(theDSACollection, DSAs);
+      iEvent.getByToken(theRSACollection, RSAs);
+      iEvent.getByToken(theGMCollection, GMs);
+      iEvent.getByToken(theDGMCollection, DGMs);
+   }
+
+
 
    if (!_isData){
       
@@ -1174,6 +1248,84 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        MuonSel_dBSignificance[i] = muon.dB()/muon.edB();
 
    }
+
+   /////////////////////////////////////////////////////////
+   // --------------------------------------------------- //
+   // --------------- AOD Muon Collections -------------- //
+   // --------------------------------------------------- //
+   /////////////////////////////////////////////////////////
+
+   if (_DSAMode){
+
+     // StandAlone muons:
+     nSA = SAs->size();
+     for (size_t i = 0; i < SAs->size(); i++){
+
+       const reco::Track &muon = (*SAs)[i];
+       SA_pt[i] = muon.pt();
+       SA_eta[i] = muon.eta();
+       SA_phi[i] = muon.phi();
+       SA_dxy[i] = muon.dxy();
+       SA_q[i] = muon.charge();
+
+     }
+
+     // DisplacedStandAlone muons:
+     nDSA = DSAs->size();
+     for (size_t i = 0; i < DSAs->size(); i++){
+
+       const reco::Track &muon = (*DSAs)[i];
+       DSA_pt[i] = muon.pt();
+       DSA_eta[i] = muon.eta();
+       DSA_phi[i] = muon.phi();
+       DSA_dxy[i] = muon.dxy();
+       DSA_q[i] = muon.charge();
+
+     }
+
+     // RefittedStandAlone muons:
+     nRSA = RSAs->size();
+     for (size_t i = 0; i < RSAs->size(); i++){
+
+       const reco::Track &muon = (*RSAs)[i];
+       RSA_pt[i] = muon.pt();
+       RSA_eta[i] = muon.eta();
+       RSA_phi[i] = muon.phi();
+       RSA_dxy[i] = muon.dxy();
+       RSA_q[i] = muon.charge();
+
+     }
+
+     // GlobalMuons:
+     nGM = GMs->size();
+     for (size_t i = 0; i < GMs->size(); i++){
+
+       const reco::Track &muon = (*GMs)[i];
+       GM_pt[i] = muon.pt();
+       GM_eta[i] = muon.eta();
+       GM_phi[i] = muon.phi();
+       GM_dxy[i] = muon.dxy();
+       GM_q[i] = muon.charge();
+
+     }
+
+     // DisplacedGlobalMuons:
+     nDGM = DGMs->size();
+     for (size_t i = 0; i < DGMs->size(); i++){
+
+       const reco::Track &muon = (*DGMs)[i];
+       DGM_pt[i] = muon.pt();
+       DGM_eta[i] = muon.eta();
+       DGM_phi[i] = muon.phi();
+       DGM_dxy[i] = muon.dxy();
+       DGM_q[i] = muon.charge();
+
+     }
+
+   }
+
+
+
 
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
@@ -1943,6 +2095,7 @@ void LongLivedAnalysis::beginJob()
     // Analyzer parameters
     _isData = parameters.getParameter<bool>("isData");
     _BSMode = parameters.getParameter<bool>("BSMode");
+    _DSAMode = parameters.getParameter<bool>("DSAMode");
 
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
@@ -2078,9 +2231,47 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonSel_edB", MuonSel_edB, "MuonSel_edB[nMuon]/F");
     tree_out->Branch("MuonSel_dBSignificance", MuonSel_dBSignificance, "MuonSel_dBSignificance[nMuon]/F");
 
+    //////////////////////////// AOD MUON BRANCHES ///////////////////////////
+    
+    if (_DSAMode){
+      tree_out->Branch("nSA", &nSA, "nSA/I");
+      tree_out->Branch("SA_pt", SA_pt, "SA_pt[nSA]/F");
+      tree_out->Branch("SA_eta", SA_eta, "SA_eta[nSA]/F");
+      tree_out->Branch("SA_phi", SA_phi, "SA_phi[nSA]/F");
+      tree_out->Branch("SA_dxy", SA_dxy, "SA_dxy[nSA]/F");
+      tree_out->Branch("SA_q", SA_q, "SA_q[nSA]/F");
+
+      tree_out->Branch("nDSA", &nDSA, "nDSA/I");
+      tree_out->Branch("DSA_pt", DSA_pt, "DSA_pt[nDSA]/F");
+      tree_out->Branch("DSA_eta", DSA_eta, "DSA_eta[nDSA]/F");
+      tree_out->Branch("DSA_phi", DSA_phi, "DSA_phi[nDSA]/F");
+      tree_out->Branch("DSA_dxy", DSA_dxy, "DSA_dxy[nDSA]/F");
+      tree_out->Branch("DSA_q", DSA_q, "DSA_q[nDSA]/F");
+
+      tree_out->Branch("nRSA", &nRSA, "nRSA/I");
+      tree_out->Branch("RSA_pt", RSA_pt, "RSA_pt[nRSA]/F");
+      tree_out->Branch("RSA_eta", RSA_eta, "RSA_eta[nRSA]/F");
+      tree_out->Branch("RSA_phi", RSA_phi, "RSA_phi[nRSA]/F");
+      tree_out->Branch("RSA_dxy", RSA_dxy, "RSA_dxy[nRSA]/F");
+      tree_out->Branch("RSA_q", RSA_q, "RSA_q[nRSA]/F");
+
+      tree_out->Branch("nGM", &nGM, "nGM/I");
+      tree_out->Branch("GM_pt", GM_pt, "GM_pt[nGM]/F");
+      tree_out->Branch("GM_eta", GM_eta, "GM_eta[nGM]/F");
+      tree_out->Branch("GM_phi", GM_phi, "GM_phi[nGM]/F");
+      tree_out->Branch("GM_dxy", GM_dxy, "GM_dxy[nGM]/F");
+      tree_out->Branch("GM_q", GM_q, "GM_q[nGM]/F");
+
+      tree_out->Branch("nDGM", &nDGM, "nDGM/I");
+      tree_out->Branch("DGM_pt", DGM_pt, "DGM_pt[nDGM]/F");
+      tree_out->Branch("DGM_eta", DGM_eta, "DGM_eta[nDGM]/F");
+      tree_out->Branch("DGM_phi", DGM_phi, "DGM_phi[nDGM]/F");
+      tree_out->Branch("DGM_dxy", DGM_dxy, "DGM_dxy[nDGM]/F");
+      tree_out->Branch("DGM_q", DGM_q, "DGM_q[nDGM]/F");
+    }
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
-    //
+    
     tree_out->Branch("nMuonTriggerObject", &nMuonTriggerObject, "nMuonTriggerObject/I");
     tree_out->Branch("MuonTriggerObjectSel_pt", MuonTriggerObjectSel_pt, "MuonTriggerObjectSel_pt[nMuonTriggerObject]/F");
     tree_out->Branch("MuonTriggerObjectSel_eta", MuonTriggerObjectSel_eta, "MuonTriggerObjectSel_eta[nMuonTriggerObject]/F");
