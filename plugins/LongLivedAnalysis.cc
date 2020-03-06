@@ -1103,8 +1103,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
 
-
-
    ////////////////////////////////// PHOTON FEATURES //////////////////////////////////
    
    std::vector<int> iP; // photon indexes
@@ -1422,8 +1420,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 	   GenLeptonSel_vx[i] = genparticle.vx();
 	   GenLeptonSel_vy[i] = genparticle.vy();
 	   GenLeptonSel_vz[i] = genparticle.vz();
-
-
 
 
 	   // Define the mother index
