@@ -14,7 +14,7 @@
 //                                                                                                                                                                                                                       //
 // Authors of the code: Celia Fernandez Madrazo                                                                                                                                                                          //
 //                      Pablo Martinez Ruiz Del Arbol                                                                                                                                                                    //
-//                                                                                                                                                                                                                       //
+//                      Jesus Vizan Garcia                                                                                                                                                                               //
 //=======================================================================================================================================================================================================================//
 //                                                                                                                                                                                                                       //
 // Description: Main analyzer                                                                                                                                                                                            //
@@ -41,6 +41,8 @@
 
 #include "DataFormats/Common/interface/Handle.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
+#include "DataFormats/MuonReco/interface/Muon.h"
+#include "DataFormats/MuonReco/interface/MuonPFIsolation.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
 #include "DataFormats/PatCandidates/interface/Photon.h"
 #include "DataFormats/PatCandidates/interface/IsolatedTrack.h"
@@ -75,6 +77,9 @@
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
 
+#include "MyAnalysis/IFCALongLivedAnalysis/interface/llCandidateDataFormat.h"
+
+
 //#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
 //#include "RecoVertex/VertexPrimitives/interface/TransientVertex.h"
 
@@ -98,23 +103,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////// FUNCTIONS ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
-
-bool goodPhoton(const pat::Photon & photon)
-{
-
-    // Return true if the photon fulfills with the analysis requirements and false instead
-
-    if (fabs(photon.eta()) > 1.4442 && fabs(photon.eta()) < 1.566) { return false; } // narrow EB region to be defined
-    if (photon.hadronicOverEm() > 0.05) { return false; }
-    if (photon.isEE() && photon.full5x5_sigmaIetaIeta() > 0.034) { return false; }
-    if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
-    if (photon.et() < 25) {return false; }
-    if (fabs(photon.eta()) > 2.4) {return false;}
-
-    return true;
-
-}
-
 
 bool goodElectron(const pat::Electron & electron)
 {
@@ -155,31 +143,6 @@ bool goodElectron(const pat::Electron & electron)
 
     if (fabs(electron.eta()) > 2.4) {return false;}
 
-    return true;
-
-}
-
-
-bool goodTrack(const pat::IsolatedTrack & track)
-{
-
-    if (!track.isHighPurityTrack()) {return false; }
-    if (track.pt() < 15) {return false; }
- 
-    const reco::HitPattern &hits = track.hitPattern();
-    if (hits.numberOfValidTrackerHits() < 6) { return false; }
-    if (fabs(track.eta())> 2.4) {return false; }
-
-
-    return true;
-
-}
-
-
-bool isGoodMuonTriggerObject( pat::TriggerObjectStandAlone obj)
-{
-
-    // Fill
     return true;
 
 }
@@ -240,17 +203,6 @@ bool isLongLivedLepton(const reco::GenParticle &p)
     if (abs(p.mother()->pdgId()) == 1000022 or abs(p.mother()->pdgId()) == 54){ LLP = true; }
 
     return LLP;
-
-}
-
-
-bool isZLepton(const reco::GenParticle &p)
-{
-
-    if (!( abs(p.pdgId()) == 11 || abs(p.pdgId()) == 13)){ return false; }
-    if (abs(p.mother()->pdgId()) != 23){ return false; }
-
-    return true;
 
 }
 
@@ -323,6 +275,7 @@ Float_t RefittedPV_vy;
 Float_t RefittedPV_vz;
 Int_t RefittedPV_nPFTrack;
 Int_t RefittedPV_nLostTrack;
+Int_t RefittedPV_nExcludedTrack;
 
 
 //-> BEAM SPOT
@@ -388,7 +341,6 @@ Float_t PhotonSel_ecalIso[nPhotonMax];
 Float_t PhotonSel_hcalIso[nPhotonMax];
 Float_t PhotonSel_caloIso[nPhotonMax];
 Float_t PhotonSel_relIso[nPhotonMax];
-Int_t PhotonSel_isGoodSC[nPhotonMax];
 
 //-> ELECTRON SELECTION
 const Int_t nElectronMax = 100;
@@ -397,22 +349,14 @@ Float_t ElectronSel_pt[nElectronMax];
 Float_t ElectronSel_et[nElectronMax];
 Float_t ElectronSel_eta[nElectronMax];
 Float_t ElectronSel_phi[nElectronMax];
-Float_t ElectronSel_hadronicOverEm[nElectronMax];
-Float_t ElectronSel_full5x5_sigmaIetaIeta[nElectronMax];
-Int_t ElectronSel_isEB[nElectronMax];
-Int_t ElectronSel_isEE[nElectronMax];
-Float_t ElectronSel_r9[nElectronMax];
-Float_t ElectronSel_trackIso[nElectronMax];
-Float_t ElectronSel_ecalIso[nElectronMax];
-Float_t ElectronSel_hcalIso[nElectronMax];
-Float_t ElectronSel_caloIso[nElectronMax];
-Float_t ElectronSel_relIso[nElectronMax];
 Float_t ElectronSel_dxy[nElectronMax];
 Float_t ElectronSel_dxyError[nElectronMax];
 Float_t ElectronSel_dxySignificance[nElectronMax];
 Float_t ElectronSel_dB[nElectronMax];
 Float_t ElectronSel_edB[nElectronMax];
-Int_t ElectronSel_isLoose[nElectronMax];
+Float_t ElectronSel_isLoose[nElectronMax];
+Float_t ElectronSel_isMedium[nElectronMax];
+Float_t ElectronSel_isTight[nElectronMax];
 
 
 // -> MUON SELECTION
@@ -421,16 +365,10 @@ Int_t nMuon;
 Float_t MuonSel_pt[nMuonMax];
 Float_t MuonSel_eta[nMuonMax];
 Float_t MuonSel_phi[nMuonMax];
-Float_t MuonSel_trackIso[nMuonMax];
-Float_t MuonSel_ecalIso[nMuonMax];
-Float_t MuonSel_hcalIso[nMuonMax];
-Float_t MuonSel_caloIso[nMuonMax];
 Float_t MuonSel_relIso[nMuonMax];
-Float_t MuonSel_dxy[nMuonMax];
-Float_t MuonSel_dxyError[nMuonMax];
-Float_t MuonSel_dxySignificance[nMuonMax];
 Float_t MuonSel_dB[nMuonMax];
 Float_t MuonSel_edB[nMuonMax];
+Float_t MuonSel_dBSignificance[nMuonMax];
 Int_t MuonSel_isMuon[nMuonMax];
 Int_t MuonSel_isGlobalMuon[nMuonMax];
 Int_t MuonSel_isTrackerMuon[nMuonMax];
@@ -439,11 +377,44 @@ Int_t MuonSel_isLooseMuon[nMuonMax];
 Int_t MuonSel_isMediumMuon[nMuonMax];
 Int_t MuonSel_isGoodMediumMuon[nMuonMax];
 Int_t MuonSel_isPFMuon[nMuonMax];
-Float_t MuonSel_fractionOfValidTrackerHits[nMuonMax];
-Float_t MuonSel_normGlobalTrackChi2[nMuonMax];
-Float_t MuonSel_trackerStandalonePosMatch[nMuonMax];
-Float_t MuonSel_kickFinder[nMuonMax];
-Float_t MuonSel_segmentCompatibility[nMuonMax];
+
+// -> AOD MUON COLLECTIONS
+// StandAlone:
+Int_t nSA;
+Float_t SA_pt[20];
+Float_t SA_eta[20];
+Float_t SA_phi[20];
+Float_t SA_dxy[20];
+Float_t SA_q[20];
+// DisplacedStandAlone:
+Int_t nDSA;
+Float_t DSA_pt[20];
+Float_t DSA_eta[20];
+Float_t DSA_phi[20];
+Float_t DSA_dxy[20];
+Float_t DSA_q[20];
+// RefittedStandAlone:
+Int_t nRSA;
+Float_t RSA_pt[20];
+Float_t RSA_eta[20];
+Float_t RSA_phi[20];
+Float_t RSA_dxy[20];
+Float_t RSA_q[20];
+// GlobalMuons:
+Int_t nGM;
+Float_t GM_pt[20];
+Float_t GM_eta[20];
+Float_t GM_phi[20];
+Float_t GM_dxy[20];
+Float_t GM_q[20];
+// DisplacedGlobalMuons 
+Int_t nDGM;
+Float_t DGM_pt[20];
+Float_t DGM_eta[20];
+Float_t DGM_phi[20];
+Float_t DGM_dxy[20];
+Float_t DGM_q[20];
+
 
 // -> GENHIGGS
 Float_t GenHiggs_pt;
@@ -529,6 +500,8 @@ Float_t ElectronCandidate_dxyError[nElectronCandidateMax];
 Float_t ElectronCandidate_dxySignificance[nElectronCandidateMax];
 Int_t ElectronCandidate_photonIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_isotrackIdx[nElectronCandidateMax];
+Int_t ElectronCandidate_pvAssociationQuality[nElectronCandidateMax];
+Float_t ElectronCandidate_ptDiff[nElectronCandidateMax];
 
 //-> MUON CANDIDATE SELECTION
 const Int_t nMuonCandidateMax = 100;
@@ -542,90 +515,100 @@ Float_t MuonCandidate_dxySignificance[nMuonCandidateMax];
 Float_t MuonCandidate_triggerPt[nMuonCandidateMax];
 Int_t MuonCandidate_muonTriggerObjectIdx[nMuonCandidateMax];
 Int_t MuonCandidate_isotrackIdx[nMuonCandidateMax];
-
-//-> LL Candidates                                                                                                                                                                                 
-const Int_t nLLMax = 1000;
-
-Int_t nLL;
-Float_t LL_Lxy[nLLMax];
-Float_t LL_Ixy[nLLMax];
-Float_t LL_minLxy[nLLMax];
-Float_t LL_minIxy[nLLMax];
-Float_t LL_Mass[nLLMax];
-Float_t LL_normalizedChi2[nLLMax];
-
-Float_t LLSel_Lxy;//vtx displacement
-Float_t LLSel_Ixy;
-Float_t LLSel_minLxy;// min displacement  of the 2 tracks
-Float_t LLSel_minIxy;
-Float_t LLSel_Mass;
-Float_t LLSel_normalizedChi2;
-Float_t LLSel_cosAlpha;//cos of the angle between the 2 tracks
-Float_t LLSel_dPhi;
-Int_t LLSel_isMM;
-Int_t LLSel_isEE;
+Int_t MuonCandidate_pvAssociationQuality[nMuonCandidateMax];
+Float_t MuonCandidate_ptDiff[nMuonCandidateMax];
 
 
+// -> All EE candidates
 Int_t nEE;
-Int_t EE_idxA[nLLMax];
-Int_t EE_idxB[nLLMax];
-Float_t EE_Lxy[nLLMax];
-Float_t EE_Ixy[nLLMax];
-Float_t EE_minLxy[nLLMax];
-Float_t EE_minIxy[nLLMax];
-Float_t EE_Mass[nLLMax];
-Float_t EE_normalizedChi2[nLLMax];
-Float_t EE_leadingPt[nLLMax];
-Float_t EE_subleadingPt[nLLMax];
-Float_t EE_leadingEt[nLLMax];
-Float_t EE_subleadingEt[nLLMax];
-Float_t EE_cosAlpha[nLLMax];
-Float_t EE_dPhi[nLLMax];
-Float_t EE_relisoA[nLLMax];
-Float_t EE_relisoB[nLLMax];
-Float_t EE_invMass[nLLMax];
+Int_t EE_idxA[20];
+Int_t EE_idxB[20];
+Float_t EE_Lxy[20];
+Float_t EE_Ixy[20];
+Float_t EE_trackDxy[20];
+Float_t EE_trackIxy[20];
+Float_t EE_mass[20];
+Float_t EE_normalizedChi2[20];
+Float_t EE_leadingPt[20];
+Float_t EE_subleadingPt[20];
+Float_t EE_leadingEt[20];
+Float_t EE_subleadingEt[20];
+Float_t EE_cosAlpha[20];
+Float_t EE_dPhi[20];
+Float_t EE_relisoA[20];
+Float_t EE_relisoB[20];
 
+// -> EE candidates that survive to baseline selection
+Int_t nEEBase;
+Int_t EEBase_maxIxy;
+Int_t EEBase_idxA[20];
+Int_t EEBase_idxB[20];
+Float_t EEBase_Lxy[20];
+Float_t EEBase_Ixy[20];
+Float_t EEBase_trackDxy[20];
+Float_t EEBase_trackIxy[20];
+Float_t EEBase_vx[20];
+Float_t EEBase_vy[20];
+Float_t EEBase_mass[20];
+Float_t EEBase_normalizedChi2[20];
+Float_t EEBase_leadingPt[20];
+Float_t EEBase_subleadingPt[20];
+Float_t EEBase_leadingEt[20];
+Float_t EEBase_subleadingEt[20];
+Float_t EEBase_cosAlpha[20];
+Float_t EEBase_dPhi[20];
+Float_t EEBase_relisoA[20];
+Float_t EEBase_relisoB[20];
+Float_t EEBase_refittedDxy[20];
+Float_t EEBase_refittedIxy[20];
+Int_t EEBase_fromPVA[20];
+Int_t EEBase_fromPVB[20];
+Int_t EEBase_PVAssociation[20];
+
+
+// -> All MM candidates
 Int_t nMM;
-Int_t MM_idxA[nLLMax];
-Int_t MM_idxB[nLLMax];
-Float_t MM_Lxy[nLLMax];
-Float_t MM_Ixy[nLLMax];
-Float_t MM_minLxy[nLLMax];
-Float_t MM_minIxy[nLLMax];
-Float_t MM_Mass[nLLMax];
-Float_t MM_normalizedChi2[nLLMax];
-Float_t MM_leadingPt[nLLMax];
-Float_t MM_subleadingPt[nLLMax];
-Float_t MM_cosAlpha[nLLMax];
-Float_t MM_dPhi[nLLMax];
-Float_t MM_relisoA[nLLMax];
-Float_t MM_relisoB[nLLMax];
-Float_t MM_invMass[nLLMax];
+Int_t MM_idxA[20];
+Int_t MM_idxB[20];
+Float_t MM_Lxy[20];
+Float_t MM_Ixy[20];
+Float_t MM_trackDxy[20];
+Float_t MM_trackIxy[20];
+Float_t MM_mass[20];
+Float_t MM_normalizedChi2[20];
+Float_t MM_leadingPt[20];
+Float_t MM_subleadingPt[20];
+Float_t MM_cosAlpha[20];
+Float_t MM_dPhi[20];
+Float_t MM_relisoA[20];
+Float_t MM_relisoB[20];
 
 
-Int_t MMSel_idxA;
-Int_t MMSel_idxB;
-Float_t MMSel_minLxy;
-Float_t MMSel_minIxy;
-Float_t MMSel_normalizedChi2;
-Float_t MMSel_invMass;
-Float_t MMSel_leadingPt;
-Float_t MMSel_subleadingPt;
-Float_t MMSel_cosAlpha;
-Float_t MMSel_dPhi;
+// -> MM candidates that survive to baseline selection
+Int_t nMMBase;
+Int_t MMBase_maxIxy;
+Int_t MMBase_idxA[20];
+Int_t MMBase_idxB[20];
+Float_t MMBase_Lxy[20];
+Float_t MMBase_Ixy[20];
+Float_t MMBase_trackDxy[20];
+Float_t MMBase_trackIxy[20];
+Float_t MMBase_vx[20];
+Float_t MMBase_vy[20];
+Float_t MMBase_mass[20];
+Float_t MMBase_normalizedChi2[20];
+Float_t MMBase_leadingPt[20];
+Float_t MMBase_subleadingPt[20];
+Float_t MMBase_cosAlpha[20];
+Float_t MMBase_dPhi[20];
+Float_t MMBase_relisoA[20];
+Float_t MMBase_relisoB[20];
+Float_t MMBase_refittedDxy[20];
+Float_t MMBase_refittedIxy[20];
+Int_t MMBase_fromPVA[20];
+Int_t MMBase_fromPVB[20];
+Int_t MMBase_PVAssociation[20];
 
-Int_t EESel_idxA;
-Int_t EESel_idxB;
-Float_t EESel_minLxy;
-Float_t EESel_minIxy;
-Float_t EESel_normalizedChi2;
-Float_t EESel_invMass;
-Float_t EESel_leadingPt;
-Float_t EESel_subleadingPt;
-Float_t EESel_leadingEt;
-Float_t EESel_subleadingEt;
-Float_t EESel_cosAlpha;
-Float_t EESel_dPhi;
 
 /////////////////////////////////////// OUTPUT //////////////////////////////////////
 
@@ -649,6 +632,8 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       std::string output_filename;
       bool _isData;
+      bool _BSMode;
+      bool _DSAMode;
       edm::ParameterSet parameters;
 
       edm::EDGetTokenT<edm::View<pat::Electron> > theElectronCollection;   
@@ -658,6 +643,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::View<reco::Vertex> > thePrimaryVertexCollection;
       edm::EDGetTokenT<edm::View<pat::PackedCandidate> > thePackedPFCandidateCollection;
       edm::EDGetTokenT<edm::View<pat::PackedCandidate> > theLostTracksCollection;
+      edm::EDGetTokenT<edm::View<pat::PackedCandidate> > theEleLostTracksCollection;
       edm::EDGetTokenT<edm::View<pat::MET> > theMETCollection;
 
       edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
@@ -665,6 +651,14 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<pat::PackedTriggerPrescales>  triggerPrescales_;
 
       edm::EDGetTokenT<reco::BeamSpot> theBeamSpot;
+
+      // Displaced objects (AOD) tokens:
+      edm::EDGetTokenT<edm::View<reco::Track> > theSACollection; // StandAlone muons
+      edm::EDGetTokenT<edm::View<reco::Track> > theDSACollection; // DisplacedStandAlone
+      edm::EDGetTokenT<edm::View<reco::Track> > theRSACollection; // RefittedStandAlone
+      edm::EDGetTokenT<edm::View<reco::Track> > theGMCollection; // Global muons
+      edm::EDGetTokenT<edm::View<reco::Track> > theDGMCollection; // DisplacedGlobalMuons
+
 
       // Gen collection
       edm::EDGetTokenT<edm::View<reco::GenParticle> >  theGenParticleCollection;      
@@ -681,7 +675,16 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // Class functions
       bool buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrack> > const& isotracks, int idxA, int idxB, bool isEE);
+      bool passIsotrackSelection(const pat::IsolatedTrack &track);
+      bool passPhotonSelection(const pat::Photon &photon);
+      bool passL2MuonSelection( pat::TriggerObjectStandAlone obj); 
+      bool passMuonSelection(const pat::Muon &muon);
+      bool passBaselineSelection(llCandidate llc);
+      float computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv);
+      reco::Vertex getSVCandidate(const pat::PackedCandidateRef &pckCandA, const pat::PackedCandidateRef &pckCandB);
+      float computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv);
 
+      // Histograms
       TH1F *counts, *sum2Weights;
 };
 //=======================================================================================================================================================================================================================//
@@ -706,6 +709,7 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    thePrimaryVertexCollection = consumes<edm::View<reco::Vertex> >  (parameters.getParameter<edm::InputTag>("PrimaryVertexCollection"));
    thePackedPFCandidateCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("PackedPFCandidateCollection"));
    theLostTracksCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("LostTracksCollection"));
+   theEleLostTracksCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("EleLostTracksCollection"));
    theMETCollection = consumes<edm::View<pat::MET> >  (parameters.getParameter<edm::InputTag>("METCollection"));
 
 
@@ -722,8 +726,16 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
 
    thePileUpSummary = consumes<std::vector<PileupSummaryInfo> > (parameters.getParameter<edm::InputTag>("thePileUpSummary"));
 
-   // PU reweighting setup:
-   //lumi_weights = edm::LumiReWeighting("test/PUreweighting/2016/2016MCPileupHistogram.root", "test/PUreweighting/2016/2016DataPileupHistogram.root", "pileup", "pileup");
+   if (_DSAMode) {
+   theSACollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("StandAloneCollection"));
+   theDSACollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("DisplacedStandAloneCollection"));
+   theRSACollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("RefittedStandAloneCollection"));
+   theGMCollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("GlobalMuonCollection"));
+   theDGMCollection = consumes<edm::View<reco::Track> >  (parameters.getParameter<edm::InputTag>("DisplacedGlobalMuonCollection"));
+
+   }
+
+
 
 }
 //=======================================================================================================================================================================================================================//
@@ -752,7 +764,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    //////////////////////////////// GET THE COLLECTIONS ////////////////////////////////
    
-
+   // Handle:
    edm::Handle<edm::View<pat::Electron> > electrons;
    edm::Handle<edm::View<pat::Muon> > muons;
    edm::Handle<edm::View<pat::Photon> > photons;
@@ -760,6 +772,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::View<reco::Vertex> > primaryvertices;
    edm::Handle<edm::View<pat::PackedCandidate> > packedPFCandidates;
    edm::Handle<edm::View<pat::PackedCandidate> > lostTracks;
+   edm::Handle<edm::View<pat::PackedCandidate> > eleLostTracks;
    edm::Handle<edm::View<pat::MET> > METs;
    edm::Handle<edm::TriggerResults> triggerBits;
    edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
@@ -769,6 +782,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<GenEventInfoProduct> genEvtInfo;
    edm::Handle<std::vector<PileupSummaryInfo> > puInfoH;
 
+   edm::Handle<edm::View<reco::Track> > SAs;
+   edm::Handle<edm::View<reco::Track> > DSAs;
+   edm::Handle<edm::View<reco::Track> > RSAs;
+   edm::Handle<edm::View<reco::Track> > GMs;
+   edm::Handle<edm::View<reco::Track> > DGMs;
+
+   // Get tokens:
    iEvent.getByToken(theElectronCollection, electrons);
    iEvent.getByToken(theMuonCollection, muons);
    iEvent.getByToken(thePhotonCollection, photons);
@@ -776,11 +796,23 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
    iEvent.getByToken(thePackedPFCandidateCollection, packedPFCandidates);
    iEvent.getByToken(theLostTracksCollection, lostTracks);
+   iEvent.getByToken(theEleLostTracksCollection, eleLostTracks);
    iEvent.getByToken(theMETCollection, METs);
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
    //iEvent.getByToken(triggerPrescales_, triggerPrescales);
    iEvent.getByToken(theBeamSpot, beamSpot);
+
+   iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
+
+   if (_DSAMode){
+      iEvent.getByToken(theSACollection, SAs);
+      iEvent.getByToken(theDSACollection, DSAs);
+      iEvent.getByToken(theRSACollection, RSAs);
+      iEvent.getByToken(theGMCollection, GMs);
+      iEvent.getByToken(theDGMCollection, DGMs);
+   }
+
 
 
    if (!_isData){
@@ -789,11 +821,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        iEvent.getByToken(theGenEventInfoProduct, genEvtInfo);
        iEvent.getByToken(thePileUpSummary, puInfoH);
 
-       //lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
    }
    
-
 
    /////////////////////////////////// EVENT INFO //////////////////////////////////////
 
@@ -840,24 +870,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    /////////////////////////////// TRIGGER ACCEPTANCE //////////////////////////////////
-
-   // Trigger names:
-   /*
-   const std::string muonTriggerName = "HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6";
-   const std::string photonTriggerName = "HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8";
-
-   const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
-
-   std::cout << names.size() << std::endl;
-   std::cout << names.triggerIndex("HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6") << std::endl;
-   std::cout << names.triggerIndex("HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v8") << std::endl;
-
-
-
-   // Flag definition:
-   Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v6 = triggerBits->accept(names.triggerIndex(muonTriggerName));
-   Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v8 = triggerBits->accept(names.triggerIndex(photonTriggerName));
-   */
 
    // Trigger names declaration
    std::string muonTriggerName;
@@ -1010,7 +1022,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        if (!isMuonTriggerObject) { continue; }
 
-       if (isGoodMuonTriggerObject(obj)){ iMT.push_back(i); }
+       if (passL2MuonSelection(obj)){ iMT.push_back(i); }
 
    }
    
@@ -1039,70 +1051,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    }
 
 
-   /////  -> Code from twiki here: Print trigger info:
     
-   //const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
-   /* 
-   std::cout << "\n == TRIGGER PATHS= " << std::endl;
-    for (unsigned int i = 0, n = triggerBits->size(); i < n; ++i) {
-        std::cout << "Trigger " << names.triggerName(i) <<
-                ": " << (triggerBits->accept(i) ? "PASS" : "fail (or not run)")
-                << std::endl;
-    }
-
-    */
-    
-   /* 
-
-    std::cout << "\n TRIGGER OBJECTS " << std::endl;
-
-    for (pat::TriggerObjectStandAlone obj : *triggerObjects) { // note: not "const &" since we want to call unpackPathNames
-        obj.unpackPathNames(names);
-        //obj.unpackFilterLabels(names);
-        std::cout << "\tTrigger object:  pt " << obj.pt() << ", eta " << obj.eta() << ", phi " << obj.phi() << std::endl;
-
- 
-    // Print trigger object collection and type
-    std::cout << "\t   Collection: " << obj.collection() << std::endl;
-    std::cout << "\t   Type IDs:   ";
-    for (unsigned h = 0; h < obj.filterIds().size(); ++h) std::cout << " " << obj.filterIds()[h] ;
-    std::cout << std::endl;
-    // Print associated trigger filters
-    obj.unpackFilterLabels(iEvent, *triggerBits); // added
-    std::cout << "\t   Filters:    ";
-    for (unsigned h = 0; h < obj.filterLabels().size(); ++h) std::cout << " " << obj.filterLabels()[h];
-    std::cout << std::endl;
-    std::vector< std::string > pathNamesAll = obj.pathNames(false);
-    std::vector< std::string > pathNamesLast = obj.pathNames(true);
-
-    // Print all trigger paths, for each one record also if the object is associated to a 'l3' filter (always true for the
-    // definition used in the PAT trigger producer) and if it's associated to the last filter of a successfull path (which
-    // means that this object did cause this trigger to succeed; however, it doesn't work on some multi-object triggers)
-
-    std::cout << "\t   Paths (" << pathNamesAll.size()<<"/"<<pathNamesLast.size()<<"):    ";
-    for (unsigned h = 0, n = pathNamesAll.size(); h < n; ++h) {
-        bool isBoth = obj.hasPathName( pathNamesAll[h], true, true );
-        bool isL3   = obj.hasPathName( pathNamesAll[h], false, true );
-        bool isLF   = obj.hasPathName( pathNamesAll[h], true, false );
-        bool isNone = obj.hasPathName( pathNamesAll[h], false, false );
-        std::cout << "   " << pathNamesAll[h];
-        if (isBoth) std::cout << "(L,3)";
-        if (isL3 && !isBoth) std::cout << "(*,3)";
-        if (isLF && !isBoth) std::cout << "(L,*)";
-        if (isNone && !isBoth && !isL3 && !isLF) std::cout << "(*,*)";
-    }
-    std::cout << std::endl;
-    }
-    std::cout << std::endl;
-
-   */
-
 
    ////////////////////////////// PRIMARY VERTEX FEATURES //////////////////////////////
 
    // General PV's information:
    nTruePV = 0;
    nPV = primaryvertices->size();
+
 
    for (size_t i = 0; i < primaryvertices->size(); i ++){
 
@@ -1130,8 +1086,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        const pat::IsolatedTrack & isotrack = (*isotracks)[i];
 
-       if (!goodTrack(isotrack)){ continue; } // some quality cuts
-       if (isotrack.pt() < 28 || fabs(isotrack.eta()) > 2) {continue; } // select baseline phase space of the tracks
+       if (!passIsotrackSelection(isotrack)){ continue; } // some quality cuts
 
        iT.push_back(i);
 
@@ -1153,11 +1108,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Basic features:
        IsoTrackSel_pt[i] = isotrack.pt();
        IsoTrackSel_eta[i] = isotrack.eta();
-       IsoTrackSel_etaExtra[i] = isotrack.eta() + isotrack.deltaEta();
        IsoTrackSel_phi[i] = isotrack.phi();
-       IsoTrackSel_phiExtra[i] = isotrack.phi() + isotrack.deltaPhi();
        IsoTrackSel_charge[i] = isotrack.charge();      
 
+       // Track extrapolations to ECAL surface (used to do the electron matching)
+       // To be noticed: deltaPhi and deltaEta should be added to the raw values (checked: 16/01/2020)
+       IsoTrackSel_etaExtra[i] = isotrack.eta() + isotrack.deltaEta();
+       IsoTrackSel_phiExtra[i] = isotrack.phi() + isotrack.deltaPhi();
  
        // Isolation info:
        
@@ -1178,19 +1135,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        // Quality info:
        IsoTrackSel_isHighPurityTrack[i] = isotrack.isHighPurityTrack();
 
-       // Impact parameter info:
-       IsoTrackSel_dxy[i] = isotrack.dxy();
-       IsoTrackSel_dxyError[i] = isotrack.dxyError();
-       IsoTrackSel_dz[i] = isotrack.dz();
-       IsoTrackSel_dzError[i] = isotrack.dzError();
-       IsoTrackSel_dxySignificance[i] = fabs(isotrack.dxy())/isotrack.dxyError();
-
 
        // Hit info:
        const reco::HitPattern &hits = isotrack.hitPattern();
-
-       //std::cout << hits.getHitPattern(reco::HitPattern::TRACK_HITS, 0) << std::endl;
-       //std::cout << isotrack.bestTrack()->innerPosition() << std::endl;
 
        IsoTrackSel_numberOfValidTrackerHits[i] = hits.numberOfValidTrackerHits();
        IsoTrackSel_numberOfValidPixelHits[i] = hits.numberOfValidPixelHits();
@@ -1203,13 +1150,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        IsoTrackSel_numberOfValidStripTECHits[i] = hits.numberOfValidStripTECHits();
 
        // Info extracted form the packedCandidate of the isotrack
-       // (PV(), vertex())
+       //fromPV: 0 NoPV, 1 PVLoose, 2 PVTight, 3 used in the PV fit
        IsoTrackSel_fromPV[i] = isotrack.fromPV(); 
-
        
        const pat::PackedCandidateRef &pckCand = isotrack.packedCandRef(); // access the packed candidate
-     
- 
+        
+       //This catches all the isotracks (selected at this point)
        if (isotrack.fromPV() > -1){ // check it has a PV
 
            IsoTrackSel_vx[i] = (*pckCand).vx();
@@ -1220,7 +1166,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            IsoTrackSel_PVx[i] = (*PV).x();
            IsoTrackSel_PVy[i] = (*PV).y();
            IsoTrackSel_PVz[i] = (*PV).z();
-
+           
+           // Impact parameter info:
+           // Uncertainties are checked by means of a Transient Track Builder in method 'computeDxyError()' 
+           IsoTrackSel_dxy[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()));
+           IsoTrackSel_dxyError[i] = computeDxyError(isotrack, thePrimaryVertex);
+           IsoTrackSel_dz[i] = (*pckCand).dz(thePrimaryVertex.position());
+           IsoTrackSel_dzError[i] = (*pckCand).dzError(); 
+           IsoTrackSel_dxySignificance[i] = fabs((*pckCand).dxy(thePrimaryVertex.position()))/computeDxyError(isotrack, thePrimaryVertex);
 
 
        }else{
@@ -1240,8 +1193,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
 
-
-
    ////////////////////////////////// PHOTON FEATURES //////////////////////////////////
    
    std::vector<int> iP; // photon indexes
@@ -1252,9 +1203,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        const pat::Photon & photon = (*photons)[i];
        
-       // this is the place to put any preselection if required
-       if (!goodPhoton(photon)) { continue;}
-       if (photon.et() < 24 || fabs(photon.eta()) > 1.4442) { continue; }
+       if (!passPhotonSelection(photon)) { continue;}
 
        iP.push_back(i);
 
@@ -1284,15 +1233,13 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        PhotonSel_caloIso[i] = photon.caloIso();
        PhotonSel_relIso[i] = photon.caloIso()/photon.et();
 
-       if (goodPhoton(photon)){PhotonSel_isGoodSC[i] = 1; }
-       else {PhotonSel_isGoodSC[i] = 0; }
 
    }
 
 
    ///////////////////////////////// ELECTRON FEATURES /////////////////////////////////
 
-   /*
+   
    std::vector<int> iE; // electron indexes
 
 
@@ -1321,18 +1268,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        ElectronSel_et[i] = electron.et();
        ElectronSel_eta[i] = electron.eta();
        ElectronSel_phi[i] = electron.phi();
-       ElectronSel_hadronicOverEm[i] = electron.hadronicOverEm();
-       ElectronSel_full5x5_sigmaIetaIeta[i] = electron.full5x5_sigmaIetaIeta();
-       ElectronSel_isEB[i] = electron.isEB();
-       ElectronSel_isEE[i] = electron.isEE();
-       ElectronSel_r9[i] = electron.r9();
-
-       ElectronSel_trackIso[i] = electron.trackIso();
-       ElectronSel_hcalIso[i] = electron.hcalIso();
-       ElectronSel_ecalIso[i] = electron.ecalIso();
-       ElectronSel_caloIso[i] = electron.caloIso();
-       ElectronSel_relIso[i] = electron.caloIso()/electron.pt();
-
        ElectronSel_dxyError[i] = electron.dxyError();
        ElectronSel_dxy[i] = electron.gsfTrack()->dxy();
        ElectronSel_dxySignificance[i] = fabs(ElectronSel_dxy[i])/electron.dxyError();
@@ -1341,15 +1276,17 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        ElectronSel_edB[i] = electron.edB();
 
        ElectronSel_isLoose[i] = electron.electronID("cutBasedElectronID-Summer16-80X-V1-loose");
+       ElectronSel_isMedium[i] = electron.electronID("cutBasedElectronID-Summer16-80X-V1-medium");
+       ElectronSel_isTight[i] = electron.electronID("cutBasedElectronID-Summer16-80X-V1-tight");
 
 
    }
 
-   */
+   
+
 
    ///////////////////////////////// MUON FEATURES /////////////////////////////////
-
-   /*
+   //PABLO: CHECK WHETHER WE WANT TO HAVE THIS ACTIVATED ALL THE TIME
    std::vector<int> iM; // muon indexes
 
 
@@ -1373,15 +1310,17 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        const pat::Muon & muon = (* muons)[iM.at(i)];
 
+       // Kinematics:
        MuonSel_pt[i] = muon.pt();
        MuonSel_eta[i] = muon.eta();
        MuonSel_phi[i] = muon.phi();
 
-       MuonSel_trackIso[i] = muon.trackIso();
-       MuonSel_hcalIso[i] = muon.hcalIso();
-       MuonSel_ecalIso[i] = muon.ecalIso();
-       MuonSel_caloIso[i] = muon.caloIso();
-       MuonSel_relIso[i] = muon.trackIso()/muon.pt();
+       // Isolation
+       // Defined as PFIsolation in a cone R < 0.3
+       const reco::MuonPFIsolation & muonpfiso = muon.pfIsolationR03();
+       float muonNeutralIso = fmax(0.0, muonpfiso.sumNeutralHadronEt + muonpfiso.sumPhotonEt - 0.5*muonpfiso.sumPUPt);
+       float muonChargedIso = muonpfiso.sumChargedHadronPt;
+       MuonSel_relIso[i] = (muonNeutralIso + muonChargedIso)/muon.pt();
 
        MuonSel_isMuon[i] = muon.isMuon();
        MuonSel_isGlobalMuon[i] = muon.isGlobalMuon();
@@ -1392,40 +1331,93 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        MuonSel_isGoodMediumMuon[i] = goodMediumMuon(muon);
        MuonSel_isPFMuon[i] = muon.isPFMuon();
 
-
-       // Quality features:
-
-       if (muon.isGlobalMuon() || muon.isTrackerMuon()) {MuonSel_fractionOfValidTrackerHits[i] = muon.innerTrack()->validFraction(); }
-
-       if (muon.isGlobalMuon()){
- 
-          MuonSel_normGlobalTrackChi2[i] = muon.globalTrack()->normalizedChi2();
-          MuonSel_trackerStandalonePosMatch[i] = muon.combinedQuality().chi2LocalPosition;
-          MuonSel_kickFinder[i] = muon.combinedQuality().trkKink;
-          MuonSel_segmentCompatibility[i] = muon.segmentCompatibility();
-
-       } else {
-
-          MuonSel_normGlobalTrackChi2[i] = -99;
-          MuonSel_trackerStandalonePosMatch[i] = -99;
-          MuonSel_kickFinder[i] = -99;
-          MuonSel_segmentCompatibility[i] = -99;
-       }
-
-       MuonSel_dxyError[i] = muon.dxyError();
-       MuonSel_dxy[i] = muon.muonBestTrack()->dxy();
-       MuonSel_dxySignificance[i] = fabs(MuonSel_dxy[i])/muon.dxyError();
-
-
        MuonSel_dB[i] = muon.dB();
        MuonSel_edB[i] = muon.edB();
+       MuonSel_dBSignificance[i] = muon.dB()/muon.edB();
 
    }
-   */
+
+   /////////////////////////////////////////////////////////
+   // --------------------------------------------------- //
+   // --------------- AOD Muon Collections -------------- //
+   // --------------------------------------------------- //
+   /////////////////////////////////////////////////////////
+
+   if (_DSAMode){
+
+     // StandAlone muons:
+     nSA = SAs->size();
+     for (size_t i = 0; i < SAs->size(); i++){
+
+       const reco::Track &muon = (*SAs)[i];
+       SA_pt[i] = muon.pt();
+       SA_eta[i] = muon.eta();
+       SA_phi[i] = muon.phi();
+       SA_dxy[i] = muon.dxy();
+       SA_q[i] = muon.charge();
+
+     }
+
+     // DisplacedStandAlone muons:
+     nDSA = DSAs->size();
+     for (size_t i = 0; i < DSAs->size(); i++){
+
+       const reco::Track &muon = (*DSAs)[i];
+       DSA_pt[i] = muon.pt();
+       DSA_eta[i] = muon.eta();
+       DSA_phi[i] = muon.phi();
+       DSA_dxy[i] = muon.dxy();
+       DSA_q[i] = muon.charge();
+
+     }
+
+     // RefittedStandAlone muons:
+     nRSA = RSAs->size();
+     for (size_t i = 0; i < RSAs->size(); i++){
+
+       const reco::Track &muon = (*RSAs)[i];
+       RSA_pt[i] = muon.pt();
+       RSA_eta[i] = muon.eta();
+       RSA_phi[i] = muon.phi();
+       RSA_dxy[i] = muon.dxy();
+       RSA_q[i] = muon.charge();
+
+     }
+
+     // GlobalMuons:
+     nGM = GMs->size();
+     for (size_t i = 0; i < GMs->size(); i++){
+
+       const reco::Track &muon = (*GMs)[i];
+       GM_pt[i] = muon.pt();
+       GM_eta[i] = muon.eta();
+       GM_phi[i] = muon.phi();
+       GM_dxy[i] = muon.dxy();
+       GM_q[i] = muon.charge();
+
+     }
+
+     // DisplacedGlobalMuons:
+     nDGM = DGMs->size();
+     for (size_t i = 0; i < DGMs->size(); i++){
+
+       const reco::Track &muon = (*DGMs)[i];
+       DGM_pt[i] = muon.pt();
+       DGM_eta[i] = muon.eta();
+       DGM_phi[i] = muon.phi();
+       DGM_dxy[i] = muon.dxy();
+       DGM_q[i] = muon.charge();
+
+     }
+
+   }
+
+
+
 
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
-
+   //PABLO: MAKE A POLICY FOR GENERATED PARTICLES
    std::vector<int> iGL; // Generated lepton indexes
    std::vector<int> iGN; // Generated neutralino indexes
    int iH = -1; // Higgs index
@@ -1520,8 +1512,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 	   GenLeptonSel_vz[i] = genparticle.vz();
 
 
-
-
 	   // Define the mother index
 	   GenLeptonSel_motherIdx[i] = -99;
 	   if(genparticle.mother()->pt() == GenNeutralinoSel_pt[0]){
@@ -1580,279 +1570,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    }
 
-   //////////////////////////////// GENLEPTON MATCHING ////////////////////////////////
-
-   /*
-   if (!_isData)
-   {
-
-       std::vector<int> genMatchedGen;
-       std::vector<int> genMatchedObject;
-
-       float gdR = 99;
-       float gdRMin = 99;
-       int gindex = 99; // matched genparticle index
-       int oindex = 99; // matched object index
-
-
-       // Note: While loops and 2D grid exploring stops when there is no pair below the dR threshold (0.1)
-
-
-       // ----> Track matching
-
-       // 2D grid double loop:
-       while (1) 
-       {
-
-	   gdRMin = 99;
-	   gindex = 99;
-	   oindex = 99;
-
-
-	   for (int i = 0; i < nGenLepton; i++)
-	   {
-	       if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-
-	       for (int j = 0; j < nIsoTrack; j++)
-	       {
-
-		   if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
-
-		   // Track matching
-		   gdR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
-
-		   if (gdR < gdRMin )
-		   {
-
-		       gindex = i;
-		       oindex = j;
-		       gdRMin = gdR;
-
-		   }
-
-	       }
-
-	   }
-
-
-	   if (gdRMin > 5){ break; }
-
-	   GenLeptonSel_trackMatch[gindex] = oindex;
-	   GenLeptonSel_trackdR[gindex] = gdRMin;
-
-	   genMatchedGen.push_back(gindex);
-	   genMatchedObject.push_back(oindex);
-
-       }
-
-       // Fill default values:
-       for (int i = 0; i < nGenLepton; i++)
-       {
-
-	   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-
-	   GenLeptonSel_trackMatch[i] = 99;
-	   GenLeptonSel_trackdR[i] = 99;
-
-       }
-
-
-       // ----> Clear the variables
-       genMatchedGen.clear(); genMatchedObject.clear();
-
-
-
-       // ----> SuperCluster / Photon matching
-
-       // 2D grid double loop:
-       while (1) 
-       {
-
-	   gdRMin = 99;
-	   gindex = 99;
-	   oindex = 99;
-
-
-	   for (int i = 0; i < nGenLepton; i++)
-	   {
-	       if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-	       if (abs(GenLeptonSel_pdgId[i]) != 11){ continue; } // check if it is an electron
-
-	       if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
-
-
-	       for (int j = 0; j < nPhoton; j++)
-	       {
-
-		   if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
-
-		   // Track matching
-		   gdR = getDeltaR(IsoTrackSel_phiExtra[GenLeptonSel_trackMatch[i]], IsoTrackSel_etaExtra[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
-
-		   if (gdR < gdRMin )
-		   {
-
-		       gindex = i;
-		       oindex = j;
-		       gdRMin = gdR;
-
-		   }
-
-	       }
-
-	   }
-
-
-	   if (gdRMin > 5){ break; }
-
-	   GenLeptonSel_objectMatch[gindex] = oindex;
-	   GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], PhotonSel_phi[oindex], PhotonSel_eta[oindex]);
-	   GenLeptonSel_pairdR[gindex] = gdRMin;
-
-	   genMatchedGen.push_back(gindex);
-	   genMatchedObject.push_back(oindex);
-
-       }
-
-
-       // ----> Clear just the object vector variable:
-       genMatchedObject.clear();
-
-
-       // ----> Muon trigger object matching
-
-       // 2D grid double loop:
-       while (1) 
-       {
-
-	   gdRMin = 99;
-	   gindex = 99;
-	   oindex = 99;
-
-
-	   for (int i = 0; i < nGenLepton; i++)
-	   {
-	       if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-	       if (abs(GenLeptonSel_pdgId[i]) != 13){ continue; } // check if it is a muon
-
-
-	       if (GenLeptonSel_trackMatch[i] == 99){ continue; } // if there is no track associated we skip the genlepton
-
-	       for (int j = 0; j < nMuonTriggerObject; j++)
-	       {
-
-		   if(std::find(genMatchedObject.begin(), genMatchedObject.end(), j) != genMatchedObject.end()){ continue; }
-
-		   // Track matching
-		   gdR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
-
-		   if (gdR < gdRMin )
-		   {
-
-		       gindex = i;
-		       oindex = j;
-		       gdRMin = gdR;
-
-		   }
-
-	       }
-
-	   }
-
-
-	   if (gdRMin > 5){ break; }
-
-	   GenLeptonSel_objectMatch[gindex] = oindex;
-	   GenLeptonSel_objectdR[gindex] = getDeltaR(GenLeptonSel_phi[gindex], GenLeptonSel_eta[gindex], MuonTriggerObjectSel_phi[oindex], MuonTriggerObjectSel_eta[oindex]);
-	   GenLeptonSel_pairdR[gindex] = gdRMin;
-
-	   genMatchedGen.push_back(gindex);
-	   genMatchedObject.push_back(oindex);
-
-       }
-
-       // Fill default values:
-       for (int i = 0; i < nGenLepton; i++)
-       {
-
-	   if(std::find(genMatchedGen.begin(), genMatchedGen.end(), i) != genMatchedGen.end()){ continue; }
-
-	   GenLeptonSel_objectMatch[i] = 99;
-	   GenLeptonSel_objectdR[i] = 99;
-
-       }
-
-
-       ////////////////////////// Degeneration
-       float ddR = 99;
-       int track_c;
-       int object_c;
-
-       for (int i = 0; i < nGenLepton; i++)
-       {
-
-	   track_c = 0;
-	   object_c =  0;
-
-	   // Track degeneration:
-
-	   for (int j = 0; j < nIsoTrack; j++)
-	   {
-
-	       ddR = getDeltaR(GenLeptonSel_phi[i], GenLeptonSel_eta[i], IsoTrackSel_phi[j], IsoTrackSel_eta[j]);
-	       if (ddR < 0.1){ 
-
-		   track_c++;
-
-	       }
-
-	   }
-
-	   GenLeptonSel_trackDegeneration[i] = track_c;
-	   GenLeptonSel_objectDegeneration[i] = 99; // default value
-
-	   // Only check the object degeneration if there is a valid track
-
-	   if (GenLeptonSel_trackMatch[i] == 99 || GenLeptonSel_trackdR[i] > 0.1) { continue; }
-
-	   // electron channel
-	   if (abs(GenLeptonSel_pdgId[i]) == 11)
-	   {
-
-	       for(int j = 0; j < nPhoton; j++)
-	       {
-
-		   ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], PhotonSel_phi[j], PhotonSel_eta[j]);
-
-		   if (ddR < 0.1) {object_c++; }
-
-	       }
-
-	   }
-	   else if (abs(GenLeptonSel_pdgId[i]) == 13) // muon channel
-	   {
-
-	       for(int j = 0; j < nMuonTriggerObject; j++)
-	       {
-
-		   ddR = getDeltaR(IsoTrackSel_phi[GenLeptonSel_trackMatch[i]], IsoTrackSel_eta[GenLeptonSel_trackMatch[i]], MuonTriggerObjectSel_phi[j], MuonTriggerObjectSel_eta[j]);
-
-		   if (ddR < 0.1) {object_c++; }
-
-	       }
-
-	   }
-
-	   GenLeptonSel_objectDegeneration[i] = object_c;
-
-       }  
-
-   }
-
-   */
    //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
-
-   
 
    if (!_isData)
      {
@@ -1891,57 +1609,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    
 
    //////////////////////////////////////// MET ////////////////////////////////////////
-
+   //CHECK: DO WE WANT TO USE PUPPIMET
    const pat::MET &met = (*METs)[0]; // access the MET object
 
    MET_pt = met.pt();
    MET_phi = met.phi();
-   /*
-   MET_sumEt = met.sumEt();
-   MET_corPt = met.corPt();
-   MET_corPhi = met.corPhi();
-   MET_uncorPt = met.uncorPt();
-   MET_uncorPhi = met.uncorPhi();
-   MET_metSignificance = met.metSignificance();
-   
-
-   if (!_isData) {
-
-        MET_genPt = met.genMET()->pt(); 
-        MET_genPhi = met.genMET()->phi();
-
-   } else { 
-
-        MET_genPt = -99;
-        MET_genPhi = -99;
-
-   }
-   */
-   
-   // Specific PFMET stuff (Supposed to be filled always):
-   /*
-   if (met.isPFMET()){
-
-       MET_NeutralEMFraction = met.NeutralEMFraction();
-       MET_NeutralHadEtFraction = met.NeutralHadEtFraction();
-       MET_ChargedEMEtFraction = met.ChargedEMEtFraction();
-       MET_ChargedHadEtFraction = met.ChargedHadEtFraction();
-       MET_MuonEtFraction = met.MuonEtFraction();
-       MET_Type6EtFraction = met.Type6EtFraction();
-       MET_Type7EtFraction = met.Type7EtFraction();
-
-   } else {
-
-       MET_NeutralEMFraction = -99;
-       MET_NeutralHadEtFraction = -99;
-       MET_ChargedEMEtFraction = -99;
-       MET_ChargedHadEtFraction = -99;
-       MET_MuonEtFraction = -99;
-       MET_Type6EtFraction = -99;
-       MET_Type7EtFraction = -99;
-
-   }
-   */
 
    /////////////////////////////////////////////////////////////////////////////////////
    ///////////////////////////////// LEPTON CANDIDATES /////////////////////////////////
@@ -1974,7 +1646,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            // pass if the track is associated already:
            if(std::find(matched_tracks.begin(), matched_tracks.end(), t) != matched_tracks.end()){ continue; }
            // pass if the track does not fulfil the prerequisites:
-           if(!goodTrack(isotrack)){ continue; }
+           if(!passIsotrackSelection(isotrack)){ continue; }
 
 
            // Loop over the superclusters:
@@ -2013,11 +1685,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
                if (dR < dRMin){
 
-                   /*
-                   std::cout<< "new: " << "\t"<< isotrack.phi() << "\t" << isotrack.eta() << "\t" << muon.phi() << "\t" << muon.eta() << std::endl;
-                   std::cout << dR << std::endl;
-                   */
-
                    dRMin = dR;
                    matching_type = 1;
                    tomin = to;
@@ -2043,7 +1710,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            ElectronCandidate_dxy[li] = IsoTrackSel_dxy[tmin];
            ElectronCandidate_dxyError[li] = IsoTrackSel_dxyError[tmin];
            ElectronCandidate_dxySignificance[li] = IsoTrackSel_dxySignificance[tmin];
-
+ 
+           ElectronCandidate_pvAssociationQuality[li] = (*isotracks)[iT.at(tmin)].packedCandRef()->pvAssociationQuality();
+           ElectronCandidate_ptDiff[li] = (*isotracks)[iT.at(tmin)].pt() - (*isotracks)[iT.at(tmin)].packedCandRef()->pseudoTrack().pt();
 
            matched_SC.push_back(scmin); matched_tracks.push_back(tmin);
 
@@ -2056,12 +1725,14 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            MuonCandidate_eta[li] = (*isotracks)[iT.at(tmin)].eta();
            MuonCandidate_phi[li] = (*isotracks)[iT.at(tmin)].phi();
            MuonCandidate_triggerPt[li] = MuonTriggerObjectSel_pt[tomin];
-           MuonCandidate_muonTriggerObjectIdx[li] = tomin; // not well defined
+           MuonCandidate_muonTriggerObjectIdx[li] = tomin; // Corrected
            MuonCandidate_isotrackIdx[li] = tmin;
            MuonCandidate_dxy[li] = IsoTrackSel_dxy[tmin];
            MuonCandidate_dxyError[li] = IsoTrackSel_dxyError[tmin];
            MuonCandidate_dxySignificance[li] = IsoTrackSel_dxySignificance[tmin];
 
+           MuonCandidate_pvAssociationQuality[li] = (*isotracks)[iT.at(tmin)].packedCandRef()->pvAssociationQuality();
+           MuonCandidate_ptDiff[li] = (*isotracks)[iT.at(tmin)].pt() - (*isotracks)[iT.at(tmin)].packedCandRef()->pseudoTrack().pt();
            matched_triggerObjects.push_back(tomin); matched_tracks.push_back(tmin);
 
        }
@@ -2071,168 +1742,415 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    nElectronCandidate = matched_SC.size();
    nMuonCandidate = matched_triggerObjects.size();
 
- 
-   /////////////////////////////////////////////////////////////////////////////////////
-   ////////////////////////////////// VERTEX REFITTING /////////////////////////////////
-   /////////////////////////////////////////////////////////////////////////////////////
 
+   ////////////////////////////////////////////////////////////////////////////////////////////
+   //// ---------------------------------------------------------------------------------- ////
+   //// -------------------------- LL CANDIDATES RECONSTRUCTION -------------------------- ////                                   
+   //// ---------------------------------------------------------------------------------- ////
+   ////////////////////////////////////////////////////////////////////////////////////////////
+   //iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
+
+   double minChi2 = 10000;
+   int min_i = 99;
+   int min_j = 99;
+
+   std::vector<pat::IsolatedTrack> leptonTracks;
+
+
+   /////////////////////////////////////////////////////////
+   // --------------------------------------------------- //
+   // ----------- eeCandidates reconstruction ----------- //
+   // --------------------------------------------------- //
+   /////////////////////////////////////////////////////////
+   nEE = 0;
+   nEEBase = 0;
+   EEBase_maxIxy = 0;
+   std::vector<double> pairedE; // electrons that are already paired
+
+
+   while(2*nEE < nElectronCandidate - 1 ){
+
+     // Init control variables:
+     minChi2 = 10000;
+     min_i = 99;
+     min_j = 99;
+
+     for (int i = 0; i < nElectronCandidate; i++) {
+       for (int j = i+1; j < nElectronCandidate; j++) {
  
-   iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
+         if (i == j) { continue; }
+         if ( std::find(pairedE.begin(), pairedE.end(), i) != pairedE.end() ) {continue;}
+         if ( std::find(pairedE.begin(), pairedE.end(), j) != pairedE.end() ) {continue;}
+
+         const pat::IsolatedTrack & it_i = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[i])];
+         const pat::IsolatedTrack & it_j = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[j])];
+         //PABLO: CHECK THIS CLASS
+         llCandidate testcandidate(thePrimaryVertex, theTransientTrackBuilder, it_i, it_j, true);
+
+         if (!testcandidate.canFitVertex || !testcandidate.hasValidVertex) { continue ;} 
+
+         // Check if the Chi2 is lower:
+         if (testcandidate.normalizedChi2 < minChi2) {
+           minChi2 = testcandidate.normalizedChi2;
+           min_i = i;
+           min_j = j;
+         }
+
+       } // end j electron loop
+     } // end i electron loop
+
+     if (min_i == 99 || min_j == 99) { break; }
+     pairedE.push_back(min_i);
+     pairedE.push_back(min_j);
+
+     // -> Get LLP Candidate variables:
+     const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[min_i])];
+     const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[min_j])]; 
+
+     llCandidate eeCandidate(thePrimaryVertex, theTransientTrackBuilder, it_A, it_B, true);
+     // Additionally, for electrons we have Et:
+     eeCandidate.leadingEt = (ElectronCandidate_et[min_i] > ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
+     eeCandidate.subleadingEt = (ElectronCandidate_et[min_i] < ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
+
+     if (!_BSMode){
+
+        EE_idxA[nEE] = min_i;
+        EE_idxB[nEE] = min_j;
+        EE_Lxy[nEE] = eeCandidate.vertexLxy;
+        EE_Ixy[nEE] = eeCandidate.vertexIxy;
+        EE_trackDxy[nEE] = eeCandidate.trackDxy;
+        EE_trackIxy[nEE] = eeCandidate.trackIxy;
+        EE_normalizedChi2[nEE] = eeCandidate.normalizedChi2;
+        EE_mass[nEE] = eeCandidate.mass;
+        EE_leadingPt[nEE] = eeCandidate.leadingPt;
+        EE_subleadingPt[nEE] = eeCandidate.subleadingPt;
+        EE_cosAlpha[nEE] = eeCandidate.cosAlpha;
+        EE_dPhi[nEE] = eeCandidate.dPhi;
+        EE_relisoA[nEE] = eeCandidate.relisoA;
+        EE_relisoB[nEE] = eeCandidate.relisoB;
+        EE_leadingEt[nEE] = eeCandidate.leadingEt;
+        EE_subleadingEt[nEE] = eeCandidate.subleadingEt;
+
+     }
+     nEE++;
+
+     // -> Fill candidates that pass baseline selection:
+     if ( passBaselineSelection(eeCandidate) ) {
+
+        if (_BSMode) {
+
+           leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
+
+           EEBase_idxA[nEEBase] = min_i;
+           EEBase_idxB[nEEBase] = min_j;
+           EEBase_Lxy[nEEBase] = eeCandidate.vertexLxy;
+           EEBase_Ixy[nEEBase] = eeCandidate.vertexIxy;
+           EEBase_trackDxy[nEEBase] = eeCandidate.trackDxy;
+           EEBase_trackIxy[nEEBase] = eeCandidate.trackIxy;
+           EEBase_vx[nEEBase] = eeCandidate.vx;
+           EEBase_vy[nEEBase] = eeCandidate.vy;
+           EEBase_normalizedChi2[nEEBase] = eeCandidate.normalizedChi2;
+           EEBase_mass[nEEBase] = eeCandidate.mass;
+           EEBase_leadingPt[nEEBase] = eeCandidate.leadingPt;
+           EEBase_subleadingPt[nEEBase] = eeCandidate.subleadingPt;
+           EEBase_cosAlpha[nEEBase] = eeCandidate.cosAlpha;
+           EEBase_dPhi[nEEBase] = eeCandidate.dPhi;
+           EEBase_relisoA[nEEBase] = eeCandidate.relisoA;
+           EEBase_relisoB[nEEBase] = eeCandidate.relisoB;
+           EEBase_leadingEt[nEEBase] = eeCandidate.leadingEt;
+           EEBase_subleadingEt[nEEBase] = eeCandidate.subleadingEt;
+           EEBase_fromPVA[nEEBase] = eeCandidate.fromPVA;
+           EEBase_fromPVB[nEEBase] = eeCandidate.fromPVB;
+           EEBase_PVAssociation[nEEBase] = eeCandidate.PVAssociation;
+
+           if ( fabs(EEBase_trackIxy[nEEBase]) > fabs(EEBase_trackIxy[EEBase_maxIxy]) ) { EEBase_maxIxy = nEEBase; }
+
+        }
+        nEEBase++;
+
+     }
+
+   } // end while 
+
+
+   /////////////////////////////////////////////////////////
+   // --------------------------------------------------- //
+   // ----------- mmCandidates reconstruction ----------- //
+   // --------------------------------------------------- //
+   /////////////////////////////////////////////////////////
+   nMM = 0;
+   nMMBase = 0;
+   MMBase_maxIxy = 0;
+   std::vector<double> pairedM; // muons that are already paired
+
+
+   while(2*nMM < nMuonCandidate - 1 ){
+
+     // Init control variables:
+     minChi2 = 10000;
+     min_i = 99;
+     min_j = 99;
+
+     for (int i = 0; i < nMuonCandidate; i++) {
+       for (int j = i+1; j < nMuonCandidate; j++) {
+ 
+         if (i == j) { continue; }
+         if ( std::find(pairedM.begin(), pairedM.end(), i) != pairedM.end() ) {continue;}
+         if ( std::find(pairedM.begin(), pairedM.end(), j) != pairedM.end() ) {continue;}
+
+         const pat::IsolatedTrack & it_i = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[i])];
+         const pat::IsolatedTrack & it_j = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[j])];
+
+         llCandidate testcandidate(thePrimaryVertex, theTransientTrackBuilder, it_i, it_j, false);
+
+         if (!testcandidate.canFitVertex || !testcandidate.hasValidVertex) { continue ;} 
+
+         // Check if the Chi2 is lower:
+         if (testcandidate.normalizedChi2 < minChi2) {
+           minChi2 = testcandidate.normalizedChi2;
+           min_i = i;
+           min_j = j;
+         }
+
+       } // end j muon loop
+     } // end i muon loop
+
+     if (min_i == 99 || min_j == 99) { break; }
+     pairedM.push_back(min_i);
+     pairedM.push_back(min_j);
+
+     // -> Get LLP Candidate variables:
+     const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[min_i])];
+     const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[min_j])]; 
+
+     llCandidate mmCandidate(thePrimaryVertex, theTransientTrackBuilder, it_A, it_B, false);
+
+     if (!_BSMode){
+
+        MM_idxA[nMM] = min_i;
+        MM_idxB[nMM] = min_j;
+        MM_Lxy[nMM] = mmCandidate.vertexLxy;
+        MM_Ixy[nMM] = mmCandidate.vertexIxy;
+        MM_trackDxy[nMM] = mmCandidate.trackDxy;
+        MM_trackIxy[nMM] = mmCandidate.trackIxy;
+        MM_normalizedChi2[nMM] = mmCandidate.normalizedChi2;
+        MM_mass[nMM] = mmCandidate.mass;
+        MM_leadingPt[nMM] = mmCandidate.leadingPt;
+        MM_subleadingPt[nMM] = mmCandidate.subleadingPt;
+        MM_cosAlpha[nMM] = mmCandidate.cosAlpha;
+        MM_dPhi[nMM] = mmCandidate.dPhi;
+        MM_relisoA[nMM] = mmCandidate.relisoA;
+        MM_relisoB[nMM] = mmCandidate.relisoB;
+
+     }
+     nMM++;
+
+     // -> Fill candidates that pass baseline selection:
+     if ( passBaselineSelection(mmCandidate) ) {
+
+        if (_BSMode){
+           
+           leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
+
+           MMBase_idxA[nMMBase] = min_i;
+           MMBase_idxB[nMMBase] = min_j;
+           MMBase_Lxy[nMMBase] = mmCandidate.vertexLxy;
+           MMBase_Ixy[nMMBase] = mmCandidate.vertexIxy;
+           MMBase_trackDxy[nMMBase] = mmCandidate.trackDxy;
+           MMBase_trackIxy[nMMBase] = mmCandidate.trackIxy;
+           MMBase_vx[nMMBase] = mmCandidate.vx;
+           MMBase_vy[nMMBase] = mmCandidate.vy;
+           MMBase_normalizedChi2[nMMBase] = mmCandidate.normalizedChi2;
+           MMBase_mass[nMMBase] = mmCandidate.mass;
+           MMBase_leadingPt[nMMBase] = mmCandidate.leadingPt;
+           MMBase_subleadingPt[nMMBase] = mmCandidate.subleadingPt;
+           MMBase_cosAlpha[nMMBase] = mmCandidate.cosAlpha;
+           MMBase_dPhi[nMMBase] = mmCandidate.dPhi;
+           MMBase_relisoA[nMMBase] = mmCandidate.relisoA;
+           MMBase_relisoB[nMMBase] = mmCandidate.relisoB;
+           MMBase_fromPVA[nMMBase] = mmCandidate.fromPVA;
+           MMBase_fromPVB[nMMBase] = mmCandidate.fromPVB;
+           MMBase_PVAssociation[nMMBase] = mmCandidate.PVAssociation;
+
+           if ( fabs(MMBase_trackIxy[nMMBase]) > fabs(MMBase_trackIxy[MMBase_maxIxy]) ) { MMBase_maxIxy = nMMBase; }
+
+        }
+        nMMBase++;
+
+     }
+
+   } // end while 
+
+
+   ////////////////////////////////////////////////////////////////////////////////////////////
+   //// ---------------------------------------------------------------------------------- ////
+   //// -------------------------------- VERTEX REFITTING -------------------------------- ////                                                    
+   //// ---------------------------------------------------------------------------------- ////
+   ////////////////////////////////////////////////////////////////////////////////////////////
+
+   // Auxiliary variables
+   double ptDif = 0.1;
+   double etaDif = 0.05;
+   double phiDif = 0.1;
 
    std::vector<reco::TransientTrack> refit_tracks; // tracks for refitting
+   bool excluded = false; // control bool variable to exclude tracks
 
    RefittedPV_nPFTrack = 0;
    RefittedPV_nLostTrack = 0;
+   RefittedPV_nExcludedTrack = 0;
 
-   // Original PV values
-   //PV_vx = -99;
-   //PV_vy = -99;
-   //PV_vz = -99;
 
-   // No suceed PV refitting default values
+   // No suceed PV refitting default values:
    RefittedPV_vx = -99;
    RefittedPV_vy = -99;
    RefittedPV_vz = -99;
 
- 
-   // Loop over packedPFCandidates
-   for (size_t i = 0; i < packedPFCandidates->size(); i++ ){
-
-       const pat::PackedCandidate &packedPFCandidate = (*packedPFCandidates)[i];
-
-       if (!packedPFCandidate.hasTrackDetails()) continue;
-       const reco::Track packedPFTrack = packedPFCandidate.pseudoTrack();
-
-       // Selection criteria for the tracks
-       if (packedPFCandidate.fromPV() != 3) continue;
-
-       /*
-       if(PV_vx == -99 && PV_vy == -99 && PV_vz == -99){ 
-
-           const reco::VertexRef &PV = packedPFCandidate.vertexRef(); // access the PV of the candidate
-           PV_vx = (*PV).x(); PV_vy = (*PV).y(); PV_vz = (*PV).z();      
- 
-       }
-       */
-
-       RefittedPV_nPFTrack++;
-       reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedPFTrack);
-       transientTrack.setBeamSpot(beamSpotObject);
-       refit_tracks.push_back(transientTrack);
+   for (int i = 0; i < nEEBase; i++) { EEBase_refittedDxy[i] = -99; EEBase_refittedIxy[i] = -99; }
+   for (int i = 0; i < nMMBase; i++) { MMBase_refittedDxy[i] = -99; MMBase_refittedIxy[i] = -99; }
 
 
-   }
+   // --> Only refit the vertex if running in BSMode:
+   if (_BSMode) {
 
-   
-   // Loop over lostTracks
-   for (size_t i = 0; i < lostTracks->size(); i++){
-       
-       const pat::PackedCandidate &lostTrack = (*lostTracks)[i];
+      // Loop over packedPFCandidates:
+      for (size_t i = 0; i < packedPFCandidates->size(); i++ ){
 
-       if (!lostTrack.hasTrackDetails()) continue;
-       const reco::Track packedLostTrack = lostTrack.pseudoTrack();
+         const pat::PackedCandidate & packedPFCandidate = (*packedPFCandidates)[i];
 
-       if (lostTrack.fromPV() != 3) continue;
+         if (!packedPFCandidate.hasTrackDetails()){ continue;}
+         const reco::Track packedPFTrack = packedPFCandidate.pseudoTrack();
 
-       RefittedPV_nLostTrack++;
-       reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedLostTrack);
-       transientTrack.setBeamSpot(beamSpotObject);
-       refit_tracks.push_back(transientTrack);
+         if (abs(packedPFCandidate.pdgId()) == 11){
+            if (packedPFCandidate.pvAssociationQuality() < 5 && packedPFCandidate.vertexRef().key() == 0){ continue; }
+         } else {
+            if (packedPFCandidate.pvAssociationQuality() < 6 && packedPFCandidate.vertexRef().key() == 0){ continue; }
+         }
+         //if (packedPFCandidate.fromPV(0) != 3){ continue;}
 
+         excluded = false;
+         for (size_t j = 0; j < leptonTracks.size(); j++) {
+            pat::IsolatedTrack ltrack = leptonTracks.at(j);
+            if (fabs(packedPFCandidate.pt() - ltrack.pt()) < ptDif && fabs(packedPFCandidate.eta() - ltrack.eta()) < etaDif && fabs(packedPFCandidate.phi() - ltrack.phi()) < phiDif) { excluded = true; break; }
+         }
 
+         if (excluded) {RefittedPV_nExcludedTrack++; continue;}
 
-   }
+         RefittedPV_nPFTrack++;
+         reco::TransientTrack transientTrack = theTransientTrackBuilder->build(packedPFTrack);
+         transientTrack.setBeamSpot(beamSpotObject);
+         refit_tracks.push_back(transientTrack);
 
+      }
 
+      // Loop over lostTracks:
+      for (size_t i = 0; i < lostTracks->size(); i++){
 
+         const pat::PackedCandidate &lostTrack = (*lostTracks)[i];
 
-   // Reffit the vertex
+         if (!lostTrack.hasTrackDetails()) continue;
+         const reco::Track packedLostTrack = lostTrack.pseudoTrack();
 
-   if (refit_tracks.size() > 1){
-       
-       AdaptiveVertexFitter  theFitter(GeometricAnnealing(2.5));
-       TransientVertex myVertex = theFitter.vertex(refit_tracks);
+         if (abs(lostTrack.pdgId()) == 11){
+            if (lostTrack.pvAssociationQuality() < 5 && lostTrack.vertexRef().key() == 0){ continue; }
+         } else {
+            if (lostTrack.pvAssociationQuality() < 6 && lostTrack.vertexRef().key() == 0){ continue; }
+         }
+         //if (lostTrack.fromPV(0) != 3){ continue;}
 
-       if (myVertex.isValid()){
+         excluded = false;
+         for (size_t j = 0; j < leptonTracks.size(); j++) {
+            pat::IsolatedTrack ltrack = leptonTracks.at(j);
+            if ( fabs(lostTrack.pt() - ltrack.pt()) < ptDif && fabs(lostTrack.eta() - ltrack.eta()) < etaDif && fabs(lostTrack.phi() - ltrack.phi()) < phiDif) { excluded = true; break; }
+         }
 
-           RefittedPV_vx = myVertex.position().x();
-           RefittedPV_vy = myVertex.position().y();
-           RefittedPV_vz = myVertex.position().z();
+         if (excluded) {RefittedPV_nExcludedTrack++; continue;}
 
-       }
+         RefittedPV_nLostTrack++;
+         reco::TransientTrack  transientTrack = theTransientTrackBuilder->build(packedLostTrack);
+         transientTrack.setBeamSpot(beamSpotObject);
+         refit_tracks.push_back(transientTrack);
 
-   }
-
-
-   ////////////////////////////////// LL CANDIDATES //////////////////////////////////                                                    
-   nLL = 0;
-   nEE = 0;
-   nMM = 0;
-
-   LLSel_Lxy = -99;
-   LLSel_Ixy = -99;
-   LLSel_minLxy = -99;
-   LLSel_minIxy = -99;
-   LLSel_Mass = -99;
-   LLSel_normalizedChi2 = -99;
-   LLSel_cosAlpha = -99;
-   LLSel_dPhi = -99;
-   LLSel_isEE = 0;
-   LLSel_isMM = 0;
-
-
-   MMSel_idxA = -99;
-   MMSel_idxB = -99;
-   MMSel_minLxy = -99;
-   MMSel_minIxy = -99;
-   MMSel_normalizedChi2 = -99;
-   MMSel_invMass = -99;
-   MMSel_leadingPt = -99;
-   MMSel_subleadingPt = -99;
-   MMSel_cosAlpha = -99;
-   MMSel_dPhi = -99;
-
-   EESel_idxA = -99;
-   EESel_idxB = -99;
-   EESel_minLxy = -99;
-   EESel_minIxy = -99;
-   EESel_normalizedChi2 = -99;
-   EESel_invMass = -99;
-   EESel_leadingPt = -99;
-   EESel_subleadingPt = -99;
-   EESel_leadingEt = -99;
-   EESel_subleadingEt = -99;
-   EESel_cosAlpha = -99;
-   EESel_dPhi = -99;
+      }
 
 
-   for (int i = 1; i < nElectronCandidate; i++) {
-     for (int j = 0; j < i; j++) {
-       if (i != j) {
-	 //if (i == 1 && j == 0) {//OOOOOOOOOOOOOOOOJOOOOOOOOOOOOOOOOOOO
+      // -> Primary vertex refitting:
 
-	 //std::cout << "checking pair (" << i << ", " << j << ")" << std::endl;
-	 bool goodpair = buildLLcandidate(isotracks, i, j, true);
-         if (goodpair) {;}// do nothing, just avoid warning
-	 //if (goodpair) std::cout << "valid candidate" << std::endl;
-	 //else std::cout << "bad candidate" << std::endl;
-       }
-     }
-   }
+      if (refit_tracks.size() > 1){
 
-   for (int i = 1; i < nMuonCandidate; i++) {
-     for (int j = 0; j < i; j++) {
-       if (i != j) {
-	 //if (i == 1 && j == 0) {//OOOOOOOOOOOOOOOOJOOOOOOOOOOOOOOOOOOO
+         AdaptiveVertexFitter  theFitter(GeometricAnnealing(2.5));
+         TransientVertex myVertex = theFitter.vertex(refit_tracks);
 
-	 //std::cout << "checking pair (" << i << ", " << j << ")" << std::endl;
-	 bool goodpair = buildLLcandidate(isotracks, i, j, false);
-         if (goodpair) {;}// do nothing, just avoid warning
-	 //if (goodpair) std::cout << "valid candidate" << std::endl;
-	 //else std::cout << "bad candidate" << std::endl;
-       }
-     }
-   }
+         if (myVertex.isValid()){
+            RefittedPV_vx = myVertex.position().x();
+            RefittedPV_vy = myVertex.position().y();
+            RefittedPV_vz = myVertex.position().z();
+         
+
+            const reco::Vertex rePV = myVertex;
+
+
+            // --> Recompute dxy with refitted vertex possition
+
+            // Electrons:
+            for (int i = 0; i < nEEBase; i++){
+
+               if (RefittedPV_nExcludedTrack > 0) {
+
+                  const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[EEBase_idxA[i]])];
+                  const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(ElectronCandidate_isotrackIdx[EEBase_idxB[i]])];
+                  const pat::PackedCandidateRef &pckA = it_A.packedCandRef();
+                  const pat::PackedCandidateRef &pckB = it_B.packedCandRef();
+
+                  double redxyA = (*pckA).dxy(rePV.position());
+                  double redxyB = (*pckB).dxy(rePV.position());
+                  double reIxyA = fabs(redxyA/computeDxyError(it_A, rePV));
+                  double reIxyB = fabs(redxyB/computeDxyError(it_B, rePV));
+
+                  EEBase_refittedDxy[i] = (reIxyA < reIxyB) ? redxyA : redxyB;
+                  EEBase_refittedIxy[i] = (reIxyA < reIxyB) ? reIxyA : reIxyB;
+
+
+               } else {
+
+                  EEBase_refittedDxy[i] = EEBase_trackDxy[i];
+                  EEBase_refittedIxy[i] = EEBase_trackIxy[i];
+
+               }
+
+            } 
+            // Muons:
+            for (int i = 0; i < nMMBase; i++){
+
+               if (RefittedPV_nExcludedTrack > 0) {
+
+                  const pat::IsolatedTrack &it_A = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[MMBase_idxA[i]])];
+                  const pat::IsolatedTrack &it_B = (*isotracks)[iT.at(MuonCandidate_isotrackIdx[MMBase_idxB[i]])];
+                  const pat::PackedCandidateRef &pckA = it_A.packedCandRef();
+                  const pat::PackedCandidateRef &pckB = it_B.packedCandRef();
+
+                  double redxyA = (*pckA).dxy(rePV.position());
+                  double redxyB = (*pckB).dxy(rePV.position());
+                  double reIxyA = fabs(redxyA/computeDxyError(it_A, rePV));
+                  double reIxyB = fabs(redxyB/computeDxyError(it_B, rePV));
+
+                  MMBase_refittedDxy[i] = (reIxyA < reIxyB) ? redxyA : redxyB;
+                  MMBase_refittedIxy[i] = (reIxyA < reIxyB) ? reIxyA : reIxyB;
+
+               } else {
+
+                  MMBase_refittedDxy[i] = MMBase_trackDxy[i];
+                  MMBase_refittedIxy[i] = MMBase_trackIxy[i];
+
+               }
+
+            }
+
+         } // end myVertex.isValid() 
+
+      } // end refit_tracks.size() > 1
+
+   } // end _BSMode
 
 
    /////////////////////////////////////////////////////////////////////////////////////
@@ -2262,6 +2180,8 @@ void LongLivedAnalysis::beginJob()
 
     // Analyzer parameters
     _isData = parameters.getParameter<bool>("isData");
+    _BSMode = parameters.getParameter<bool>("BSMode");
+    _DSAMode = parameters.getParameter<bool>("DSAMode");
 
 
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
@@ -2311,6 +2231,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("RefittedPV_vz", &RefittedPV_vz, "RefittedPV_vz/F");
     tree_out->Branch("RefittedPV_nPFTrack", &RefittedPV_nPFTrack, "RefittedPV_nPFTrack/I");
     tree_out->Branch("RefittedPV_nLostTrack", &RefittedPV_nLostTrack, "RefittedPV_nLostTrack/I");
+    tree_out->Branch("RefittedPV_nExcludedTrack", &RefittedPV_nExcludedTrack, "RefittedPV_nExcludedTrack/I");
 
 
     ///////////////////////////////// ISOTRACK BRANCHES /////////////////////////////////
@@ -2345,19 +2266,16 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_numberOfValidStripTIDHits", IsoTrackSel_numberOfValidStripTIDHits, "IsoTrackSel_numberOfValidStripTIDHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidStripTOBHits", IsoTrackSel_numberOfValidStripTOBHits, "IsoTrackSel_numberOfValidStripTOBHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidStripTECHits", IsoTrackSel_numberOfValidStripTECHits, "IsoTrackSel_numberOfValidStripTECHits[nIsoTrack]/I");
-    tree_out->Branch("IsoTrackSel_fromPV", IsoTrackSel_fromPV, "IsoTrackSel_fromPV[nIsoTrack]/I");
-    tree_out->Branch("IsoTrackSel_PVx", IsoTrackSel_PVx, "IsoTrackSel_PVx[nIsoTrack]/F");
-    tree_out->Branch("IsoTrackSel_PVy", IsoTrackSel_PVy, "IsoTrackSel_PVy[nIsoTrack]/F");
-    tree_out->Branch("IsoTrackSel_PVz", IsoTrackSel_PVz, "IsoTrackSel_PVz[nIsoTrack]/F");
     */
 
     
     ////////////////////////////////// PHOTON BRANCHES //////////////////////////////////
-    /*
+    
     tree_out->Branch("nPhoton", &nPhoton, "nPhoton/I");
     tree_out->Branch("PhotonSel_et", PhotonSel_et, "PhotonSel_et[nPhoton]/F");
     tree_out->Branch("PhotonSel_eta", PhotonSel_eta, "PhotonSel_eta[nPhoton]/F");
     tree_out->Branch("PhotonSel_phi", PhotonSel_phi, "PhotonSel_phi[nPhoton]/F");
+    /*
     tree_out->Branch("PhotonSel_hadronicOverEm", PhotonSel_hadronicOverEm, "PhotonSel_hadronicOverEm[nPhoton]/F");
     tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
     tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
@@ -2367,50 +2285,31 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_hcalIso", PhotonSel_hcalIso, "PhotonSel_hcalIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_caloIso", PhotonSel_caloIso, "PhotonSel_caloIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_relIso", PhotonSel_relIso, "PhotonSel_relIso[nPhoton]/F");
-    tree_out->Branch("PhotonSel_isGoodSC", PhotonSel_isGoodSC, "PhotonSel_isGoodSC[nPhoton]/I");
     */
 
     ///////////////////////////////// ELECTRON BRANCHES /////////////////////////////////
 
-    /*
     tree_out->Branch("nElectron", &nElectron, "nElectron/I");
     tree_out->Branch("ElectronSel_pt", ElectronSel_pt, "ElectronSel_pt[nElectron]/F");
     tree_out->Branch("ElectronSel_et", ElectronSel_et, "ElectronSel_et[nElectron]/F");
     tree_out->Branch("ElectronSel_eta", ElectronSel_eta, "ElectronSel_eta[nElectron]/F");
     tree_out->Branch("ElectronSel_phi", ElectronSel_phi, "ElectronSel_phi[nElectron]/F");
-    tree_out->Branch("ElectronSel_hadronicOverEm", ElectronSel_hadronicOverEm, "ElectronSel_hadronicOverEm[nElectron]/F");
-    tree_out->Branch("ElectronSel_full5x5_sigmaIetaIeta", ElectronSel_full5x5_sigmaIetaIeta, "ElectronSel_full5x5_sigmaIetaIeta[nElectron]/F");
-    tree_out->Branch("ElectronSel_isEB", ElectronSel_isEB, "ElectronSel_isEB[nElectron]/I");
-    tree_out->Branch("ElectronSel_isEE", ElectronSel_isEE, "ElectronSel_isEE[nElectron]/I");
-    tree_out->Branch("ElectronSel_r9", ElectronSel_r9, "ElectronSel_r9[nElectron]/F");
-    tree_out->Branch("ElectronSel_trackIso", ElectronSel_trackIso, "ElectronSel_trackIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_ecalIso", ElectronSel_ecalIso, "ElectronSel_ecalIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_hcalIso", ElectronSel_hcalIso, "ElectronSel_hcalIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_caloIso", ElectronSel_caloIso, "ElectronSel_caloIso[nElectron]/F");
-    tree_out->Branch("ElectronSel_relIso", ElectronSel_relIso, "ElectronSel_relIso[nElectron]/F");
     tree_out->Branch("ElectronSel_dxy", ElectronSel_dxy, "ElectronSel_dxy[nElectron]/F");
     tree_out->Branch("ElectronSel_dxyError", ElectronSel_dxyError, "ElectronSel_dxyError[nElectron]/F");
     tree_out->Branch("ElectronSel_dxySignificance", ElectronSel_dxySignificance, "ElectronSel_dxySignificance[nElectron]/F");
     tree_out->Branch("ElectronSel_dB", ElectronSel_dB, "ElectronSel_dB[nElectron]/F");
     tree_out->Branch("ElectronSel_edB", ElectronSel_edB, "ElectronSel_edB[nElectron]/F");
-    tree_out->Branch("ElectronSel_isLoose", ElectronSel_isLoose, "ElectronSel_isLoose[nElectron]/I");
-    */
+    tree_out->Branch("ElectronSel_isLoose", ElectronSel_isLoose, "ElectronSel_isLoose[nElectron]/F");
+    tree_out->Branch("ElectronSel_isMedium", ElectronSel_isMedium, "ElectronSel_isMedium[nElectron]/F");
+    tree_out->Branch("ElectronSel_isTight", ElectronSel_isTight, "ElectronSel_isTight[nElectron]/F");
 
     ///////////////////////////////// MUON BRANCHES /////////////////////////////////
 
-    /*
     tree_out->Branch("nMuon", &nMuon, "nMuon/I");
     tree_out->Branch("MuonSel_pt", MuonSel_pt, "MuonSel_pt[nMuon]/F");
     tree_out->Branch("MuonSel_eta", MuonSel_eta, "MuonSel_eta[nMuon]/F");
     tree_out->Branch("MuonSel_phi", MuonSel_phi, "MuonSel_phi[nMuon]/F");
-    tree_out->Branch("MuonSel_trackIso", MuonSel_trackIso, "MuonSel_trackIso[nMuon]/F");
-    tree_out->Branch("MuonSel_ecalIso", MuonSel_ecalIso, "MuonSel_ecalIso[nMuon]/F");
-    tree_out->Branch("MuonSel_hcalIso", MuonSel_hcalIso, "MuonSel_hcalIso[nMuon]/F");
-    tree_out->Branch("MuonSel_caloIso", MuonSel_caloIso, "MuonSel_caloIso[nMuon]/F");
     tree_out->Branch("MuonSel_relIso", MuonSel_relIso, "MuonSel_relIso[nMuon]/F");
-    tree_out->Branch("MuonSel_dxy", MuonSel_dxy, "MuonSel_dxy[nMuon]/F");
-    tree_out->Branch("MuonSel_dxyError", MuonSel_dxyError, "MuonSel_dxyError[nMuon]/F");
-    tree_out->Branch("MuonSel_dxySignificance", MuonSel_dxySignificance, "MuonSel_dxySignificance[nMuon]/F");
     tree_out->Branch("MuonSel_isMuon", MuonSel_isMuon, "MuonSel_isMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isGlobalMuon", MuonSel_isGlobalMuon, "MuonSel_isGlobalMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isTrackerMuon", MuonSel_isTrackerMuon, "MuonSel_isTrackerMuon[nMuon]/I");
@@ -2418,22 +2317,51 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonSel_isLooseMuon", MuonSel_isLooseMuon, "MuonSel_isLooseMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isMediumMuon", MuonSel_isMediumMuon, "MuonSel_isMediumMuon[nMuon]/I");
     tree_out->Branch("MuonSel_isGoodMediumMuon", MuonSel_isGoodMediumMuon, "MuonSel_isGoodMediumMuon[nMuon]/I");
-
     tree_out->Branch("MuonSel_dB", MuonSel_dB, "MuonSel_dB[nMuon]/F");
     tree_out->Branch("MuonSel_edB", MuonSel_edB, "MuonSel_edB[nMuon]/F");
+    tree_out->Branch("MuonSel_dBSignificance", MuonSel_dBSignificance, "MuonSel_dBSignificance[nMuon]/F");
 
+    //////////////////////////// AOD MUON BRANCHES ///////////////////////////
+    
+    if (_DSAMode){
+      tree_out->Branch("nSA", &nSA, "nSA/I");
+      tree_out->Branch("SA_pt", SA_pt, "SA_pt[nSA]/F");
+      tree_out->Branch("SA_eta", SA_eta, "SA_eta[nSA]/F");
+      tree_out->Branch("SA_phi", SA_phi, "SA_phi[nSA]/F");
+      tree_out->Branch("SA_dxy", SA_dxy, "SA_dxy[nSA]/F");
+      tree_out->Branch("SA_q", SA_q, "SA_q[nSA]/F");
 
-    tree_out->Branch("MuonSel_isPFMuon", MuonSel_isPFMuon, "MuonSel_isPFMuon[nMuon]/I");
-    tree_out->Branch("MuonSel_fractionOfValidTrackerHits", MuonSel_fractionOfValidTrackerHits, "MuonSel_fractionOfValidTrackerHits[nMuon]/F");
-    tree_out->Branch("MuonSel_normGlobalTrackChi2", MuonSel_normGlobalTrackChi2, "MuonSel_normGlobalTrackChi2[nMuon]/F");
-    tree_out->Branch("MuonSel_trackerStandalonePosMatch", MuonSel_trackerStandalonePosMatch, "MuonSel_trackerStandalonePosMatch[nMuon]/F");
-    tree_out->Branch("MuonSel_kickFinder", MuonSel_kickFinder, "MuonSel_kickFinder[nMuon]/F");
-    tree_out->Branch("MuonSel_segmentCompatibility", MuonSel_segmentCompatibility, "MuonSel_segmentCompatibility[nMuon]/F");
-    */
+      tree_out->Branch("nDSA", &nDSA, "nDSA/I");
+      tree_out->Branch("DSA_pt", DSA_pt, "DSA_pt[nDSA]/F");
+      tree_out->Branch("DSA_eta", DSA_eta, "DSA_eta[nDSA]/F");
+      tree_out->Branch("DSA_phi", DSA_phi, "DSA_phi[nDSA]/F");
+      tree_out->Branch("DSA_dxy", DSA_dxy, "DSA_dxy[nDSA]/F");
+      tree_out->Branch("DSA_q", DSA_q, "DSA_q[nDSA]/F");
 
+      tree_out->Branch("nRSA", &nRSA, "nRSA/I");
+      tree_out->Branch("RSA_pt", RSA_pt, "RSA_pt[nRSA]/F");
+      tree_out->Branch("RSA_eta", RSA_eta, "RSA_eta[nRSA]/F");
+      tree_out->Branch("RSA_phi", RSA_phi, "RSA_phi[nRSA]/F");
+      tree_out->Branch("RSA_dxy", RSA_dxy, "RSA_dxy[nRSA]/F");
+      tree_out->Branch("RSA_q", RSA_q, "RSA_q[nRSA]/F");
+
+      tree_out->Branch("nGM", &nGM, "nGM/I");
+      tree_out->Branch("GM_pt", GM_pt, "GM_pt[nGM]/F");
+      tree_out->Branch("GM_eta", GM_eta, "GM_eta[nGM]/F");
+      tree_out->Branch("GM_phi", GM_phi, "GM_phi[nGM]/F");
+      tree_out->Branch("GM_dxy", GM_dxy, "GM_dxy[nGM]/F");
+      tree_out->Branch("GM_q", GM_q, "GM_q[nGM]/F");
+
+      tree_out->Branch("nDGM", &nDGM, "nDGM/I");
+      tree_out->Branch("DGM_pt", DGM_pt, "DGM_pt[nDGM]/F");
+      tree_out->Branch("DGM_eta", DGM_eta, "DGM_eta[nDGM]/F");
+      tree_out->Branch("DGM_phi", DGM_phi, "DGM_phi[nDGM]/F");
+      tree_out->Branch("DGM_dxy", DGM_dxy, "DGM_dxy[nDGM]/F");
+      tree_out->Branch("DGM_q", DGM_q, "DGM_q[nDGM]/F");
+    }
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
-    //
+    
     tree_out->Branch("nMuonTriggerObject", &nMuonTriggerObject, "nMuonTriggerObject/I");
     tree_out->Branch("MuonTriggerObjectSel_pt", MuonTriggerObjectSel_pt, "MuonTriggerObjectSel_pt[nMuonTriggerObject]/F");
     tree_out->Branch("MuonTriggerObjectSel_eta", MuonTriggerObjectSel_eta, "MuonTriggerObjectSel_eta[nMuonTriggerObject]/F");
@@ -2458,17 +2386,6 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
     tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
 
-    /*
-    tree_out->Branch("GenLeptonSel_objectMatch", GenLeptonSel_objectMatch, "GenLeptonSel_objectMatch[nGenLepton]/I");
-    tree_out->Branch("GenLeptonSel_trackMatch", GenLeptonSel_trackMatch, "GenLeptonSel_trackMatch[nGenLepton]/I");
-    tree_out->Branch("GenLeptonSel_objectdR", GenLeptonSel_objectdR, "GenLeptonSel_objectdR[nGenLepton]/F");
-    tree_out->Branch("GenLeptonSel_trackdR", GenLeptonSel_trackdR, "GenLeptonSel_trackdR[nGenLepton]/F");
-    tree_out->Branch("GenLeptonSel_hasValidPair", GenLeptonSel_hasValidPair, "GenLeptonSel_hasValidPair[nGenLepton]/I");
-    tree_out->Branch("GenLeptonSel_pairdR", GenLeptonSel_pairdR, "GenLeptonSel_pairdR[nGenLepton]/F");
-    tree_out->Branch("GenLeptonSel_trackDegeneration", GenLeptonSel_trackDegeneration, "GenLeptonSel_trackDegeneration[nGenLepton]/I");
-    tree_out->Branch("GenLeptonSel_objectDegeneration", GenLeptonSel_objectDegeneration, "GenLeptonSel_objectDegeneration[nGenLepton]/I");
-    */
-
     
     tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");  
     tree_out->Branch("GenNeutralinoSel_pt", GenNeutralinoSel_pt, "GenNeutralinoSel_pt[nGenNeutralino]/F");
@@ -2483,23 +2400,6 @@ void LongLivedAnalysis::beginJob()
 
     tree_out->Branch("MET_pt", &MET_pt, "MET_pt/F");
     tree_out->Branch("MET_phi", &MET_phi, "MET_phi/F");
-    /*
-    tree_out->Branch("MET_sumEt", &MET_sumEt, "MET_sumEt/F");
-    tree_out->Branch("MET_genPt", &MET_genPt, "MET_genPt/F");
-    tree_out->Branch("MET_genPhi", &MET_genPhi, "MET_genPhi/F");
-    tree_out->Branch("MET_corPt", &MET_corPt, "MET_corPt/F");
-    tree_out->Branch("MET_corPhi", &MET_corPhi, "MET_corPhi/F");
-    tree_out->Branch("MET_uncorPt", &MET_uncorPt, "MET_uncorPt/F");
-    tree_out->Branch("MET_uncorPhi", &MET_uncorPhi, "MET_uncorPhi/F");
-    tree_out->Branch("MET_metSignificance", &MET_metSignificance, "MET_metSignificance/F");
-    tree_out->Branch("MET_NeutralEMFraction", &MET_NeutralEMFraction, "MET_NeutralEMFraction/F");
-    tree_out->Branch("MET_NeutralHadEtFraction", &MET_NeutralHadEtFraction, "MET_NeutralHadEtFraction/F");
-    tree_out->Branch("MET_ChargedEMEtFraction", &MET_ChargedEMEtFraction, "MET_ChargedEMEtFraction/F");
-    tree_out->Branch("MET_ChargedHadEtFraction", &MET_ChargedHadEtFraction, "MET_ChargedHadEtFraction/F");
-    tree_out->Branch("MET_MuonEtFraction", &MET_MuonEtFraction, "MET_MuonEtFraction/F");
-    tree_out->Branch("MET_Type6EtFraction", &MET_Type6EtFraction, "MET_Type6EtFraction/F");
-    tree_out->Branch("MET_Type7EtFraction", &MET_Type7EtFraction, "MET_Type7EtFraction/F");
-    */
 
     //////////////////////////// ELECTRON CANDIDATE BRANCHES ////////////////////////////
 
@@ -2513,6 +2413,8 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronCandidate_dxy", ElectronCandidate_dxy, "ElectronCandidate_dxy[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_dxyError", ElectronCandidate_dxyError, "ElectronCandidate_dxyError[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_dxySignificance", ElectronCandidate_dxySignificance, "ElectronCandidate_dxySignificance[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_pvAssociationQuality", ElectronCandidate_pvAssociationQuality, "ElectronCandidate_pvAssociationQuality[nElectronCandidate]/I");
+    tree_out->Branch("ElectronCandidate_ptDiff", ElectronCandidate_ptDiff, "ElectronCandidate_ptDiff[nElectronCandidate]/F");
 
     ///////////////////////////////// ACCEPTANCE CRITERIA //////////////////////////////
 
@@ -2531,87 +2433,98 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MuonCandidate_dxy", MuonCandidate_dxy, "MuonCandidate_dxy[nMuonCandidate]/F");
     tree_out->Branch("MuonCandidate_dxyError", MuonCandidate_dxyError, "MuonCandidate_dxyError[nMuonCandidate]/F");
     tree_out->Branch("MuonCandidate_dxySignificance", MuonCandidate_dxySignificance, "MuonCandidate_dxySignificance[nMuonCandidate]/F");
+    tree_out->Branch("MuonCandidate_pvAssociationQuality", MuonCandidate_pvAssociationQuality, "MuonCandidate_pvAssociationQuality[nMuonCandidate]/I");
+    tree_out->Branch("MuonCandidate_ptDiff", MuonCandidate_ptDiff, "MuonCandidate_ptDiff[nMuonCandidate]/F");
 
     ////////////////////////////// LL BRANCHES /////////////////////////////
-    /*
-    tree_out->Branch("nLL", &nLL, "nLL/I");
-    tree_out->Branch("LL_Lxy", LL_Lxy, "LL_Lxy[nLL]/F");
-    tree_out->Branch("LL_Ixy", LL_Ixy, "LL_Ixy[nLL]/F");
-    tree_out->Branch("LL_minLxy", LL_minLxy, "LL_minLxy[nLL]/F");
-    tree_out->Branch("LL_minIxy", LL_minIxy, "LL_minIxy[nLL]/F");
-    tree_out->Branch("LL_Mass", LL_Mass, "LL_Mass[nLL]/F");
-    tree_out->Branch("LL_normalizedChi2", LL_normalizedChi2, "LL_normalizedChi2[nLL]/F");
-    */
 
-    /*
     tree_out->Branch("nEE", &nEE, "nEE/I");
-    tree_out->Branch("EESel_idxA", &EESel_idxA, "EESel_idxA/I");
-    tree_out->Branch("EESel_idxB", &EESel_idxB, "EESel_idxB/I");
-    tree_out->Branch("EESel_minLxy", &EESel_minLxy, "EESel_minLxy/F");
-    tree_out->Branch("EESel_minIxy", &EESel_minIxy, "EESel_minIxy/F");
-    tree_out->Branch("EESel_normalisedChi2", &EESel_normalisedChi2, "EESel_normalisedChi2/F");
-    tree_out->Branch("EESel_leadingPt", &EESel_leadingPt, "EESel_leadingPt/F");
-    tree_out->Branch("EESel_subleadingPt", &EESel_subleadingPt, "EESel_subleadingPt/F");
-    tree_out->Branch("EESel_leadingEt", &EESel_leadingEt, "EESel_leadingEt/F");
-    tree_out->Branch("EESel_subleadingEt", &EESel_subleadingEt, "EESel_subleadingEt/F");
-    tree_out->Branch("EESel_cosAlpha", &EESel_cosAlpha, "EESel_cosAlpha/F");
-    tree_out->Branch("EESel_dPhi", &EESel_dPhi, "EESel_dPhi/F");
-    tree_out->Branch("EESel_relisoA", &EESel_relisoA, "EESel_relisoA/F");
-    tree_out->Branch("EESel_relisoB", &EESel_relisoB, "EESel_relisoB/F");
-    tree_out->Branch("EESel_invMass", &EESel_invMass, "EESel_invMass/F");
+    if (!_BSMode) {
+       tree_out->Branch("EE_idxA", EE_idxA, "EE_idxA[nEE]/I");
+       tree_out->Branch("EE_idxB", EE_idxB, "EE_idxB[nEE]/I");
+       tree_out->Branch("EE_Lxy", EE_Lxy, "EE_Lxy[nEE]/F");
+       tree_out->Branch("EE_Ixy", EE_Ixy, "EE_Ixy[nEE]/F");
+       tree_out->Branch("EE_trackDxy", EE_trackDxy, "EE_trackDxy[nEE]/F");
+       tree_out->Branch("EE_trackIxy", EE_trackIxy, "EE_trackIxy[nEE]/F");
+       tree_out->Branch("EE_mass", EE_mass, "EE_mass[nEE]/F");
+       tree_out->Branch("EE_normalizedChi2", EE_normalizedChi2, "EE_normalizedChi2[nEE]/F");
+       tree_out->Branch("EE_leadingPt", EE_leadingPt, "EE_leadingPt[nEE]/F");
+       tree_out->Branch("EE_subleadingPt", EE_subleadingPt, "EE_subleadingPt[nEE]/F");
+       tree_out->Branch("EE_leadingEt", EE_leadingEt, "EE_leadingEt[nEE]/F");
+       tree_out->Branch("EE_subleadingEt", EE_subleadingEt, "EE_subleadingEt[nEE]/F");
+       tree_out->Branch("EE_cosAlpha", EE_cosAlpha, "EE_cosAlpha[nEE]/F");
+       tree_out->Branch("EE_dPhi", EE_dPhi, "EE_dPhi[nEE]/F");
+       tree_out->Branch("EE_relisoA", EE_relisoA, "EE_relisoA[nEE]/F");
+       tree_out->Branch("EE_relisoB", EE_relisoB, "EE_relisoB[nEE]/F");
+    }
+
+    tree_out->Branch("nEEBase", &nEEBase, "nEEBase/I");
+    tree_out->Branch("EEBase_maxIxy", &EEBase_maxIxy, "EEBase_maxIxy/I");
+    tree_out->Branch("EEBase_idxA", EEBase_idxA, "EEBase_idxA[nEEBase]/I");
+    tree_out->Branch("EEBase_idxB", EEBase_idxB, "EEBase_idxB[nEEBase]/I");
+    tree_out->Branch("EEBase_vx", EEBase_vx, "EEBase_vx[nEEBase]/F");
+    tree_out->Branch("EEBase_vy", EEBase_vy, "EEBase_vy[nEEBase]/F");
+    tree_out->Branch("EEBase_Lxy", EEBase_Lxy, "EEBase_Lxy[nEEBase]/F");
+    tree_out->Branch("EEBase_Ixy", EEBase_Ixy, "EEBase_Ixy[nEEBase]/F");
+    tree_out->Branch("EEBase_trackDxy", EEBase_trackDxy, "EEBase_trackDxy[nEEBase]/F");
+    tree_out->Branch("EEBase_trackIxy", EEBase_trackIxy, "EEBase_trackIxy[nEEBase]/F");
+    tree_out->Branch("EEBase_mass", EEBase_mass, "EEBase_mass[nEEBase]/F");
+    tree_out->Branch("EEBase_normalizedChi2", EEBase_normalizedChi2, "EEBase_normalizedChi2[nEEBase]/F");
+    tree_out->Branch("EEBase_leadingPt", EEBase_leadingPt, "EEBase_leadingPt[nEEBase]/F");
+    tree_out->Branch("EEBase_subleadingPt", EEBase_subleadingPt, "EEBase_subleadingPt[nEEBase]/F");
+    tree_out->Branch("EEBase_leadingEt", EEBase_leadingEt, "EEBase_leadingEt[nEEBase]/F");
+    tree_out->Branch("EEBase_subleadingEt", EEBase_subleadingEt, "EEBase_subleadingEt[nEEBase]/F");
+    tree_out->Branch("EEBase_cosAlpha", EEBase_cosAlpha, "EEBase_cosAlpha[nEEBase]/F");
+    tree_out->Branch("EEBase_dPhi", EEBase_dPhi, "EEBase_dPhi[nEEBase]/F");
+    tree_out->Branch("EEBase_relisoA", EEBase_relisoA, "EEBase_relisoA[nEEBase]/F");
+    tree_out->Branch("EEBase_relisoB", EEBase_relisoB, "EEBase_relisoB[nEEBase]/F");
+    tree_out->Branch("EEBase_refittedDxy", EEBase_refittedDxy, "EEBase_refittedDxy[nEEBase]/F");
+    tree_out->Branch("EEBase_refittedIxy", EEBase_refittedIxy, "EEBase_refittedIxy[nEEBase]/F");
+    tree_out->Branch("EEBase_fromPVA", EEBase_fromPVA, "EEBase_fromPVA[nEEBase]/I");
+    tree_out->Branch("EEBase_fromPVB", EEBase_fromPVB, "EEBase_fromPVB[nEEBase]/I");
+    tree_out->Branch("EEBase_PVAssociation", EEBase_PVAssociation, "EEBase_PVAssociation[nEEBase]/I");
 
     tree_out->Branch("nMM", &nMM, "nMM/I");
-    tree_out->Branch("MMSel_idxA", &MMSel_idxA, "MMSel_idxA/I");
-    tree_out->Branch("MMSel_idxB", &MMSel_idxB, "MMSel_idxB/I");
-    tree_out->Branch("MMSel_minLxy", &MMSel_minLxy, "MMSel_minLxy/F");
-    tree_out->Branch("MMSel_minIxy", &MMSel_minIxy, "MMSel_minIxy/F");
-    tree_out->Branch("MMSel_normalisedChi2", &MMSel_normalisedChi2, "MMSel_normalisedChi2/F");
-    tree_out->Branch("MMSel_leadingPt", &MMSel_leadingPt, "MMSel_leadingPt/F");
-    tree_out->Branch("MMSel_subleadingPt", &MMSel_subleadingPt, "MMSel_subleadingPt/F");
-    tree_out->Branch("MMSel_cosAlpha", &MMSel_cosAlpha, "MMSel_cosAlpha/F");
-    tree_out->Branch("MMSel_dPhi", &MMSel_dPhi, "MMSel_dPhi/F");
-    tree_out->Branch("MMSel_relisoA", MMSel_relisoA, "MMSel_relisoA/F");
-    tree_out->Branch("MMSel_relisoB", MMSel_relisoB, "MMSel_relisoB/F");
-    tree_out->Branch("MMSel_invMass", &MMSel_invMass, "MMSel_invMass/F");
-    */
-   
-    tree_out->Branch("nEE", &nEE, "nEE/I");
-    tree_out->Branch("EE_idxA", EE_idxA, "EE_idxA[nEE]/I");
-    tree_out->Branch("EE_idxB", EE_idxB, "EE_idxB[nEE]/I");
-    tree_out->Branch("EE_Lxy", EE_Lxy, "EE_Lxy[nEE]/F");
-    tree_out->Branch("EE_Ixy", EE_Ixy, "EE_Ixy[nEE]/F");
-    tree_out->Branch("EE_minLxy", EE_minLxy, "EE_minLxy[nEE]/F");
-    tree_out->Branch("EE_minIxy", EE_minIxy, "EE_minIxy[nEE]/F");
-    tree_out->Branch("EE_Mass", EE_Mass, "EE_Mass[nEE]/F");
-    tree_out->Branch("EE_normalizedChi2", EE_normalizedChi2, "EE_normalizedChi2[nEE]/F");
-    tree_out->Branch("EE_leadingPt", EE_leadingPt, "EE_leadingPt[nEE]/F");
-    tree_out->Branch("EE_subleadingPt", EE_subleadingPt, "EE_subleadingPt[nEE]/F");
-    tree_out->Branch("EE_leadingEt", EE_leadingEt, "EE_leadingEt[nEE]/F");
-    tree_out->Branch("EE_subleadingEt", EE_subleadingEt, "EE_subleadingEt[nEE]/F");
-    tree_out->Branch("EE_cosAlpha", EE_cosAlpha, "EE_cosAlpha[nEE]/F");
-    tree_out->Branch("EE_dPhi", EE_dPhi, "EE_dPhi[nEE]/F");
-    tree_out->Branch("EE_relisoA", EE_relisoA, "EE_relisoA[nEE]/F");
-    tree_out->Branch("EE_relisoB", EE_relisoB, "EE_relisoB[nEE]/F");
-    tree_out->Branch("EE_invMass", EE_invMass, "EE_invMass[nEE]/F");
+    if (!_BSMode) {
+       tree_out->Branch("MM_idxA", MM_idxA, "MM_idxA[nMM]/I");
+       tree_out->Branch("MM_idxB", MM_idxB, "MM_idxB[nMM]/I");
+       tree_out->Branch("MM_Lxy", MM_Lxy, "MM_Lxy[nMM]/F");
+       tree_out->Branch("MM_Ixy", MM_Ixy, "MM_Ixy[nMM]/F");
+       tree_out->Branch("MM_trackDxy", MM_trackDxy, "MM_trackDxy[nMM]/F");
+       tree_out->Branch("MM_trackIxy", MM_trackIxy, "MM_trackIxy[nMM]/F");
+       tree_out->Branch("MM_mass", MM_mass, "MM_mass[nMM]/F");
+       tree_out->Branch("MM_normalizedChi2", MM_normalizedChi2, "MM_normalizedChi2[nMM]/F");
+       tree_out->Branch("MM_leadingPt", MM_leadingPt, "MM_leadingPt[nMM]/F");
+       tree_out->Branch("MM_subleadingPt", MM_subleadingPt, "MM_subleadingPt[nMM]/F");
+       tree_out->Branch("MM_cosAlpha", MM_cosAlpha, "MM_cosAlpha[nMM]/F");
+       tree_out->Branch("MM_dPhi", MM_dPhi, "MM_dPhi[nMM]/F");
+       tree_out->Branch("MM_relisoA", MM_relisoA, "MM_relisoA[nMM]/F");
+       tree_out->Branch("MM_relisoB", MM_relisoB, "MM_relisoB[nMM]/F");
+    }
 
-    tree_out->Branch("nMM", &nMM, "nMM/I");
-    tree_out->Branch("MM_idxA", MM_idxA, "MM_idxA[nMM]/I");
-    tree_out->Branch("MM_idxB", MM_idxB, "MM_idxB[nMM]/I");
-    tree_out->Branch("MM_Lxy", MM_Lxy, "MM_Lxy[nMM]/F");
-    tree_out->Branch("MM_Ixy", MM_Ixy, "MM_Ixy[nMM]/F");
-    tree_out->Branch("MM_minLxy", MM_minLxy, "MM_minLxy[nMM]/F");
-    tree_out->Branch("MM_minIxy", MM_minIxy, "MM_minIxy[nMM]/F");
-    tree_out->Branch("MM_Mass", MM_Mass, "MM_Mass[nMM]/F");
-    tree_out->Branch("MM_normalizedChi2", MM_normalizedChi2, "MM_normalizedChi2[nMM]/F");
-    tree_out->Branch("MM_leadingPt", MM_leadingPt, "MM_leadingPt[nMM]/F");
-    tree_out->Branch("MM_subleadingPt", MM_subleadingPt, "MM_subleadingPt[nMM]/F");
-    tree_out->Branch("MM_cosAlpha", MM_cosAlpha, "MM_cosAlpha[nMM]/F");
-    tree_out->Branch("MM_dPhi", MM_dPhi, "MM_dPhi[nMM]/F");
-    tree_out->Branch("MM_relisoA", MM_relisoA, "MM_relisoA[nMM]/F");
-    tree_out->Branch("MM_relisoB", MM_relisoB, "MM_relisoB[nMM]/F");
-    tree_out->Branch("MM_invMass", MM_invMass, "MM_invMass[nMM]/F"); 
-
-
+    tree_out->Branch("nMMBase", &nMMBase, "nMMBase/I");
+    tree_out->Branch("MMBase_maxIxy", &MMBase_maxIxy, "MMBase_maxIxy/I");
+    tree_out->Branch("MMBase_idxA", MMBase_idxA, "MMBase_idxA[nMMBase]/I");
+    tree_out->Branch("MMBase_idxB", MMBase_idxB, "MMBase_idxB[nMMBase]/I");
+    tree_out->Branch("MMBase_vx", MMBase_vx, "MMBase_vx[nMMBase]/F");
+    tree_out->Branch("MMBase_vy", MMBase_vy, "MMBase_vy[nMMBase]/F");
+    tree_out->Branch("MMBase_Lxy", MMBase_Lxy, "MMBase_Lxy[nMMBase]/F");
+    tree_out->Branch("MMBase_Ixy", MMBase_Ixy, "MMBase_Ixy[nMMBase]/F");
+    tree_out->Branch("MMBase_trackDxy", MMBase_trackDxy, "MMBase_trackDxy[nMMBase]/F");
+    tree_out->Branch("MMBase_trackIxy", MMBase_trackIxy, "MMBase_trackIxy[nMMBase]/F");
+    tree_out->Branch("MMBase_mass", MMBase_mass, "MMBase_mass[nMMBase]/F");
+    tree_out->Branch("MMBase_normalizedChi2", MMBase_normalizedChi2, "MMBase_normalizedChi2[nMMBase]/F");
+    tree_out->Branch("MMBase_leadingPt", MMBase_leadingPt, "MMBase_leadingPt[nMMBase]/F");
+    tree_out->Branch("MMBase_subleadingPt", MMBase_subleadingPt, "MMBase_subleadingPt[nMMBase]/F");
+    tree_out->Branch("MMBase_cosAlpha", MMBase_cosAlpha, "MMBase_cosAlpha[nMMBase]/F");
+    tree_out->Branch("MMBase_dPhi", MMBase_dPhi, "MMBase_dPhi[nMMBase]/F");
+    tree_out->Branch("MMBase_relisoA", MMBase_relisoA, "MMBase_relisoA[nMMBase]/F");
+    tree_out->Branch("MMBase_relisoB", MMBase_relisoB, "MMBase_relisoB[nMMBase]/F");
+    tree_out->Branch("MMBase_refittedDxy", MMBase_refittedDxy, "MMBase_refittedDxy[nMMBase]/F");
+    tree_out->Branch("MMBase_refittedIxy", MMBase_refittedIxy, "MMBase_refittedIxy[nMMBase]/F");
+    tree_out->Branch("MMBase_fromPVA", MMBase_fromPVA, "MMBase_fromPVA[nMMBase]/I");
+    tree_out->Branch("MMBase_fromPVB", MMBase_fromPVB, "MMBase_fromPVB[nMMBase]/I");
+    tree_out->Branch("MMBase_PVAssociation", MMBase_PVAssociation, "MMBase_PVAssociation[nMMBase]/I");
 
 }
 //=======================================================================================================================================================================================================================//
@@ -2640,8 +2553,149 @@ void LongLivedAnalysis::fillDescriptions(edm::ConfigurationDescriptions& descrip
   desc.setUnknown();
   descriptions.addDefault(desc);
 }
+
+
 //=======================================================================================================================================================================================================================//
 
+
+bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) {
+
+   // Quality cuts:
+   const reco::HitPattern &hits = track.hitPattern();
+   if (hits.numberOfValidTrackerHits() < 6) { return false; }
+   if (!track.isHighPurityTrack()) { return false;}
+
+   // Isotrack must have packed candidate:
+   const pat::PackedCandidateRef &pckCand = track.packedCandRef();
+   if (!pckCand.isNonnull()) { return false; }
+
+   // Preselection cuts:
+   if (track.pt() < 28) { return false; }
+   if (fabs(track.eta()) > 2) { return false; }
+
+   // To be noticed: Isolation cuts are applied later with the LLCandidate selection
+
+   return true;
+}
+
+
+//=======================================================================================================================================================================================================================//
+
+bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
+
+   // Quality cuts:
+   if (photon.hadronicOverEm() > 0.05) { return false; } 
+   if (photon.isEE() && photon.full5x5_sigmaIetaIeta() > 0.034) { return false; }
+   if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
+
+   // Preselection cuts:
+   if (fabs(photon.eta()) > 1.4442) { return false; }
+   if (photon.et() < 28) {return false; }
+
+   return true;
+
+}
+
+//=======================================================================================================================================================================================================================//
+
+bool LongLivedAnalysis::passL2MuonSelection( pat::TriggerObjectStandAlone obj) {
+
+   if (fabs(obj.eta()) > 2) { return false; }
+   return true;
+}
+
+//=======================================================================================================================================================================================================================//
+
+bool LongLivedAnalysis::passMuonSelection(const pat::Muon &muon) {
+
+   if (muon.pt() < 31){ return false; }
+   if (fabs(muon.eta()) > 2) { return false; }
+   return true;
+}
+
+//=======================================================================================================================================================================================================================//
+
+bool LongLivedAnalysis::passBaselineSelection(llCandidate llc) {
+
+   // Electron selection:
+   if (llc.type == 0) {
+
+      if ( llc.leadingPt < 45 ) { return false; }
+      if ( llc.subleadingPt < 28 ) { return false; }
+      if ( llc.leadingEt < 45 ) { return false; }
+      if ( llc.subleadingEt < 28 ) { return false; }
+      if ( fabs(llc.etaA) > 1.442 || fabs(llc.etaB) > 1.442 ) { return false; }
+      if ( fabs(llc.relisoA) > 0.2 || fabs(llc.relisoB) > 0.2 ) { return false; }
+      if ( llc.normalizedChi2 > 10 ) { return false; }
+      if ( llc.mass < 15 ) { return false; }
+
+      return true;
+
+   }
+
+   // Muon selection:
+   if (llc.type == 1) {
+
+      if ( llc.leadingPt < 31 ) { return false; }
+      if ( llc.subleadingPt < 31 ) { return false; }
+      if ( fabs(llc.etaA) > 2 || fabs(llc.etaB) > 2 ) { return false; }
+      if ( fabs(llc.relisoA) > 0.1 || fabs(llc.relisoB) > 0.1 ) { return false; }
+      if ( llc.normalizedChi2 > 5 ) { return false; }
+      if ( llc.mass < 15 ) { return false; }
+      if ( llc.dR < 0.2 ) { return false; }
+      if ( llc.cosAlpha < -0.79 ) { return false; }
+
+      return true;
+
+   }
+
+   // Warning if not electron or muon.
+
+   std::cout << "Warning: The selected llCandidate is not an electron or muon" << std::endl;
+   return false;
+
+}
+
+
+//=======================================================================================================================================================================================================================//
+
+float LongLivedAnalysis::computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv) {
+
+   double vx = track.vx();
+   double vy = track.vy();
+   double phi = track.phi();
+   double PVx = pv.x();
+   double PVy = pv.y();
+
+   double dxy = -(vx - PVx)*sin(phi) + (vy - PVy)*cos(phi);
+   return dxy;
+}
+
+
+//=======================================================================================================================================================================================================================//
+
+
+float LongLivedAnalysis::computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv) {
+
+   // Trajectory computation [following steps in https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideTransientTracks#Examples_including_calculation_o]
+   // Used to compute uncertainty in the transverse impact parameter with respect to primary vertex.
+   
+   // Get packedCandidate and transient track:
+   const pat::PackedCandidateRef &pCand = track.packedCandRef();
+   reco::TransientTrack isotk = theTransientTrackBuilder->build((*pCand).pseudoTrack());
+   
+   // Define the new point of reference and the trajectory:
+   GlobalPoint vert(pv.x(), pv.y(), pv.z());
+   TrajectoryStateClosestToPoint  traj = isotk.trajectoryStateClosestToPoint(vert);
+
+   float sigmaXY = traj.perigeeError().transverseImpactParameterError();
+
+   return sigmaXY;
+
+}
+
+//=======================================================================================================================================================================================================================//
+//
 
 bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrack> > const& isotracks, int idxA, int idxB, bool isEE) {
 
@@ -2686,25 +2740,14 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
 
       axis = GlobalVector(secV.x(),secV.y(),secV.z());
 
-
       Measurement1D vMeas = reco::SecondaryVertex::computeDist2d(pv,secV,axis,true);
 
-
-
       reco::TrackKinematics secVkin(vec_refitRecoTracks);
-      //std::cout << "secVkin.nTrack =" << secVkin.numberOfTracks() << std::endl;
-      //std::cout << "secVkin.nTrack =" << secVkin.weightedVectorSum().M() << std::endl;
 
       const reco::Track isorecotrkA = pckCandA->pseudoTrack();
       const reco::Track isorecotrkB = pckCandB->pseudoTrack();
-      LL_Lxy[nLL] = vMeas.value();
-      LL_Ixy[nLL] = vMeas.significance();
-      double minLxy = (fabs(it_A.dxy()/it_A.dxyError()) < fabs(it_B.dxy())/it_B.dxyError())? it_A.dxy(): it_B.dxy();
-      double minIxy = (fabs(it_A.dxy()/it_A.dxyError()) < fabs(it_B.dxy())/it_B.dxyError())? it_A.dxy()/it_A.dxyError(): it_B.dxy()/it_B.dxyError();
-      LL_minLxy[nLL] = minLxy;
-      LL_minIxy[nLL] = minIxy;
-      LL_normalizedChi2[nLL] = myVertex.normalisedChiSquared();
-      LL_Mass[nLL] = secVkin.weightedVectorSum().M(); 
+      double trackDxy = (fabs(it_A.dxy()/it_A.dxyError()) < fabs(it_B.dxy())/it_B.dxyError())? it_A.dxy(): it_B.dxy();
+      double trackIxy = (fabs(it_A.dxy()/it_A.dxyError()) < fabs(it_B.dxy())/it_B.dxyError())? it_A.dxy()/it_A.dxyError(): it_B.dxy()/it_B.dxyError();
       double leadingPt = (isorecotrkA.pt()>isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
       double subleadingPt = (isorecotrkA.pt()<isorecotrkB.pt())? isorecotrkA.pt(): isorecotrkB.pt();
 
@@ -2726,34 +2769,6 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
 
       // ########################## LLSel choice ################################
 
-      //we update the value if it has not been initialized or if it has been and the new LL is more displaced
-      if ( (!LLSel_isEE && !LLSel_isMM) ||
-	   ( (LLSel_isEE || LLSel_isMM) && (fabs(LL_minIxy[nLL]) > fabs(LLSel_minIxy)) ) )
-	{
-	  if (isEE) {
-	    LLSel_isEE = true;
-	    LLSel_isMM = false;
-	  }
-	  else {
-	    LLSel_isMM = true;
-	    LLSel_isEE = false;
-	  }
-
-	  LLSel_Lxy = vMeas.value();
-	  LLSel_Ixy = vMeas.significance();
-	  LLSel_minLxy = minLxy;
-	  LLSel_minIxy = minIxy;
-	  LLSel_normalizedChi2 = myVertex.normalisedChiSquared();
-	  LLSel_Mass = secVkin.weightedVectorSum().M(); 
-
-	  LLSel_cosAlpha = cosAlpha;
-	  LLSel_dPhi = dPhi;
-
-      }
-
-      nLL++;
-
-
       // ####### Fill the dilepton candidates information
 
       if (isEE) {
@@ -2761,10 +2776,10 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
         EE_idxB[nEE] = idxB;
 	EE_Lxy[nEE] = vMeas.value();
 	EE_Ixy[nEE] = vMeas.significance();
-	EE_minLxy[nEE] = minLxy;
-	EE_minIxy[nEE] = minIxy;
+	EE_trackDxy[nEE] = trackDxy;
+	EE_trackIxy[nEE] = trackIxy;
         EE_normalizedChi2[nEE] = myVertex.normalisedChiSquared();
-	EE_Mass[nEE] = secVkin.weightedVectorSum().M(); 
+	//EE_mass[nEE] = secVkin.weightedVectorSum().M(); 
         EE_leadingPt[nEE] = leadingPt;
         EE_subleadingPt[nEE] = subleadingPt;
         EE_leadingEt[nEE] = (ElectronCandidate_et[idxA] > ElectronCandidate_et[idxB])? ElectronCandidate_et[idxA]: ElectronCandidate_et[idxB];
@@ -2779,37 +2794,10 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
         TLA.SetPtEtaPhiM(isorecotrkA.pt(), isorecotrkA.eta(), isorecotrkA.phi(), 0.510/1000.0);
         TLorentzVector TLB; 
         TLB.SetPtEtaPhiM(isorecotrkB.pt(), isorecotrkB.eta(), isorecotrkB.phi(), 0.510/1000.0);
-        EE_invMass[nEE] = (TLA + TLB).M();
-
-        /*
-        if (fabs(ElectronCandidate_eta[EE_idxA[nEE]]) < 1.4442 &&
-            fabs(ElectronCandidate_eta[EE_idxB[nEE]]) < 1.4442 &&
-            EE_relisoA[nEE] < 0.1 &&
-            EE_relisoB[nEE] < 0.1 &&
-            EE_normalizedChi2[nEE] < 10 &&
-            EE_leadingPt[nEE] > 41 &&
-            EE_subleadingPt[nEE] > 24 &&
-            EE_leadingEt[nEE] > 45 &&
-            EE_subleadingEt[nEE] > 28 &&
-            EE_invMass[nEE] > 15 &&
-            EE_minIxy[nEE] > EESel_minIxy) { 
+        EE_mass[nEE] = (TLA + TLB).M();
 
 
-           EESel_idxA = EE_idxA[nEE];
-           EESel_idxB = EE_idxB[nEE];
-           EESel_minLxy = EE_minLxy[nEE];
-           EESel_minIxy = EE_minIxy[nEE];
-           EESel_normalizedChi2 = EE_normalizedChi2[nEE];
-           EESel_invMass = EE_invMass[nEE];
-           EESel_leadingPt = EE_leadingPt[nEE];
-           EESel_subleadingPt = EE_subleadingPt[nEE];
-           EESel_leadingEt = EE_leadingEt[nEE];
-           EESel_subleadingEt = EE_subleadingEt[nEE];
-           EESel_cosAlpha = EE_cosAlpha[nEE];
-           EESel_dPhi = EE_dPhi[nEE];
-
-        }
-        */
+        
 	nEE++;
       }
       else {
@@ -2817,10 +2805,10 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
         MM_idxB[nMM] = idxB;
 	MM_Lxy[nMM] = vMeas.value();
 	MM_Ixy[nMM] = vMeas.significance();
-	MM_minLxy[nMM] = minLxy;
-	MM_minIxy[nMM] = minIxy;
+	MM_trackDxy[nMM] = trackDxy;
+	MM_trackIxy[nMM] = trackIxy;
         MM_normalizedChi2[nMM] = myVertex.normalisedChiSquared();
-	MM_Mass[nMM] = secVkin.weightedVectorSum().M(); 
+	//MM_mass[nMM] = secVkin.weightedVectorSum().M(); 
         MM_leadingPt[nMM] = leadingPt;
         MM_subleadingPt[nMM] = subleadingPt;
         MM_cosAlpha[nMM] = cosAlpha;
@@ -2833,36 +2821,8 @@ bool LongLivedAnalysis::buildLLcandidate(edm::Handle<edm::View<pat::IsolatedTrac
         TLA.SetPtEtaPhiM(isorecotrkA.pt(), isorecotrkA.eta(), isorecotrkA.phi(), 105.658/1000.0);
         TLorentzVector TLB; 
         TLB.SetPtEtaPhiM(isorecotrkB.pt(), isorecotrkB.eta(), isorecotrkB.phi(), 105.658/1000.0);
-        MM_invMass[nMM] = (TLA + TLB).M();
-        double aux_MMdeltaR = TLA.DeltaR(TLB);
+        MM_mass[nMM] = (TLA + TLB).M();
  
-        /*
-        if (fabs(MuonCandidate_eta[MM_idxA[nMM]]) < 2 &&
-            fabs(MuonCandidate_eta[MM_idxB[nMM]]) < 2 &&
-            MM_relisoA[nMM] < 0.1 &&
-            MM_relisoB[nMM] < 0.1 &&
-            MM_normalizedChi2[nMM] < 5 &&
-            MM_leadingPt[nMM] > 31 &&
-            MM_subleadingPt[nMM] > 31 &&
-            MM_invMass[nMM] > 15 &&
-            MM_cosAlpha[nMM] > -0.79  &&
-            IsoTrackSel_charge[MuonCandidate_isotrackIdx[MM_idxA[nMM]]]*IsoTrackSel_charge[MuonCandidate_isotrackIdx[MM_idxB[nMM]]] < 1 &&
-            aux_MMdeltaR > 0.2 &&
-            MM_minIxy[nMM] > MMSel_minIxy) { 
-
-           MMSel_idxA = MM_idxA[nMM];
-           MMSel_idxB = MM_idxB[nMM];
-           MMSel_minLxy = MM_minLxy[nMM];
-           MMSel_minIxy = MM_minIxy[nMM];
-           MMSel_normalizedChi2 = MM_normalizedChi2[nMM];
-           MMSel_invMass = MM_invMass[nMM];
-           MMSel_leadingPt = MM_leadingPt[nMM];
-           MMSel_subleadingPt = MM_subleadingPt[nMM];
-           MMSel_cosAlpha = MM_cosAlpha[nMM];
-           MMSel_dPhi = MM_dPhi[nMM];
-
-        }
-        */
 
 	nMM++;
       }
