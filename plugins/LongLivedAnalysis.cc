@@ -104,50 +104,6 @@
 ///////////////////////////////////// FUNCTIONS ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-bool goodElectron(const pat::Electron & electron)
-{
-
-    float ecal_energy_inverse = 1.0/electron.ecalEnergy();
-    float eSCoverP = electron.eSuperClusterOverP();
-
-    // Barrel cuts:
-    if (fabs(electron.superCluster()->eta()) <= 1.479)
-    {
-
-       // Combined isolation:
-       //float comIso = (electron.dr03TkSumPt() + max(0., electron.dr03EcalRecHitSumEt() - 1.) + electron.dr03HcalTowerSumEt() ) / electron.pt()
-
-       if (electron.full5x5_sigmaIetaIeta() > 0.011) { return false; }
-       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00477) { return false; }
-       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.222) { return false; }
-       if (electron.hadronicOverEm() > 0.298) { return false; }
-       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.241) {return false; }
-       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
-       if (electron.passConversionVeto() == 0) {return false;}
-
-
-    // Endcap cuts
-    } else if (fabs(electron.superCluster()->eta()) > 1.479) {
-
-
-       if (electron.full5x5_sigmaIetaIeta() > 0.0314) { return false; }
-       if (fabs(electron.deltaEtaSeedClusterTrackAtVtx()) > 0.00868) { return false; }
-       if (fabs(electron.deltaPhiSuperClusterTrackAtVtx()) > 0.213) { return false; }
-       if (electron.hadronicOverEm() > 0.101) { return false; }
-       if (fabs(1.0 - eSCoverP)*ecal_energy_inverse > 0.14) {return false; }
-       if (electron.gsfTrack()->hitPattern().numberOfAllHits(reco::HitPattern::MISSING_INNER_HITS) > 1) { return false;}
-       if (electron.passConversionVeto() == 0) {return false;}
-
-    }
-
-
-    if (fabs(electron.eta()) > 2.4) {return false;}
-
-    return true;
-
-}
-
-
 bool goodMediumMuon( pat::Muon muon)
 {
 
@@ -666,7 +622,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // PU reweighting
       edm::EDGetTokenT<std::vector<PileupSummaryInfo> >  thePileUpSummary;
-      edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
+      edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("test/2016/PUreweighting/2016MCPileupHistogram.root", "test/2016/PUreweighting/2016DataPileupHistogram.root", "pileup", "pileup");
       //lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
       //"Global" variables
@@ -1249,7 +1205,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        const pat::Electron & electron = (*electrons)[i];
 
        // this is the place to put any preselection if required
-       //if (goodElectron(electron)) { iE.push_back(i);}
        iE.push_back(i);
 
    }
