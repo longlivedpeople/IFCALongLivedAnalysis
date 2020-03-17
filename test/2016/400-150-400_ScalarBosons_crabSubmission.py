@@ -3,7 +3,7 @@ config = Configuration()
 
 config.section_('General')
 config.General.transferLogs = True
-config.General.requestName = '400-150-400_ScalarBosons_NTuple'
+config.General.requestName = '400-150-400_ScalarBosons_NTuple_DSA'
 
 config.section_('JobType')
 config.JobType.pluginName = 'Analysis'
@@ -17,7 +17,7 @@ config.section_('Data')
 config.Data.inputDBS = 'phys03'
 config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = 10
-config.Data.inputDataset = '/H2ToLLPXToLeptons_MH_400_MX_150_ctau_400mm_TuneCP2_13TeV_pythia8_80X_13082019-1313/fernance-ScalarBosons_RunIISummer16MiniAODv3_13082019-1313-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+config.Data.inputDataset = '/H2ToLLPXToLeptons_MH_400_MX_150_ctau_400mm_TuneCP2_13TeV_pythia8_80X_13082019-1313/fernance-400-150-400_RunIISummer16MiniAODv3_100320-1816-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
 

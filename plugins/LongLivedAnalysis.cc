@@ -78,6 +78,7 @@
 
 
 #include "MyAnalysis/IFCALongLivedAnalysis/interface/llCandidateDataFormat.h"
+#include "MyAnalysis/IFCALongLivedAnalysis/interface/trackPairDataFormat.h"
 
 
 //#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
@@ -365,6 +366,7 @@ Float_t GM_dxy[20];
 Float_t GM_q[20];
 // DisplacedGlobalMuons 
 Int_t nDGM;
+Int_t DGM_idx[20];
 Float_t DGM_pt[20];
 Float_t DGM_eta[20];
 Float_t DGM_phi[20];
@@ -565,6 +567,39 @@ Int_t MMBase_fromPVA[20];
 Int_t MMBase_fromPVB[20];
 Int_t MMBase_PVAssociation[20];
 
+// -> All DGM pairs
+Int_t nDMDM;
+Float_t DMDM_idxA[20];
+Float_t DMDM_idxB[20];
+Float_t DMDM_Lxy[20];
+Float_t DMDM_Ixy[20];
+Float_t DMDM_trackDxy[20];
+Float_t DMDM_trackIxy[20];
+Float_t DMDM_normalizedChi2[20];
+Float_t DMDM_mass[20];
+Float_t DMDM_leadingPt[20];
+Float_t DMDM_subleadingPt[20];
+Float_t DMDM_cosAlpha[20];
+Float_t DMDM_dPhi[20];
+
+// -> DGM pairs that survive to basiline selection
+Int_t nDMDMBase; 
+Int_t DMDMBase_maxIxy;
+Int_t DMDMBase_idxA[20];
+Int_t DMDMBase_idxB[20];
+Float_t DMDMBase_Lxy[20];
+Float_t DMDMBase_Ixy[20];
+Float_t DMDMBase_trackDxy[20];
+Float_t DMDMBase_trackIxy[20];
+Float_t DMDMBase_vx[20];
+Float_t DMDMBase_vy[20];
+Float_t DMDMBase_normalizedChi2[20];
+Float_t DMDMBase_mass[20];
+Float_t DMDMBase_leadingPt[20];
+Float_t DMDMBase_subleadingPt[20];
+Float_t DMDMBase_cosAlpha[20];
+Float_t DMDMBase_dPhi[20];
+
 
 /////////////////////////////////////// OUTPUT //////////////////////////////////////
 
@@ -622,7 +657,8 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // PU reweighting
       edm::EDGetTokenT<std::vector<PileupSummaryInfo> >  thePileUpSummary;
-      edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("test/2016/PUreweighting/2016MCPileupHistogram.root", "test/2016/PUreweighting/2016DataPileupHistogram.root", "pileup", "pileup");
+      //edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("test/2016/PUreweighting/2016MCPileupHistogram.root", "test/2016/PUreweighting/2016DataPileupHistogram.root", "pileup", "pileup");
+      edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
       //lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
       //"Global" variables
@@ -635,7 +671,9 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       bool passPhotonSelection(const pat::Photon &photon);
       bool passL2MuonSelection( pat::TriggerObjectStandAlone obj); 
       bool passMuonSelection(const pat::Muon &muon);
+      bool passDGMSelection(const reco::Track &muon);
       bool passBaselineSelection(llCandidate llc);
+      bool passBaselineSelection(trackPair ttp); // overload
       float computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv);
       reco::Vertex getSVCandidate(const pat::PackedCandidateRef &pckCandA, const pat::PackedCandidateRef &pckCandB);
       float computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv);
@@ -1298,6 +1336,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    // --------------------------------------------------- //
    /////////////////////////////////////////////////////////
 
+   std::vector<int> iDGM; // needs to be declared outside the conditional
+
    if (_DSAMode){
 
      // StandAlone muons:
@@ -1352,23 +1392,30 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
      }
 
+
+
      // DisplacedGlobalMuons:
-     nDGM = DGMs->size();
      for (size_t i = 0; i < DGMs->size(); i++){
 
        const reco::Track &muon = (*DGMs)[i];
+//       if (passDGMSelection(muon)) {iDGM.push_back(i);}
+
+     }
+     nDGM = iDGM.size();
+
+     for (size_t i = 0; i < iDGM.size(); i++){
+
+       const reco::Track &muon = (*DGMs)[iDGM.at(i)];
        DGM_pt[i] = muon.pt();
        DGM_eta[i] = muon.eta();
        DGM_phi[i] = muon.phi();
        DGM_dxy[i] = muon.dxy();
        DGM_q[i] = muon.charge();
+       DGM_idx[i] = iDGM.at(i);
 
      }
 
    }
-
-
-
 
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
@@ -1937,9 +1984,117 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    } // end while 
 
 
+
+   /////////////////////////////////////////////////////////////
+   // ------------------------------------------------------- //
+   // ----------- dGMdGMCandidates reconstruction ----------- //
+   // ------------------------------------------------------- //
+   /////////////////////////////////////////////////////////////
+   nDMDM = 0;
+   nDMDMBase = 0;
+   DMDMBase_maxIxy = 0;
+   std::vector<double> pairedDM; // displaced global muons that are already paired
+
+
+   while(2*nDMDM < nDGM - 1 ){
+
+     // Init control variables:
+     minChi2 = 10000;
+     min_i = 99;
+     min_j = 99;
+
+     for (int i = 0; i < nDGM; i++) {
+       for (int j = i+1; j < nDGM; j++) {
+ 
+         if (i == j) { continue; }
+         if ( std::find(pairedDM.begin(), pairedDM.end(), i) != pairedDM.end() ) {continue;}
+         if ( std::find(pairedDM.begin(), pairedDM.end(), j) != pairedDM.end() ) {continue;}
+
+         const reco::Track & tr_i = (*DGMs)[DGM_idx[i]];
+         const reco::Track & tr_j = (*DGMs)[DGM_idx[j]];
+
+         trackPair testcandidate(thePrimaryVertex, theTransientTrackBuilder, tr_i, tr_j, false);
+
+         if (!testcandidate.hasValidVertex) { continue ;} 
+
+         // Check if the Chi2 is lower:
+         if (testcandidate.normalizedChi2 < minChi2) {
+           minChi2 = testcandidate.normalizedChi2;
+           min_i = i;
+           min_j = j;
+         }
+
+       } // end j muon loop
+     } // end i muon loop
+
+     if (min_i == 99 || min_j == 99) { break; }
+     pairedDM.push_back(min_i);
+     pairedDM.push_back(min_j);
+
+     // -> Get LLP Candidate variables:
+     const reco::Track & tr_i = (*DGMs)[DGM_idx[min_i]];
+     const reco::Track & tr_j = (*DGMs)[DGM_idx[min_j]];
+
+     trackPair dmdmCandidate(thePrimaryVertex, theTransientTrackBuilder, tr_i, tr_j, false);
+
+     if (!_BSMode){
+
+        DMDM_idxA[nMM] = min_i;
+        DMDM_idxB[nMM] = min_j;
+        DMDM_Lxy[nMM] = dmdmCandidate.vertexLxy;
+        DMDM_Ixy[nMM] = dmdmCandidate.vertexIxy;
+        DMDM_trackDxy[nMM] = dmdmCandidate.trackDxy;
+        DMDM_trackIxy[nMM] = dmdmCandidate.trackIxy;
+        DMDM_normalizedChi2[nMM] = dmdmCandidate.normalizedChi2;
+        DMDM_mass[nMM] = dmdmCandidate.mass;
+        DMDM_leadingPt[nMM] = dmdmCandidate.leadingPt;
+        DMDM_subleadingPt[nMM] = dmdmCandidate.subleadingPt;
+        DMDM_cosAlpha[nMM] = dmdmCandidate.cosAlpha;
+        DMDM_dPhi[nMM] = dmdmCandidate.dPhi;
+        //DMDM_relisoA[nMM] = dmdmCandidate.relisoA;
+        //DMDM_relisoB[nMM] = dmdmCandidate.relisoB;
+
+     }
+     nDMDM++;
+
+     // -> Fill candidates that pass baseline selection:
+     if ( passBaselineSelection(dmdmCandidate) ) {
+
+        if (_BSMode){
+           
+           //leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
+
+           DMDMBase_idxA[nDMDMBase] = min_i;
+           DMDMBase_idxB[nDMDMBase] = min_j;
+           DMDMBase_Lxy[nDMDMBase] = dmdmCandidate.vertexLxy;
+           DMDMBase_Ixy[nDMDMBase] = dmdmCandidate.vertexIxy;
+           DMDMBase_trackDxy[nDMDMBase] = dmdmCandidate.trackDxy;
+           DMDMBase_trackIxy[nDMDMBase] = dmdmCandidate.trackIxy;
+           DMDMBase_vx[nDMDMBase] = dmdmCandidate.vx;
+           DMDMBase_vy[nDMDMBase] = dmdmCandidate.vy;
+           DMDMBase_normalizedChi2[nDMDMBase] = dmdmCandidate.normalizedChi2;
+           DMDMBase_mass[nDMDMBase] = dmdmCandidate.mass;
+           DMDMBase_leadingPt[nDMDMBase] = dmdmCandidate.leadingPt;
+           DMDMBase_subleadingPt[nDMDMBase] = dmdmCandidate.subleadingPt;
+           DMDMBase_cosAlpha[nDMDMBase] = dmdmCandidate.cosAlpha;
+           DMDMBase_dPhi[nDMDMBase] = dmdmCandidate.dPhi;
+           //DMDMBase_relisoA[nDMDMBase] = dmdmCandidate.relisoA;
+           //DMDMBase_relisoB[nDMDMBase] = dmdmCandidate.relisoB;
+
+           if ( fabs(DMDMBase_trackIxy[nDMDMBase]) > fabs(DMDMBase_trackIxy[DMDMBase_maxIxy]) ) { DMDMBase_maxIxy = nDMDMBase; }
+
+        }
+        nDMDMBase++;
+
+     }
+
+   } // end while 
+
+
+
    ////////////////////////////////////////////////////////////////////////////////////////////
    //// ---------------------------------------------------------------------------------- ////
-   //// -------------------------------- VERTEX REFITTING -------------------------------- ////                                                    
+   //// -------------------------------- VERTEX REFITTING -------------------------------- ////    
    //// ---------------------------------------------------------------------------------- ////
    ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2481,6 +2636,44 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MMBase_fromPVB", MMBase_fromPVB, "MMBase_fromPVB[nMMBase]/I");
     tree_out->Branch("MMBase_PVAssociation", MMBase_PVAssociation, "MMBase_PVAssociation[nMMBase]/I");
 
+    tree_out->Branch("nDMDM", &nDMDM, "nDMDM/I");
+    if (!_BSMode && _DSAMode) {
+       tree_out->Branch("DMDM_idxA", DMDM_idxA, "DMDM_idxA[nDMDM]/I");
+       tree_out->Branch("DMDM_idxB", DMDM_idxB, "DMDM_idxB[nDMDM]/I");
+       tree_out->Branch("DMDM_Lxy", DMDM_Lxy, "DMDM_Lxy[nDMDM]/F");
+       tree_out->Branch("DMDM_Ixy", DMDM_Ixy, "DMDM_Ixy[nDMDM]/F");
+       tree_out->Branch("DMDM_trackDxy", DMDM_trackDxy, "DMDM_trackDxy[nDMDM]/F");
+       tree_out->Branch("DMDM_trackIxy", DMDM_trackIxy, "DMDM_trackIxy[nDMDM]/F");
+       tree_out->Branch("DMDM_mass", DMDM_mass, "DMDM_mass[nDMDM]/F");
+       tree_out->Branch("DMDM_normalizedChi2", DMDM_normalizedChi2, "DMDM_normalizedChi2[nDMDM]/F");
+       tree_out->Branch("DMDM_leadingPt", DMDM_leadingPt, "DMDM_leadingPt[nDMDM]/F");
+       tree_out->Branch("DMDM_subleadingPt", DMDM_subleadingPt, "DMDM_subleadingPt[nDMDM]/F");
+       tree_out->Branch("DMDM_cosAlpha", DMDM_cosAlpha, "DMDM_cosAlpha[nDMDM]/F");
+       tree_out->Branch("DMDM_dPhi", DMDM_dPhi, "DMDM_dPhi[nDMDM]/F");
+    }
+
+    if (_DSAMode){
+
+       tree_out->Branch("nDMDMBase", &nDMDMBase, "nDMDMBase/I");
+       tree_out->Branch("DMDMBase_maxIxy", &DMDMBase_maxIxy, "DMDMBase_maxIxy/I");
+       tree_out->Branch("DMDMBase_idxA", DMDMBase_idxA, "DMDMBase_idxA[nDMDMBase]/I");
+       tree_out->Branch("DMDMBase_idxB", DMDMBase_idxB, "DMDMBase_idxB[nDMDMBase]/I");
+       tree_out->Branch("DMDMBase_vx", DMDMBase_vx, "DMDMBase_vx[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_vy", DMDMBase_vy, "DMDMBase_vy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_Lxy", DMDMBase_Lxy, "DMDMBase_Lxy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_Ixy", DMDMBase_Ixy, "DMDMBase_Ixy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_trackDxy", DMDMBase_trackDxy, "DMDMBase_trackDxy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_trackIxy", DMDMBase_trackIxy, "DMDMBase_trackIxy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_mass", DMDMBase_mass, "DMDMBase_mass[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_normalizedChi2", DMDMBase_normalizedChi2, "DMDMBase_normalizedChi2[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_leadingPt", DMDMBase_leadingPt, "DMDMBase_leadingPt[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_subleadingPt", DMDMBase_subleadingPt, "DMDMBase_subleadingPt[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_cosAlpha", DMDMBase_cosAlpha, "DMDMBase_cosAlpha[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_dPhi", DMDMBase_dPhi, "DMDMBase_dPhi[nDMDMBase]/F");
+
+
+    }
+
 }
 //=======================================================================================================================================================================================================================//
 
@@ -2568,6 +2761,18 @@ bool LongLivedAnalysis::passMuonSelection(const pat::Muon &muon) {
    return true;
 }
 
+
+//=======================================================================================================================================================================================================================//
+
+bool LongLivedAnalysis::passDGMSelection(const reco::Track &muon) {
+
+   if (muon.pt() < 31){ return false; }
+   if (fabs(muon.eta()) > 2) { return false; }
+   if (muon.numberOfValidHits() < 6) { return false; }
+   return true;
+}
+
+
 //=======================================================================================================================================================================================================================//
 
 bool LongLivedAnalysis::passBaselineSelection(llCandidate llc) {
@@ -2611,6 +2816,19 @@ bool LongLivedAnalysis::passBaselineSelection(llCandidate llc) {
 
 }
 
+
+bool LongLivedAnalysis::passBaselineSelection(trackPair ttp) {
+
+   if ( ttp.leadingPt < 31 ) { return false; }
+   if ( ttp.subleadingPt < 31 ) { return false; }
+   if ( fabs(ttp.etaA) > 2.0 || fabs(ttp.etaB) > 2.0 ) { return false; }
+   //if ( fabs(ttp.relisoA) > 0.2 || fabs(ttp.relisoB) > 0.2 ) { return false; }
+   if ( ttp.normalizedChi2 > 5 ) { return false; }
+   if ( ttp.mass < 15 ) { return false; }
+
+   return true;
+
+}
 
 //=======================================================================================================================================================================================================================//
 
