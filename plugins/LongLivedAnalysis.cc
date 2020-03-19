@@ -1398,7 +1398,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      for (size_t i = 0; i < DGMs->size(); i++){
 
        const reco::Track &muon = (*DGMs)[i];
-//       if (passDGMSelection(muon)) {iDGM.push_back(i);}
+       if (passDGMSelection(muon)) {iDGM.push_back(i);}
 
      }
      nDGM = iDGM.size();
