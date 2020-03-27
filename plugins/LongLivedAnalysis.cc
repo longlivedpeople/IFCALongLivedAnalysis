@@ -387,29 +387,35 @@ Float_t MuonTriggerObjectSel_eta[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
 
 //-> GENLEPTON SELECTION
-const Int_t nGenLeptonMax = 10;
+const Int_t nGenLeptonMax = 30;
 Int_t nGenLepton;
+Int_t nGenLepton_PFS;
+Int_t nGenLepton_HPFS;
+Int_t nGenLepton_PTDP;
+Int_t nGenLepton_HDP;
 Float_t GenLeptonSel_pt[nGenLeptonMax];
 Float_t GenLeptonSel_et[nGenLeptonMax];
 Float_t GenLeptonSel_eta[nGenLeptonMax];
 Float_t GenLeptonSel_phi[nGenLeptonMax];
 Int_t GenLeptonSel_pdgId[nGenLeptonMax];
 Float_t GenLeptonSel_dxy[nGenLeptonMax];
-Int_t GenLeptonSel_motherIdx[nGenLeptonMax];
-Int_t GenLeptonSel_objectMatch[nGenLeptonMax];
-Int_t GenLeptonSel_trackMatch[nGenLeptonMax];
-Float_t GenLeptonSel_objectdR[nGenLeptonMax];
-Float_t GenLeptonSel_trackdR[nGenLeptonMax];
-Int_t GenLeptonSel_hasValidPair[nGenLeptonMax];
-Float_t GenLeptonSel_pairdR[nGenLeptonMax];
-Int_t GenLeptonSel_trackDegeneration[nGenLeptonMax];
-Int_t GenLeptonSel_objectDegeneration[nGenLeptonMax];
 Float_t GenLeptonSel_vx[nGenLeptonMax];
 Float_t GenLeptonSel_vy[nGenLeptonMax];
 Float_t GenLeptonSel_vz[nGenLeptonMax];
+Int_t GenLeptonSel_motherPdgId[nGenLeptonMax];
+Int_t GenLeptonSel_fromHardProcessFinalState[nGenLeptonMax];
+Int_t GenLeptonSel_isPromptFinalState[nGenLeptonMax];
+Int_t GenLeptonSel_isDirectPromptTauDecayProductFinalState[nGenLeptonMax];
+Int_t GenLeptonSel_isDirectHadronDecayProduct[nGenLeptonMax];
 
+Int_t nHardProcessParticle;
+Float_t HardProcessParticle_pt[30];
+Float_t HardProcessParticle_eta[30];
+Float_t HardProcessParticle_phi[30];
+Int_t HardProcessParticle_pdgId[30];
 
 //-> GENNEUTRALINO SELECTION
+/*
 const Int_t nGenNeutralinoMax = 500;
 Int_t nGenNeutralino;
 Float_t GenNeutralinoSel_pt[nGenNeutralinoMax];
@@ -419,7 +425,7 @@ Int_t GenNeutralinoSel_pdgId[nGenNeutralinoMax];
 Int_t GenNeutralinoSel_decaypdgId[nGenNeutralinoMax];
 Bool_t GenNeutralinoSel_passAcceptance[nGenNeutralinoMax];
 Float_t GenNeutralinoSel_Lxy[nGenNeutralinoMax];
-
+*/
 
 // -> GENERATION ACCEPTANCE CRITERIA
 Bool_t passAcceptanceCriteria;
@@ -1419,14 +1425,107 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
-   //PABLO: MAKE A POLICY FOR GENERATED PARTICLES
    std::vector<int> iGL; // Generated lepton indexes
-   std::vector<int> iGN; // Generated neutralino indexes
-   int iH = -1; // Higgs index
+
+   reco::GenParticleRef mref;
+   reco::GenParticle m;
 
    if (!_isData)
    {
 
+       //// *** Get the leptons that can be idenitified in the detector ***
+       // pdgId: 11, -11, 13 and -13
+       for(size_t i = 0; i < genParticles->size(); i++) {
+
+	   const reco::GenParticle &genparticle = (*genParticles)[i];
+
+           if ( ( abs(genparticle.pdgId()) == 11 || abs(genparticle.pdgId()) == 13 ) && genparticle.status() == 1) {
+               iGL.push_back(i);
+           }
+       }
+
+       nGenLepton = iGL.size();
+       std::sort( std::begin(iGL), std::end(iGL), [&](int i1, int i2){ return genParticles->at(i1).pt() > genParticles->at(i2).pt(); });
+
+       for(size_t i = 0; i < iGL.size(); i++) {
+
+          const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
+    
+          GenLeptonSel_pt[i] = genparticle.pt();
+          GenLeptonSel_et[i] = genparticle.et();
+          GenLeptonSel_eta[i] = genparticle.eta();
+          GenLeptonSel_phi[i] = genparticle.phi();
+          GenLeptonSel_pdgId[i] = genparticle.pdgId();
+
+          // Bottom-up to get the real decaying particle:
+          mref = genparticle.motherRef();
+          m = *mref;
+
+          if (genparticle.mother()->pdgId() == genparticle.pdgId()) {
+
+              while (m.pdgId() == m.mother()->pdgId()) {
+                  mref = m.motherRef();
+                  m = *mref;
+              }
+          }
+
+          GenLeptonSel_vx[i] = m.vx();
+          GenLeptonSel_vy[i] = m.vy();
+          GenLeptonSel_vz[i] = m.vz();
+	  GenLeptonSel_dxy[i] = dxy_value(m, thePrimaryVertex); // should be computed here or before?
+          if(m.numberOfMothers() != 0){
+              GenLeptonSel_motherPdgId[i] = m.motherRef()->pdgId();
+          } else {
+              GenLeptonSel_motherPdgId[i] = 0; 
+          }
+
+
+          // Flags:
+          GenLeptonSel_isPromptFinalState[i] = genparticle.isPromptFinalState();
+          GenLeptonSel_fromHardProcessFinalState[i] = genparticle.fromHardProcessFinalState(); // has to be done with the last one
+          GenLeptonSel_isDirectPromptTauDecayProductFinalState[i] = genparticle.isDirectPromptTauDecayProductFinalState(); 
+          GenLeptonSel_isDirectHadronDecayProduct[i] = genparticle.statusFlags().isDirectHadronDecayProduct(); 
+
+
+       }
+
+
+       // Counters initialization
+       nGenLepton_PFS = 0; 
+       nGenLepton_HPFS = 0; 
+       nGenLepton_PTDP = 0; 
+       nGenLepton_HDP = 0; 
+
+       for(size_t i = 0; i < iGL.size(); i++) {
+
+           if (GenLeptonSel_isPromptFinalState[i]) { nGenLepton_PFS++; }
+           if (GenLeptonSel_fromHardProcessFinalState[i]) { nGenLepton_HPFS++; }
+           if (GenLeptonSel_isDirectPromptTauDecayProductFinalState[i]) { nGenLepton_PTDP++; }
+           if (GenLeptonSel_isDirectHadronDecayProduct[i]) { nGenLepton_HDP++; }
+
+       }
+
+
+       // -> Hard Process Collection
+       nHardProcessParticle = 0;
+       for(size_t i = 0; i < genParticles->size(); i++) {
+
+          const reco::GenParticle &genparticle = (*genParticles)[i];
+       
+           if (genparticle.isHardProcess()){
+
+               HardProcessParticle_pt[nHardProcessParticle] = genparticle.pt();
+               HardProcessParticle_eta[nHardProcessParticle] = genparticle.eta();
+               HardProcessParticle_phi[nHardProcessParticle] = genparticle.phi();
+               HardProcessParticle_pdgId[nHardProcessParticle] = genparticle.pdgId();
+
+               nHardProcessParticle++;
+           }       
+       }
+
+
+
+       /*
        for(size_t i = 0; i < genParticles->size(); i++) {
 
 
@@ -1569,11 +1668,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
        }
-
+       */
    }
 
    //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
-
+   /*
    if (!_isData)
      {
 
@@ -1587,9 +1686,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}//isn't this a little silly if we have more than one LL candidate?
 
-	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAccLL = false; /*break;*/}
-	   if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAccLL = false; /*break;*/}
-	   if (fabs(GenLeptonSel_eta[i]) > 2){ passAccLL = false; /*break;*/}
+	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAccLL = false; //break;}
+	   if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAccLL = false; //break;}
+	   if (fabs(GenLeptonSel_eta[i]) > 2){ passAccLL = false; //break;}
 
 	 }
 
@@ -1608,7 +1707,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
  
 
    }
-   
+   */
 
    //////////////////////////////////////// MET ////////////////////////////////////////
    //CHECK: DO WE WANT TO USE PUPPIMET
@@ -2480,11 +2579,11 @@ void LongLivedAnalysis::beginJob()
 
     //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
 
-    tree_out->Branch("GenHiggs_pt", &GenHiggs_pt, "GenHiggs_pt/F");
-    tree_out->Branch("GenHiggs_eta", &GenHiggs_eta, "GenHiggs_eta/F");
-    tree_out->Branch("GenHiggs_phi", &GenHiggs_phi, "GenHiggs_phi/F");
-
     tree_out->Branch("nGenLepton", &nGenLepton, "nGenLepton/I");
+    tree_out->Branch("nGenLepton_PFS", &nGenLepton_PFS, "nGenLepton_PFS/I");
+    tree_out->Branch("nGenLepton_HPFS", &nGenLepton_HPFS, "nGenLepton_HPFS/I");
+    tree_out->Branch("nGenLepton_HDP", &nGenLepton_HDP, "nGenLepton_HDP/I");
+    tree_out->Branch("nGenLepton_PTDP", &nGenLepton_PTDP, "nGenLepton_PTDP/I");
     tree_out->Branch("GenLeptonSel_pt", GenLeptonSel_pt, "GenLeptonSel_pt[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_et", GenLeptonSel_et, "GenLeptonSel_et[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_eta", GenLeptonSel_eta, "GenLeptonSel_eta[nGenLepton]/F");
@@ -2494,18 +2593,19 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenLeptonSel_vy", GenLeptonSel_vy, "GenLeptonSel_vy[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_vz", GenLeptonSel_vz, "GenLeptonSel_vz[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
-    tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_motherPdgId", GenLeptonSel_motherPdgId, "GenLeptonSel_motherPdgId[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_isPromptFinalState", GenLeptonSel_isPromptFinalState, "GenLeptonSel_isPromptFinalState[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_fromHardProcessFinalState", GenLeptonSel_fromHardProcessFinalState, "GenLeptonSel_fromHardProcessFinalState[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_isDirectPromptTauDecayProductFinalState", GenLeptonSel_isDirectPromptTauDecayProductFinalState, "GenLeptonSel_isDirectPromptTauDecayProductFinalState[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_isDirectHadronDecayProduct", GenLeptonSel_isDirectHadronDecayProduct, "GenLeptonSel_isDirectHadronDecayProduct[nGenLepton]/I");
 
     
-    tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");  
-    tree_out->Branch("GenNeutralinoSel_pt", GenNeutralinoSel_pt, "GenNeutralinoSel_pt[nGenNeutralino]/F");
-    tree_out->Branch("GenNeutralinoSel_eta", GenNeutralinoSel_eta, "GenNeutralinoSel_eta[nGenNeutralino]/F");
-    tree_out->Branch("GenNeutralinoSel_phi", GenNeutralinoSel_phi, "GenNeutralinoSel_phi[nGenNeutralino]/F"); 
-    tree_out->Branch("GenNeutralinoSel_Lxy", GenNeutralinoSel_Lxy, "GenNeutralinoSel_Lxy[nGenNeutralino]/F");
-    tree_out->Branch("GenNeutralinoSel_pdgId", GenNeutralinoSel_pdgId, "GenNeutralinoSel_pdgId[nGenNeutralino]/I");
-    tree_out->Branch("GenNeutralinoSel_decaypdgId", GenNeutralinoSel_decaypdgId, "GenNeutralinoSel_decaypdgId[nGenNeutralino]/I");
-    tree_out->Branch("GenNeutralinoSel_passAcceptance", GenNeutralinoSel_passAcceptance, "GenNeutralinoSel_passAcceptance[nGenNeutralino]/O");
-    
+    tree_out->Branch("nHardProcessParticle", &nHardProcessParticle, "nHardProcessParticle/I");
+    tree_out->Branch("HardProcessParticle_pt", HardProcessParticle_pt, "HardProcessParticle_pt[nHardProcessParticle]/F");
+    tree_out->Branch("HardProcessParticle_eta", HardProcessParticle_eta, "HardProcessParticle_eta[nHardProcessParticle]/F");
+    tree_out->Branch("HardProcessParticle_phi", HardProcessParticle_phi, "HardProcessParticle_phi[nHardProcessParticle]/F");
+    tree_out->Branch("HardProcessParticle_pdgId", HardProcessParticle_pdgId, "HardProcessParticle_pdgId[nHardProcessParticle]/I");
+
     //////////////////////////////////// MET BRANCHES ///////////////////////////////////
 
     tree_out->Branch("MET_pt", &MET_pt, "MET_pt/F");
