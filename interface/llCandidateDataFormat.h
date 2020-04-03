@@ -11,6 +11,10 @@
 #include "RecoVertex/AdaptiveVertexFit/interface/AdaptiveVertexFitter.h"
 #include "RecoVertex/VertexPrimitives/interface/TransientVertex.h"
 #include "RecoVertex/VertexTools/interface/GeometricAnnealing.h"
+#include "TrackingTools/Records/interface/TransientTrackRecord.h"
+#include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
+#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
+
 
 #include "TLorentzVector.h"
 #include "TVector3.h"
@@ -127,8 +131,17 @@ struct llCandidate
 
              leadingPt = (it_A.pt()>it_B.pt())? it_A.pt(): it_B.pt();
              subleadingPt = (it_A.pt()<it_B.pt())? it_A.pt(): it_B.pt();
-             trackDxy = (fabs(pckCand_A->dxy(pv.position())/it_A.dxyError()) < fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError())? pckCand_A->dxy(pv.position()): pckCand_B->dxy(pv.position());
-             trackIxy = (fabs(pckCand_A->dxy(pv.position())/it_A.dxyError()) < fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError())? fabs(pckCand_A->dxy(pv.position()))/it_A.dxyError(): fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError();
+             float trA_dxy = computeDxy(isorecotrkA, pv);
+             float trA_dxyError = computeDxyError(theTransientTrackBuilder, isorecotrkA, pv);
+             float trB_dxy = computeDxy(isorecotrkB, pv);
+             float trB_dxyError = computeDxyError(theTransientTrackBuilder, isorecotrkA, pv);
+
+             trackDxy = (fabs(trA_dxy/trA_dxyError) < fabs(trB_dxy/trB_dxyError))? trA_dxy: trB_dxy;
+             trackIxy = (fabs(trA_dxy/trA_dxyError) < fabs(trB_dxy/trB_dxyError))? fabs(trA_dxy/trA_dxyError): fabs(trB_dxy/trB_dxyError);
+
+             //trackDxy = (fabs(pckCand_A->dxy(pv.position())/it_A.dxyError()) < fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError())? pckCand_A->dxy(pv.position()): pckCand_B->dxy(pv.position());
+             //trackIxy = (fabs(pckCand_A->dxy(pv.position())/it_A.dxyError()) < fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError())? fabs(pckCand_A->dxy(pv.position()))/it_A.dxyError(): fabs(pckCand_B->dxy(pv.position()))/it_B.dxyError();
+
              etaA = it_A.eta();
              etaB = it_B.eta();   
 
@@ -184,6 +197,34 @@ struct llCandidate
       }
 
    } // end GetTrackParemeters function 
+
+
+
+   float computeDxy(const reco::Track & track, const reco::Vertex pv) {
+
+      double vx = track.vx();
+      double vy = track.vy();
+      double phi = track.phi();
+      double PVx = pv.x();
+      double PVy = pv.y();
+
+      double dxy = -(vx - PVx)*sin(phi) + (vy - PVy)*cos(phi);
+      return dxy;
+
+   } // end computeDxy function
+
+
+   float computeDxyError(edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder, const reco::Track & track, const reco::Vertex pv) {
+
+      reco::TransientTrack isotk = theTransientTrackBuilder->build(track);
+      GlobalPoint vert(pv.x(), pv.y(), pv.z());
+      TrajectoryStateClosestToPoint  traj = isotk.trajectoryStateClosestToPoint(vert);
+
+       float sigmaXY = traj.perigeeError().transverseImpactParameterError();
+
+       return sigmaXY;
+
+   } // end computeDxyError function
 
 
 

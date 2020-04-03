@@ -372,8 +372,16 @@ Float_t DGM_pt[20];
 Float_t DGM_eta[20];
 Float_t DGM_phi[20];
 Float_t DGM_dxy[20];
+Float_t DGM_dxyError[20];
+Float_t DGM_Ixy[20];
 Float_t DGM_q[20];
 Float_t DGM_relPFiso[20];
+Int_t DGM_numberOfValidHits[20];
+Int_t DGM_numberOfLostHits[20];
+Float_t DGM_chi2[20];
+Float_t DGM_ndof[20];
+Int_t DGM_charge[20];
+Int_t DGM_isHighPurity[2];
 
 
 // -> GENHIGGS
@@ -685,8 +693,10 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       bool passBaselineSelection(llCandidate llc);
       bool passBaselineSelection(trackPair ttp); // overload
       float computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv);
+      float computeDxy(const reco::Track & track, const reco::Vertex pv);
       reco::Vertex getSVCandidate(const pat::PackedCandidateRef &pckCandA, const pat::PackedCandidateRef &pckCandB);
       float computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv);
+      float computeDxyError(const reco::Track & track, const reco::Vertex pv);
       float computeRelIso(const reco::Track & track,  edm::Handle<edm::View<pat::PackedCandidate> > pfs);
 
       // Histograms
@@ -1420,10 +1430,19 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        DGM_pt[i] = muon.pt();
        DGM_eta[i] = muon.eta();
        DGM_phi[i] = muon.phi();
-       DGM_dxy[i] = muon.dxy();
+       DGM_dxy[i] = computeDxy(muon, thePrimaryVertex);
+       DGM_dxyError[i] = computeDxyError(muon, thePrimaryVertex);
+       DGM_Ixy[i] = DGM_dxy[i]/DGM_dxyError[i];
        DGM_q[i] = muon.charge();
        DGM_relPFiso[i] = computeRelIso(muon, packedPFCandidates);
-       DGM_idx[i] = iDGM.at(i);
+       DGM_numberOfValidHits[i] = muon.numberOfValidHits();
+       DGM_numberOfLostHits[i] = muon.numberOfLostHits();
+       DGM_chi2[i] = muon.chi2();
+       DGM_ndof[i] = muon.ndof();
+       DGM_charge[i] = muon.charge();
+       DGM_isHighPurity[i] = muon.quality(muon.qualityByName("highPurity"));
+
+       DGM_idx[i] = iDGM.at(i); // only to use in analyzer not in Galapago
 
      }
 
@@ -2574,8 +2593,16 @@ void LongLivedAnalysis::beginJob()
       tree_out->Branch("DGM_eta", DGM_eta, "DGM_eta[nDGM]/F");
       tree_out->Branch("DGM_phi", DGM_phi, "DGM_phi[nDGM]/F");
       tree_out->Branch("DGM_dxy", DGM_dxy, "DGM_dxy[nDGM]/F");
+      tree_out->Branch("DGM_dxyError", DGM_dxyError, "DGM_dxyError[nDGM]/F");
+      tree_out->Branch("DGM_Ixy", DGM_Ixy, "DGM_Ixy[nDGM]/F");
       tree_out->Branch("DGM_q", DGM_q, "DGM_q[nDGM]/F");
       tree_out->Branch("DGM_relPFiso", DGM_relPFiso, "DGM_relPFiso[nDGM]/F");
+      tree_out->Branch("DGM_numberOfValidHits", DGM_numberOfValidHits, "DGM_numberOfValidHits[nDGM]/I");
+      tree_out->Branch("DGM_numberOfLostHits", DGM_numberOfLostHits, "DGM_numberOfLostHits[nDGM]/I");
+      tree_out->Branch("DGM_chi2", DGM_chi2, "DGM_chi2[nDGM]/F");
+      tree_out->Branch("DGM_ndof", DGM_ndof, "DGM_ndof[nDGM]/F");
+      tree_out->Branch("DGM_charge", DGM_charge, "DGM_charge[nDGM]/I");
+      tree_out->Branch("DGM_isHighPurity", DGM_isHighPurity, "DGM_isHighPurity[nDGM]/I");
     }
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
@@ -2832,7 +2859,7 @@ bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) 
 
    // Preselection cuts:
    if (track.pt() < 28) { return false; }
-   if (fabs(track.eta()) > 2) { return false; }
+   if (fabs(track.eta()) > 2.4) { return false; }
 
    // To be noticed: Isolation cuts are applied later with the LLCandidate selection
 
@@ -2850,7 +2877,7 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
    if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
 
    // Preselection cuts:
-   if (fabs(photon.eta()) > 1.4442) { return false; }
+   //if (fabs(photon.eta()) > 1.4442) { return false; }
    if (photon.et() < 28) {return false; }
 
    return true;
@@ -2861,7 +2888,7 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
 
 bool LongLivedAnalysis::passL2MuonSelection( pat::TriggerObjectStandAlone obj) {
 
-   if (fabs(obj.eta()) > 2) { return false; }
+   if (fabs(obj.eta()) > 2.4) { return false; }
    return true;
 }
 
@@ -2869,8 +2896,8 @@ bool LongLivedAnalysis::passL2MuonSelection( pat::TriggerObjectStandAlone obj) {
 
 bool LongLivedAnalysis::passMuonSelection(const pat::Muon &muon) {
 
-   if (muon.pt() < 31){ return false; }
-   if (fabs(muon.eta()) > 2) { return false; }
+   if (muon.pt() < 20){ return false; }
+   if (fabs(muon.eta()) > 2.4) { return false; }
    return true;
 }
 
@@ -2879,8 +2906,8 @@ bool LongLivedAnalysis::passMuonSelection(const pat::Muon &muon) {
 
 bool LongLivedAnalysis::passDGMSelection(const reco::Track &muon) {
 
-   if (muon.pt() < 31){ return false; }
-   if (fabs(muon.eta()) > 2) { return false; }
+   if (muon.pt() < 20){ return false; }
+   if (fabs(muon.eta()) > 2.4) { return false; }
    if (muon.numberOfValidHits() < 6) { return false; }
    return true;
 }
@@ -2961,6 +2988,22 @@ float LongLivedAnalysis::computeDxy(const pat::IsolatedTrack & track, const reco
 //=======================================================================================================================================================================================================================//
 
 
+float LongLivedAnalysis::computeDxy(const reco::Track & track, const reco::Vertex pv) {
+
+   double vx = track.vx();
+   double vy = track.vy();
+   double phi = track.phi();
+   double PVx = pv.x();
+   double PVy = pv.y();
+
+   double dxy = -(vx - PVx)*sin(phi) + (vy - PVy)*cos(phi);
+   return dxy;
+}
+
+
+//=======================================================================================================================================================================================================================//
+
+
 float LongLivedAnalysis::computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv) {
 
    // Trajectory computation [following steps in https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideTransientTracks#Examples_including_calculation_o]
@@ -2969,6 +3012,27 @@ float LongLivedAnalysis::computeDxyError(const pat::IsolatedTrack & track, const
    // Get packedCandidate and transient track:
    const pat::PackedCandidateRef &pCand = track.packedCandRef();
    reco::TransientTrack isotk = theTransientTrackBuilder->build((*pCand).pseudoTrack());
+   
+   // Define the new point of reference and the trajectory:
+   GlobalPoint vert(pv.x(), pv.y(), pv.z());
+   TrajectoryStateClosestToPoint  traj = isotk.trajectoryStateClosestToPoint(vert);
+
+   float sigmaXY = traj.perigeeError().transverseImpactParameterError();
+
+   return sigmaXY;
+
+}
+
+//=======================================================================================================================================================================================================================//
+
+
+float LongLivedAnalysis::computeDxyError(const reco::Track & track, const reco::Vertex pv) {
+
+   // Trajectory computation [following steps in https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideTransientTracks#Examples_including_calculation_o]
+   // Used to compute uncertainty in the transverse impact parameter with respect to primary vertex.
+   
+   // Get packedCandidate and transient track:
+   reco::TransientTrack isotk = theTransientTrackBuilder->build(track);
    
    // Define the new point of reference and the trajectory:
    GlobalPoint vert(pv.x(), pv.y(), pv.z());
