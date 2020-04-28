@@ -9,10 +9,10 @@ config.section_('JobType')
 config.JobType.pluginName = 'Analysis'
 config.JobType.psetName = 'runLongLivedAnalysis_cfg.py'
 config.JobType.disableAutomaticOutputCollection = True
-config.JobType.inputFiles = ['PUreweighting/2016/2016DataPileupHistogram.root',
-                             'PUreweighting/2016/2016MCPileupHistogram.root']
+config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
+                             'PUreweighting/2016MCPileupHistogram.root']
 config.JobType.outputFiles = ['output.root']
-config.JobType.maxMemoryMB = 10000
+config.JobType.maxMemoryMB = 2500
 
 config.section_('Data')
 config.Data.inputDBS = 'global'

@@ -15,12 +15,12 @@ config.JobType.outputFiles = ['output.root']
 config.JobType.maxMemoryMB = 2500
 
 config.section_('Data')
-config.Data.inputDBS = 'global'
-config.Data.unitsPerJob = 1
-config.Data.splitting = 'FileBased'
+config.Data.inputDBS = 'phys03'
+#config.Data.unitsPerJob = 1
+config.Data.splitting = 'Automatic'
 #config.Data.unitsPerJob = 45000
-#config.Data.totalUnits = 40
-config.Data.inputDataset = '/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/RunIISummer16MiniAODv3-PUMoriond17_94X_mcRun2_asymptotic_v3_ext2-v2/MINIAODSIM'
+#config.Data.totalUnits = 50
+config.Data.inputDataset = '/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/fernance-DYJetsToLL_M-50_HXX_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
 

@@ -1483,26 +1483,35 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
           GenLeptonSel_pdgId[i] = genparticle.pdgId();
 
           // Bottom-up to get the real decaying particle:
-          mref = genparticle.motherRef();
-          m = *mref;
-
           if (genparticle.mother()->pdgId() == genparticle.pdgId()) {
 
+              mref = genparticle.motherRef();
+              m = *mref;
               while (m.pdgId() == m.mother()->pdgId()) {
                   mref = m.motherRef();
                   m = *mref;
               }
+
+              GenLeptonSel_vx[i] = m.vx();
+              GenLeptonSel_vy[i] = m.vy();
+              GenLeptonSel_vz[i] = m.vz();
+	      GenLeptonSel_dxy[i] = dxy_value(m, thePrimaryVertex); // should be computed here or before?
+
+              if(m.numberOfMothers() != 0){
+                  GenLeptonSel_motherPdgId[i] = m.motherRef()->pdgId();
+              } else {
+                  GenLeptonSel_motherPdgId[i] = 0; 
+              }
+          }else{
+
+              GenLeptonSel_vx[i] = genparticle.vx();
+              GenLeptonSel_vy[i] = genparticle.vy();
+              GenLeptonSel_vz[i] = genparticle.vz();
+	      GenLeptonSel_dxy[i] = dxy_value(genparticle, thePrimaryVertex); // should be computed here or before?
+
+              GenLeptonSel_motherPdgId[i] = genparticle.motherRef()->pdgId();
           }
 
-          GenLeptonSel_vx[i] = m.vx();
-          GenLeptonSel_vy[i] = m.vy();
-          GenLeptonSel_vz[i] = m.vz();
-	  GenLeptonSel_dxy[i] = dxy_value(m, thePrimaryVertex); // should be computed here or before?
-          if(m.numberOfMothers() != 0){
-              GenLeptonSel_motherPdgId[i] = m.motherRef()->pdgId();
-          } else {
-              GenLeptonSel_motherPdgId[i] = 0; 
-          }
 
 
           // Flags:
@@ -2492,8 +2501,9 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_relPfIsolationDR03", IsoTrackSel_relPfIsolationDR03, "IsoTrackSel_relPfIsolationDR03[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_relMiniPFIsolation", IsoTrackSel_relMiniPFIsolation, "IsoTrackSel_relMiniPFIsolation[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_isHighPurityTrack", IsoTrackSel_isHighPurityTrack, "IsoTrackSel_isHighPurityTrack[nIsoTrack]/I");
-    /*
+    
     tree_out->Branch("IsoTrackSel_numberOfValidTrackerHits", IsoTrackSel_numberOfValidTrackerHits, "IsoTrackSel_numberOfValidTrackerHits[nIsoTrack]/I");
+    /*
     tree_out->Branch("IsoTrackSel_numberOfValidPixelHits", IsoTrackSel_numberOfValidPixelHits, "IsoTrackSel_numberOfValidPixelHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelBarrelHits", IsoTrackSel_numberOfValidPixelBarrelHits, "IsoTrackSel_numberOfValidPixelBarrelHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelEndcapHits", IsoTrackSel_numberOfValidPixelEndcapHits, "IsoTrackSel_numberOfValidPixelEndcapHits[nIsoTrack]/I");
@@ -2511,12 +2521,13 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_et", PhotonSel_et, "PhotonSel_et[nPhoton]/F");
     tree_out->Branch("PhotonSel_eta", PhotonSel_eta, "PhotonSel_eta[nPhoton]/F");
     tree_out->Branch("PhotonSel_phi", PhotonSel_phi, "PhotonSel_phi[nPhoton]/F");
-    /*
+    
     tree_out->Branch("PhotonSel_hadronicOverEm", PhotonSel_hadronicOverEm, "PhotonSel_hadronicOverEm[nPhoton]/F");
     tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
-    tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
-    tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
     tree_out->Branch("PhotonSel_r9", PhotonSel_r9, "PhotonSel_r9[nPhoton]/F");
+    //tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
+    //tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
+    /*
     tree_out->Branch("PhotonSel_ecalIso", PhotonSel_ecalIso, "PhotonSel_ecalIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_hcalIso", PhotonSel_hcalIso, "PhotonSel_hcalIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_caloIso", PhotonSel_caloIso, "PhotonSel_caloIso[nPhoton]/F");
@@ -2943,7 +2954,7 @@ bool LongLivedAnalysis::passBaselineSelection(llCandidate llc) {
       if ( llc.normalizedChi2 > 5 ) { return false; }
       if ( llc.mass < 15 ) { return false; }
       if ( llc.dR < 0.2 ) { return false; }
-      if ( llc.cosAlpha < -0.79 ) { return false; }
+      //if ( llc.cosAlpha < -0.79 ) { return false; }
 
       return true;
 
