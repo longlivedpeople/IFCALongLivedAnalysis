@@ -3,7 +3,7 @@ config = Configuration()
 
 config.section_('General')
 config.General.transferLogs = True
-config.General.requestName = 'WW_NTuple'
+config.General.requestName = '400-50-4_ScalarBosons_NTuple'
 
 config.section_('JobType')
 config.JobType.pluginName = 'Analysis'
@@ -12,13 +12,13 @@ config.JobType.disableAutomaticOutputCollection = True
 config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
                              'PUreweighting/2016MCPileupHistogram.root']
 config.JobType.outputFiles = ['output.root']
-config.JobType.maxMemoryMB = 2500
 
 config.section_('Data')
 config.Data.inputDBS = 'phys03'
-config.Data.splitting = 'Automatic'
-#config.Data.unitsPerJob = 10
-config.Data.inputDataset = '/WW_TuneCUETP8M1_13TeV-pythia8/fernance-WW_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+config.Data.splitting = 'FileBased'
+config.Data.unitsPerJob = 30
+config.Data.inputDataset = '/H2ToLLPXToLeptons_MH_400_MX_50_ctau_4mm_TuneCP2_13TeV_pythia8_80X_13082019-1313/fernance-400-50-4_RunIISummer16MiniAODv3_230220-1650-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
 

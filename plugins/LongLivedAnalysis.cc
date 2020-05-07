@@ -76,8 +76,10 @@
 
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
+#include "DataFormats/Math/interface/deltaR.h"
 
 #include "MyAnalysis/IFCALongLivedAnalysis/interface/llCandidateDataFormat.h"
+#include "MyAnalysis/IFCALongLivedAnalysis/interface/trackPairDataFormat.h"
 
 
 //#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
@@ -365,11 +367,21 @@ Float_t GM_dxy[20];
 Float_t GM_q[20];
 // DisplacedGlobalMuons 
 Int_t nDGM;
+Int_t DGM_idx[20];
 Float_t DGM_pt[20];
 Float_t DGM_eta[20];
 Float_t DGM_phi[20];
 Float_t DGM_dxy[20];
+Float_t DGM_dxyError[20];
+Float_t DGM_Ixy[20];
 Float_t DGM_q[20];
+Float_t DGM_relPFiso[20];
+Int_t DGM_numberOfValidHits[20];
+Int_t DGM_numberOfLostHits[20];
+Float_t DGM_chi2[20];
+Float_t DGM_ndof[20];
+Int_t DGM_charge[20];
+Int_t DGM_isHighPurity[2];
 
 
 // -> GENHIGGS
@@ -385,29 +397,35 @@ Float_t MuonTriggerObjectSel_eta[nMuonTriggerObjectMax];
 Float_t MuonTriggerObjectSel_phi[nMuonTriggerObjectMax];
 
 //-> GENLEPTON SELECTION
-const Int_t nGenLeptonMax = 10;
+const Int_t nGenLeptonMax = 30;
 Int_t nGenLepton;
+Int_t nGenLepton_PFS;
+Int_t nGenLepton_HPFS;
+Int_t nGenLepton_PTDP;
+Int_t nGenLepton_HDP;
 Float_t GenLeptonSel_pt[nGenLeptonMax];
 Float_t GenLeptonSel_et[nGenLeptonMax];
 Float_t GenLeptonSel_eta[nGenLeptonMax];
 Float_t GenLeptonSel_phi[nGenLeptonMax];
 Int_t GenLeptonSel_pdgId[nGenLeptonMax];
 Float_t GenLeptonSel_dxy[nGenLeptonMax];
-Int_t GenLeptonSel_motherIdx[nGenLeptonMax];
-Int_t GenLeptonSel_objectMatch[nGenLeptonMax];
-Int_t GenLeptonSel_trackMatch[nGenLeptonMax];
-Float_t GenLeptonSel_objectdR[nGenLeptonMax];
-Float_t GenLeptonSel_trackdR[nGenLeptonMax];
-Int_t GenLeptonSel_hasValidPair[nGenLeptonMax];
-Float_t GenLeptonSel_pairdR[nGenLeptonMax];
-Int_t GenLeptonSel_trackDegeneration[nGenLeptonMax];
-Int_t GenLeptonSel_objectDegeneration[nGenLeptonMax];
 Float_t GenLeptonSel_vx[nGenLeptonMax];
 Float_t GenLeptonSel_vy[nGenLeptonMax];
 Float_t GenLeptonSel_vz[nGenLeptonMax];
+Int_t GenLeptonSel_motherPdgId[nGenLeptonMax];
+Int_t GenLeptonSel_fromHardProcessFinalState[nGenLeptonMax];
+Int_t GenLeptonSel_isPromptFinalState[nGenLeptonMax];
+Int_t GenLeptonSel_isDirectPromptTauDecayProductFinalState[nGenLeptonMax];
+Int_t GenLeptonSel_isDirectHadronDecayProduct[nGenLeptonMax];
 
+Int_t nHardProcessParticle;
+Float_t HardProcessParticle_pt[30];
+Float_t HardProcessParticle_eta[30];
+Float_t HardProcessParticle_phi[30];
+Int_t HardProcessParticle_pdgId[30];
 
 //-> GENNEUTRALINO SELECTION
+/*
 const Int_t nGenNeutralinoMax = 500;
 Int_t nGenNeutralino;
 Float_t GenNeutralinoSel_pt[nGenNeutralinoMax];
@@ -417,7 +435,7 @@ Int_t GenNeutralinoSel_pdgId[nGenNeutralinoMax];
 Int_t GenNeutralinoSel_decaypdgId[nGenNeutralinoMax];
 Bool_t GenNeutralinoSel_passAcceptance[nGenNeutralinoMax];
 Float_t GenNeutralinoSel_Lxy[nGenNeutralinoMax];
-
+*/
 
 // -> GENERATION ACCEPTANCE CRITERIA
 Bool_t passAcceptanceCriteria;
@@ -565,6 +583,43 @@ Int_t MMBase_fromPVA[20];
 Int_t MMBase_fromPVB[20];
 Int_t MMBase_PVAssociation[20];
 
+// -> All DGM pairs
+Int_t nDMDM;
+Float_t DMDM_idxA[20];
+Float_t DMDM_idxB[20];
+Float_t DMDM_Lxy[20];
+Float_t DMDM_Ixy[20];
+Float_t DMDM_trackDxy[20];
+Float_t DMDM_trackIxy[20];
+Float_t DMDM_normalizedChi2[20];
+Float_t DMDM_mass[20];
+Float_t DMDM_leadingPt[20];
+Float_t DMDM_subleadingPt[20];
+Float_t DMDM_cosAlpha[20];
+Float_t DMDM_dPhi[20];
+Float_t DMDM_relisoA[20];
+Float_t DMDM_relisoB[20];
+
+// -> DGM pairs that survive to basiline selection
+Int_t nDMDMBase; 
+Int_t DMDMBase_maxIxy;
+Int_t DMDMBase_idxA[20];
+Int_t DMDMBase_idxB[20];
+Float_t DMDMBase_Lxy[20];
+Float_t DMDMBase_Ixy[20];
+Float_t DMDMBase_trackDxy[20];
+Float_t DMDMBase_trackIxy[20];
+Float_t DMDMBase_vx[20];
+Float_t DMDMBase_vy[20];
+Float_t DMDMBase_normalizedChi2[20];
+Float_t DMDMBase_mass[20];
+Float_t DMDMBase_leadingPt[20];
+Float_t DMDMBase_subleadingPt[20];
+Float_t DMDMBase_cosAlpha[20];
+Float_t DMDMBase_dPhi[20];
+Float_t DMDMBase_relisoA[20];
+Float_t DMDMBase_relisoB[20];
+
 
 /////////////////////////////////////// OUTPUT //////////////////////////////////////
 
@@ -622,8 +677,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       // PU reweighting
       edm::EDGetTokenT<std::vector<PileupSummaryInfo> >  thePileUpSummary;
-      edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("test/2016/PUreweighting/2016MCPileupHistogram.root", "test/2016/PUreweighting/2016DataPileupHistogram.root", "pileup", "pileup");
-      //lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
+      edm::LumiReWeighting lumi_weights = edm::LumiReWeighting("2016MCPileupHistogram.root", "2016DataPileupHistogram.root", "pileup", "pileup");
 
       //"Global" variables
       std::vector<int> iT; // track indexes
@@ -635,10 +689,15 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       bool passPhotonSelection(const pat::Photon &photon);
       bool passL2MuonSelection( pat::TriggerObjectStandAlone obj); 
       bool passMuonSelection(const pat::Muon &muon);
+      bool passDGMSelection(const reco::Track &muon);
       bool passBaselineSelection(llCandidate llc);
+      bool passBaselineSelection(trackPair ttp); // overload
       float computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv);
+      float computeDxy(const reco::Track & track, const reco::Vertex pv);
       reco::Vertex getSVCandidate(const pat::PackedCandidateRef &pckCandA, const pat::PackedCandidateRef &pckCandB);
       float computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv);
+      float computeDxyError(const reco::Track & track, const reco::Vertex pv);
+      float computeRelIso(const reco::Track & track,  edm::Handle<edm::View<pat::PackedCandidate> > pfs);
 
       // Histograms
       TH1F *counts, *sum2Weights;
@@ -1298,6 +1357,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    // --------------------------------------------------- //
    /////////////////////////////////////////////////////////
 
+   std::vector<int> iDGM; // needs to be declared outside the conditional
+
    if (_DSAMode){
 
      // StandAlone muons:
@@ -1352,34 +1413,153 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
      }
 
+
+
      // DisplacedGlobalMuons:
-     nDGM = DGMs->size();
      for (size_t i = 0; i < DGMs->size(); i++){
 
        const reco::Track &muon = (*DGMs)[i];
+       if (passDGMSelection(muon)) {iDGM.push_back(i);}
+
+     }
+     nDGM = iDGM.size();
+
+     for (size_t i = 0; i < iDGM.size(); i++){
+
+       const reco::Track &muon = (*DGMs)[iDGM.at(i)];
        DGM_pt[i] = muon.pt();
        DGM_eta[i] = muon.eta();
        DGM_phi[i] = muon.phi();
-       DGM_dxy[i] = muon.dxy();
+       DGM_dxy[i] = computeDxy(muon, thePrimaryVertex);
+       DGM_dxyError[i] = computeDxyError(muon, thePrimaryVertex);
+       DGM_Ixy[i] = DGM_dxy[i]/DGM_dxyError[i];
        DGM_q[i] = muon.charge();
+       DGM_relPFiso[i] = computeRelIso(muon, packedPFCandidates);
+       DGM_numberOfValidHits[i] = muon.numberOfValidHits();
+       DGM_numberOfLostHits[i] = muon.numberOfLostHits();
+       DGM_chi2[i] = muon.chi2();
+       DGM_ndof[i] = muon.ndof();
+       DGM_charge[i] = muon.charge();
+       DGM_isHighPurity[i] = muon.quality(muon.qualityByName("highPurity"));
+
+       DGM_idx[i] = iDGM.at(i); // only to use in analyzer not in Galapago
 
      }
 
    }
 
 
-
-
-
    //////////////////////////////// GENPARTICLE FEATURES ///////////////////////////////
-   //PABLO: MAKE A POLICY FOR GENERATED PARTICLES
    std::vector<int> iGL; // Generated lepton indexes
-   std::vector<int> iGN; // Generated neutralino indexes
-   int iH = -1; // Higgs index
+
+   reco::GenParticleRef mref;
+   reco::GenParticle m;
 
    if (!_isData)
    {
 
+       //// *** Get the leptons that can be idenitified in the detector ***
+       // pdgId: 11, -11, 13 and -13
+       for(size_t i = 0; i < genParticles->size(); i++) {
+
+	   const reco::GenParticle &genparticle = (*genParticles)[i];
+
+           if ( ( abs(genparticle.pdgId()) == 11 || abs(genparticle.pdgId()) == 13 ) && genparticle.status() == 1) {
+               iGL.push_back(i);
+           }
+       }
+
+       nGenLepton = iGL.size();
+       std::sort( std::begin(iGL), std::end(iGL), [&](int i1, int i2){ return genParticles->at(i1).pt() > genParticles->at(i2).pt(); });
+
+       for(size_t i = 0; i < iGL.size(); i++) {
+
+          const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
+    
+          GenLeptonSel_pt[i] = genparticle.pt();
+          GenLeptonSel_et[i] = genparticle.et();
+          GenLeptonSel_eta[i] = genparticle.eta();
+          GenLeptonSel_phi[i] = genparticle.phi();
+          GenLeptonSel_pdgId[i] = genparticle.pdgId();
+
+          // Bottom-up to get the real decaying particle:
+          if (genparticle.mother()->pdgId() == genparticle.pdgId()) {
+
+              mref = genparticle.motherRef();
+              m = *mref;
+              while (m.pdgId() == m.mother()->pdgId()) {
+                  mref = m.motherRef();
+                  m = *mref;
+              }
+
+              GenLeptonSel_vx[i] = m.vx();
+              GenLeptonSel_vy[i] = m.vy();
+              GenLeptonSel_vz[i] = m.vz();
+	      GenLeptonSel_dxy[i] = dxy_value(m, thePrimaryVertex); // should be computed here or before?
+
+              if(m.numberOfMothers() != 0){
+                  GenLeptonSel_motherPdgId[i] = m.motherRef()->pdgId();
+              } else {
+                  GenLeptonSel_motherPdgId[i] = 0; 
+              }
+          }else{
+
+              GenLeptonSel_vx[i] = genparticle.vx();
+              GenLeptonSel_vy[i] = genparticle.vy();
+              GenLeptonSel_vz[i] = genparticle.vz();
+	      GenLeptonSel_dxy[i] = dxy_value(genparticle, thePrimaryVertex); // should be computed here or before?
+
+              GenLeptonSel_motherPdgId[i] = genparticle.motherRef()->pdgId();
+          }
+
+
+
+          // Flags:
+          GenLeptonSel_isPromptFinalState[i] = genparticle.isPromptFinalState();
+          GenLeptonSel_fromHardProcessFinalState[i] = genparticle.fromHardProcessFinalState(); // has to be done with the last one
+          GenLeptonSel_isDirectPromptTauDecayProductFinalState[i] = genparticle.isDirectPromptTauDecayProductFinalState(); 
+          GenLeptonSel_isDirectHadronDecayProduct[i] = genparticle.statusFlags().isDirectHadronDecayProduct(); 
+
+
+       }
+
+
+       // Counters initialization
+       nGenLepton_PFS = 0; 
+       nGenLepton_HPFS = 0; 
+       nGenLepton_PTDP = 0; 
+       nGenLepton_HDP = 0; 
+
+       for(size_t i = 0; i < iGL.size(); i++) {
+
+           if (GenLeptonSel_isPromptFinalState[i]) { nGenLepton_PFS++; }
+           if (GenLeptonSel_fromHardProcessFinalState[i]) { nGenLepton_HPFS++; }
+           if (GenLeptonSel_isDirectPromptTauDecayProductFinalState[i]) { nGenLepton_PTDP++; }
+           if (GenLeptonSel_isDirectHadronDecayProduct[i]) { nGenLepton_HDP++; }
+
+       }
+
+
+       // -> Hard Process Collection
+       nHardProcessParticle = 0;
+       for(size_t i = 0; i < genParticles->size(); i++) {
+
+          const reco::GenParticle &genparticle = (*genParticles)[i];
+       
+           if (genparticle.isHardProcess()){
+
+               HardProcessParticle_pt[nHardProcessParticle] = genparticle.pt();
+               HardProcessParticle_eta[nHardProcessParticle] = genparticle.eta();
+               HardProcessParticle_phi[nHardProcessParticle] = genparticle.phi();
+               HardProcessParticle_pdgId[nHardProcessParticle] = genparticle.pdgId();
+
+               nHardProcessParticle++;
+           }       
+       }
+
+
+
+       /*
        for(size_t i = 0; i < genParticles->size(); i++) {
 
 
@@ -1522,11 +1702,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
        }
-
+       */
    }
 
    //////////////////////////////// ACCEPTANCE CRITERIA ////////////////////////////////
-
+   /*
    if (!_isData)
      {
 
@@ -1540,9 +1720,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] > 40){ passLeadingElectron = true;}//isn't this a little silly if we have more than one LL candidate?
 
-	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAccLL = false; /*break;*/}
-	   if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAccLL = false; /*break;*/}
-	   if (fabs(GenLeptonSel_eta[i]) > 2){ passAccLL = false; /*break;*/}
+	   if (abs(GenLeptonSel_pdgId[i]) == 11 && GenLeptonSel_et[i] < 25){ passAccLL = false; //break;}
+	   if (abs(GenLeptonSel_pdgId[i]) == 13 && GenLeptonSel_pt[i] < 26){ passAccLL = false; //break;}
+	   if (fabs(GenLeptonSel_eta[i]) > 2){ passAccLL = false; //break;}
 
 	 }
 
@@ -1561,7 +1741,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
  
 
    }
-   
+   */
 
    //////////////////////////////////////// MET ////////////////////////////////////////
    //CHECK: DO WE WANT TO USE PUPPIMET
@@ -1937,9 +2117,119 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    } // end while 
 
 
+
+   /////////////////////////////////////////////////////////////
+   // ------------------------------------------------------- //
+   // ----------- dGMdGMCandidates reconstruction ----------- //
+   // ------------------------------------------------------- //
+   /////////////////////////////////////////////////////////////
+   nDMDM = 0;
+   nDMDMBase = 0;
+   DMDMBase_maxIxy = 0;
+   std::vector<double> pairedDM; // displaced global muons that are already paired
+
+
+   while(2*nDMDM < nDGM - 1 ){
+
+     // Init control variables:
+     minChi2 = 10000;
+     min_i = 99;
+     min_j = 99;
+
+     for (int i = 0; i < nDGM; i++) {
+       for (int j = i+1; j < nDGM; j++) {
+ 
+         if (i == j) { continue; }
+         if ( std::find(pairedDM.begin(), pairedDM.end(), i) != pairedDM.end() ) {continue;}
+         if ( std::find(pairedDM.begin(), pairedDM.end(), j) != pairedDM.end() ) {continue;}
+
+         const reco::Track & tr_i = (*DGMs)[DGM_idx[i]];
+         const reco::Track & tr_j = (*DGMs)[DGM_idx[j]];
+
+         trackPair testcandidate(thePrimaryVertex, theTransientTrackBuilder, tr_i, tr_j, false);
+
+         if (!testcandidate.hasValidVertex) { continue ;} 
+
+         // Check if the Chi2 is lower:
+         if (testcandidate.normalizedChi2 < minChi2) {
+           minChi2 = testcandidate.normalizedChi2;
+           min_i = i;
+           min_j = j;
+         }
+
+       } // end j muon loop
+     } // end i muon loop
+
+     if (min_i == 99 || min_j == 99) { break; }
+     pairedDM.push_back(min_i);
+     pairedDM.push_back(min_j);
+
+     // -> Get LLP Candidate variables:
+     const reco::Track & tr_i = (*DGMs)[DGM_idx[min_i]];
+     const reco::Track & tr_j = (*DGMs)[DGM_idx[min_j]];
+
+     trackPair dmdmCandidate(thePrimaryVertex, theTransientTrackBuilder, tr_i, tr_j, false);
+     dmdmCandidate.relisoA = DGM_relPFiso[min_i];
+     dmdmCandidate.relisoB = DGM_relPFiso[min_j];
+
+     if (!_BSMode){
+
+        DMDM_idxA[nMM] = min_i;
+        DMDM_idxB[nMM] = min_j;
+        DMDM_Lxy[nMM] = dmdmCandidate.vertexLxy;
+        DMDM_Ixy[nMM] = dmdmCandidate.vertexIxy;
+        DMDM_trackDxy[nMM] = dmdmCandidate.trackDxy;
+        DMDM_trackIxy[nMM] = dmdmCandidate.trackIxy;
+        DMDM_normalizedChi2[nMM] = dmdmCandidate.normalizedChi2;
+        DMDM_mass[nMM] = dmdmCandidate.mass;
+        DMDM_leadingPt[nMM] = dmdmCandidate.leadingPt;
+        DMDM_subleadingPt[nMM] = dmdmCandidate.subleadingPt;
+        DMDM_cosAlpha[nMM] = dmdmCandidate.cosAlpha;
+        DMDM_dPhi[nMM] = dmdmCandidate.dPhi;
+        DMDM_relisoA[nMM] = dmdmCandidate.relisoA;
+        DMDM_relisoB[nMM] = dmdmCandidate.relisoB;
+
+     }
+     nDMDM++;
+
+     // -> Fill candidates that pass baseline selection:
+     if ( passBaselineSelection(dmdmCandidate) ) {
+
+        if (_BSMode){
+           
+           //leptonTracks.push_back(it_A); leptonTracks.push_back(it_B);
+
+           DMDMBase_idxA[nDMDMBase] = min_i;
+           DMDMBase_idxB[nDMDMBase] = min_j;
+           DMDMBase_Lxy[nDMDMBase] = dmdmCandidate.vertexLxy;
+           DMDMBase_Ixy[nDMDMBase] = dmdmCandidate.vertexIxy;
+           DMDMBase_trackDxy[nDMDMBase] = dmdmCandidate.trackDxy;
+           DMDMBase_trackIxy[nDMDMBase] = dmdmCandidate.trackIxy;
+           DMDMBase_vx[nDMDMBase] = dmdmCandidate.vx;
+           DMDMBase_vy[nDMDMBase] = dmdmCandidate.vy;
+           DMDMBase_normalizedChi2[nDMDMBase] = dmdmCandidate.normalizedChi2;
+           DMDMBase_mass[nDMDMBase] = dmdmCandidate.mass;
+           DMDMBase_leadingPt[nDMDMBase] = dmdmCandidate.leadingPt;
+           DMDMBase_subleadingPt[nDMDMBase] = dmdmCandidate.subleadingPt;
+           DMDMBase_cosAlpha[nDMDMBase] = dmdmCandidate.cosAlpha;
+           DMDMBase_dPhi[nDMDMBase] = dmdmCandidate.dPhi;
+           DMDMBase_relisoA[nDMDMBase] = dmdmCandidate.relisoA;
+           DMDMBase_relisoB[nDMDMBase] = dmdmCandidate.relisoB;
+
+           if ( fabs(DMDMBase_trackIxy[nDMDMBase]) > fabs(DMDMBase_trackIxy[DMDMBase_maxIxy]) ) { DMDMBase_maxIxy = nDMDMBase; }
+
+        }
+        nDMDMBase++;
+
+     }
+
+   } // end while 
+
+
+
    ////////////////////////////////////////////////////////////////////////////////////////////
    //// ---------------------------------------------------------------------------------- ////
-   //// -------------------------------- VERTEX REFITTING -------------------------------- ////                                                    
+   //// -------------------------------- VERTEX REFITTING -------------------------------- ////    
    //// ---------------------------------------------------------------------------------- ////
    ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2211,8 +2501,9 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("IsoTrackSel_relPfIsolationDR03", IsoTrackSel_relPfIsolationDR03, "IsoTrackSel_relPfIsolationDR03[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_relMiniPFIsolation", IsoTrackSel_relMiniPFIsolation, "IsoTrackSel_relMiniPFIsolation[nIsoTrack]/F");
     tree_out->Branch("IsoTrackSel_isHighPurityTrack", IsoTrackSel_isHighPurityTrack, "IsoTrackSel_isHighPurityTrack[nIsoTrack]/I");
-    /*
+    
     tree_out->Branch("IsoTrackSel_numberOfValidTrackerHits", IsoTrackSel_numberOfValidTrackerHits, "IsoTrackSel_numberOfValidTrackerHits[nIsoTrack]/I");
+    /*
     tree_out->Branch("IsoTrackSel_numberOfValidPixelHits", IsoTrackSel_numberOfValidPixelHits, "IsoTrackSel_numberOfValidPixelHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelBarrelHits", IsoTrackSel_numberOfValidPixelBarrelHits, "IsoTrackSel_numberOfValidPixelBarrelHits[nIsoTrack]/I");
     tree_out->Branch("IsoTrackSel_numberOfValidPixelEndcapHits", IsoTrackSel_numberOfValidPixelEndcapHits, "IsoTrackSel_numberOfValidPixelEndcapHits[nIsoTrack]/I");
@@ -2230,12 +2521,13 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_et", PhotonSel_et, "PhotonSel_et[nPhoton]/F");
     tree_out->Branch("PhotonSel_eta", PhotonSel_eta, "PhotonSel_eta[nPhoton]/F");
     tree_out->Branch("PhotonSel_phi", PhotonSel_phi, "PhotonSel_phi[nPhoton]/F");
-    /*
+    
     tree_out->Branch("PhotonSel_hadronicOverEm", PhotonSel_hadronicOverEm, "PhotonSel_hadronicOverEm[nPhoton]/F");
     tree_out->Branch("PhotonSel_full5x5_sigmaIetaIeta", PhotonSel_full5x5_sigmaIetaIeta, "PhotonSel_full5x5_sigmaIetaIeta[nPhoton]/F");
-    tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
-    tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
     tree_out->Branch("PhotonSel_r9", PhotonSel_r9, "PhotonSel_r9[nPhoton]/F");
+    //tree_out->Branch("PhotonSel_isEB", PhotonSel_isEB, "PhotonSel_isEB[nPhoton]/I");
+    //tree_out->Branch("PhotonSel_isEE", PhotonSel_isEE, "PhotonSel_isEE[nPhoton]/I");
+    /*
     tree_out->Branch("PhotonSel_ecalIso", PhotonSel_ecalIso, "PhotonSel_ecalIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_hcalIso", PhotonSel_hcalIso, "PhotonSel_hcalIso[nPhoton]/F");
     tree_out->Branch("PhotonSel_caloIso", PhotonSel_caloIso, "PhotonSel_caloIso[nPhoton]/F");
@@ -2312,7 +2604,16 @@ void LongLivedAnalysis::beginJob()
       tree_out->Branch("DGM_eta", DGM_eta, "DGM_eta[nDGM]/F");
       tree_out->Branch("DGM_phi", DGM_phi, "DGM_phi[nDGM]/F");
       tree_out->Branch("DGM_dxy", DGM_dxy, "DGM_dxy[nDGM]/F");
+      tree_out->Branch("DGM_dxyError", DGM_dxyError, "DGM_dxyError[nDGM]/F");
+      tree_out->Branch("DGM_Ixy", DGM_Ixy, "DGM_Ixy[nDGM]/F");
       tree_out->Branch("DGM_q", DGM_q, "DGM_q[nDGM]/F");
+      tree_out->Branch("DGM_relPFiso", DGM_relPFiso, "DGM_relPFiso[nDGM]/F");
+      tree_out->Branch("DGM_numberOfValidHits", DGM_numberOfValidHits, "DGM_numberOfValidHits[nDGM]/I");
+      tree_out->Branch("DGM_numberOfLostHits", DGM_numberOfLostHits, "DGM_numberOfLostHits[nDGM]/I");
+      tree_out->Branch("DGM_chi2", DGM_chi2, "DGM_chi2[nDGM]/F");
+      tree_out->Branch("DGM_ndof", DGM_ndof, "DGM_ndof[nDGM]/F");
+      tree_out->Branch("DGM_charge", DGM_charge, "DGM_charge[nDGM]/I");
+      tree_out->Branch("DGM_isHighPurity", DGM_isHighPurity, "DGM_isHighPurity[nDGM]/I");
     }
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////
@@ -2325,11 +2626,11 @@ void LongLivedAnalysis::beginJob()
 
     //////////////////////////////// GENPARTICLE BRANCHES ///////////////////////////////
 
-    tree_out->Branch("GenHiggs_pt", &GenHiggs_pt, "GenHiggs_pt/F");
-    tree_out->Branch("GenHiggs_eta", &GenHiggs_eta, "GenHiggs_eta/F");
-    tree_out->Branch("GenHiggs_phi", &GenHiggs_phi, "GenHiggs_phi/F");
-
     tree_out->Branch("nGenLepton", &nGenLepton, "nGenLepton/I");
+    tree_out->Branch("nGenLepton_PFS", &nGenLepton_PFS, "nGenLepton_PFS/I");
+    tree_out->Branch("nGenLepton_HPFS", &nGenLepton_HPFS, "nGenLepton_HPFS/I");
+    tree_out->Branch("nGenLepton_HDP", &nGenLepton_HDP, "nGenLepton_HDP/I");
+    tree_out->Branch("nGenLepton_PTDP", &nGenLepton_PTDP, "nGenLepton_PTDP/I");
     tree_out->Branch("GenLeptonSel_pt", GenLeptonSel_pt, "GenLeptonSel_pt[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_et", GenLeptonSel_et, "GenLeptonSel_et[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_eta", GenLeptonSel_eta, "GenLeptonSel_eta[nGenLepton]/F");
@@ -2339,18 +2640,19 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("GenLeptonSel_vy", GenLeptonSel_vy, "GenLeptonSel_vy[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_vz", GenLeptonSel_vz, "GenLeptonSel_vz[nGenLepton]/F");
     tree_out->Branch("GenLeptonSel_pdgId", GenLeptonSel_pdgId, "GenLeptonSel_pdgId[nGenLepton]/I");
-    tree_out->Branch("GenLeptonSel_motherIdx", GenLeptonSel_motherIdx, "GenLeptonSel_motherIdx[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_motherPdgId", GenLeptonSel_motherPdgId, "GenLeptonSel_motherPdgId[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_isPromptFinalState", GenLeptonSel_isPromptFinalState, "GenLeptonSel_isPromptFinalState[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_fromHardProcessFinalState", GenLeptonSel_fromHardProcessFinalState, "GenLeptonSel_fromHardProcessFinalState[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_isDirectPromptTauDecayProductFinalState", GenLeptonSel_isDirectPromptTauDecayProductFinalState, "GenLeptonSel_isDirectPromptTauDecayProductFinalState[nGenLepton]/I");
+    tree_out->Branch("GenLeptonSel_isDirectHadronDecayProduct", GenLeptonSel_isDirectHadronDecayProduct, "GenLeptonSel_isDirectHadronDecayProduct[nGenLepton]/I");
 
     
-    tree_out->Branch("nGenNeutralino", &nGenNeutralino, "nGenNeutralino/I");  
-    tree_out->Branch("GenNeutralinoSel_pt", GenNeutralinoSel_pt, "GenNeutralinoSel_pt[nGenNeutralino]/F");
-    tree_out->Branch("GenNeutralinoSel_eta", GenNeutralinoSel_eta, "GenNeutralinoSel_eta[nGenNeutralino]/F");
-    tree_out->Branch("GenNeutralinoSel_phi", GenNeutralinoSel_phi, "GenNeutralinoSel_phi[nGenNeutralino]/F"); 
-    tree_out->Branch("GenNeutralinoSel_Lxy", GenNeutralinoSel_Lxy, "GenNeutralinoSel_Lxy[nGenNeutralino]/F");
-    tree_out->Branch("GenNeutralinoSel_pdgId", GenNeutralinoSel_pdgId, "GenNeutralinoSel_pdgId[nGenNeutralino]/I");
-    tree_out->Branch("GenNeutralinoSel_decaypdgId", GenNeutralinoSel_decaypdgId, "GenNeutralinoSel_decaypdgId[nGenNeutralino]/I");
-    tree_out->Branch("GenNeutralinoSel_passAcceptance", GenNeutralinoSel_passAcceptance, "GenNeutralinoSel_passAcceptance[nGenNeutralino]/O");
-    
+    tree_out->Branch("nHardProcessParticle", &nHardProcessParticle, "nHardProcessParticle/I");
+    tree_out->Branch("HardProcessParticle_pt", HardProcessParticle_pt, "HardProcessParticle_pt[nHardProcessParticle]/F");
+    tree_out->Branch("HardProcessParticle_eta", HardProcessParticle_eta, "HardProcessParticle_eta[nHardProcessParticle]/F");
+    tree_out->Branch("HardProcessParticle_phi", HardProcessParticle_phi, "HardProcessParticle_phi[nHardProcessParticle]/F");
+    tree_out->Branch("HardProcessParticle_pdgId", HardProcessParticle_pdgId, "HardProcessParticle_pdgId[nHardProcessParticle]/I");
+
     //////////////////////////////////// MET BRANCHES ///////////////////////////////////
 
     tree_out->Branch("MET_pt", &MET_pt, "MET_pt/F");
@@ -2481,6 +2783,48 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("MMBase_fromPVB", MMBase_fromPVB, "MMBase_fromPVB[nMMBase]/I");
     tree_out->Branch("MMBase_PVAssociation", MMBase_PVAssociation, "MMBase_PVAssociation[nMMBase]/I");
 
+    tree_out->Branch("nDMDM", &nDMDM, "nDMDM/I");
+    if (!_BSMode && _DSAMode) {
+       tree_out->Branch("DMDM_idxA", DMDM_idxA, "DMDM_idxA[nDMDM]/I");
+       tree_out->Branch("DMDM_idxB", DMDM_idxB, "DMDM_idxB[nDMDM]/I");
+       tree_out->Branch("DMDM_Lxy", DMDM_Lxy, "DMDM_Lxy[nDMDM]/F");
+       tree_out->Branch("DMDM_Ixy", DMDM_Ixy, "DMDM_Ixy[nDMDM]/F");
+       tree_out->Branch("DMDM_trackDxy", DMDM_trackDxy, "DMDM_trackDxy[nDMDM]/F");
+       tree_out->Branch("DMDM_trackIxy", DMDM_trackIxy, "DMDM_trackIxy[nDMDM]/F");
+       tree_out->Branch("DMDM_mass", DMDM_mass, "DMDM_mass[nDMDM]/F");
+       tree_out->Branch("DMDM_normalizedChi2", DMDM_normalizedChi2, "DMDM_normalizedChi2[nDMDM]/F");
+       tree_out->Branch("DMDM_leadingPt", DMDM_leadingPt, "DMDM_leadingPt[nDMDM]/F");
+       tree_out->Branch("DMDM_subleadingPt", DMDM_subleadingPt, "DMDM_subleadingPt[nDMDM]/F");
+       tree_out->Branch("DMDM_cosAlpha", DMDM_cosAlpha, "DMDM_cosAlpha[nDMDM]/F");
+       tree_out->Branch("DMDM_dPhi", DMDM_dPhi, "DMDM_dPhi[nDMDM]/F");
+       tree_out->Branch("DMDM_relisoA", DMDM_relisoA, "DMDM_relisoA[nDMDM]/F");
+       tree_out->Branch("DMDM_relisoB", DMDM_relisoB, "DMDM_relisoB[nDMDM]/F");
+    }
+
+    if (_DSAMode){
+
+       tree_out->Branch("nDMDMBase", &nDMDMBase, "nDMDMBase/I");
+       tree_out->Branch("DMDMBase_maxIxy", &DMDMBase_maxIxy, "DMDMBase_maxIxy/I");
+       tree_out->Branch("DMDMBase_idxA", DMDMBase_idxA, "DMDMBase_idxA[nDMDMBase]/I");
+       tree_out->Branch("DMDMBase_idxB", DMDMBase_idxB, "DMDMBase_idxB[nDMDMBase]/I");
+       tree_out->Branch("DMDMBase_vx", DMDMBase_vx, "DMDMBase_vx[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_vy", DMDMBase_vy, "DMDMBase_vy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_Lxy", DMDMBase_Lxy, "DMDMBase_Lxy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_Ixy", DMDMBase_Ixy, "DMDMBase_Ixy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_trackDxy", DMDMBase_trackDxy, "DMDMBase_trackDxy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_trackIxy", DMDMBase_trackIxy, "DMDMBase_trackIxy[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_mass", DMDMBase_mass, "DMDMBase_mass[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_normalizedChi2", DMDMBase_normalizedChi2, "DMDMBase_normalizedChi2[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_leadingPt", DMDMBase_leadingPt, "DMDMBase_leadingPt[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_subleadingPt", DMDMBase_subleadingPt, "DMDMBase_subleadingPt[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_cosAlpha", DMDMBase_cosAlpha, "DMDMBase_cosAlpha[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_dPhi", DMDMBase_dPhi, "DMDMBase_dPhi[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_relisoA", DMDMBase_relisoA, "DMDMBase_relisoA[nDMDMBase]/F");
+       tree_out->Branch("DMDMBase_relisoB", DMDMBase_relisoB, "DMDMBase_relisoB[nDMDMBase]/F");
+
+
+    }
+
 }
 //=======================================================================================================================================================================================================================//
 
@@ -2526,7 +2870,7 @@ bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) 
 
    // Preselection cuts:
    if (track.pt() < 28) { return false; }
-   if (fabs(track.eta()) > 2) { return false; }
+   if (fabs(track.eta()) > 2.4) { return false; }
 
    // To be noticed: Isolation cuts are applied later with the LLCandidate selection
 
@@ -2544,7 +2888,7 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
    if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
 
    // Preselection cuts:
-   if (fabs(photon.eta()) > 1.4442) { return false; }
+   //if (fabs(photon.eta()) > 1.4442) { return false; }
    if (photon.et() < 28) {return false; }
 
    return true;
@@ -2555,7 +2899,7 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
 
 bool LongLivedAnalysis::passL2MuonSelection( pat::TriggerObjectStandAlone obj) {
 
-   if (fabs(obj.eta()) > 2) { return false; }
+   if (fabs(obj.eta()) > 2.4) { return false; }
    return true;
 }
 
@@ -2563,10 +2907,22 @@ bool LongLivedAnalysis::passL2MuonSelection( pat::TriggerObjectStandAlone obj) {
 
 bool LongLivedAnalysis::passMuonSelection(const pat::Muon &muon) {
 
-   if (muon.pt() < 31){ return false; }
-   if (fabs(muon.eta()) > 2) { return false; }
+   if (muon.pt() < 20){ return false; }
+   if (fabs(muon.eta()) > 2.4) { return false; }
    return true;
 }
+
+
+//=======================================================================================================================================================================================================================//
+
+bool LongLivedAnalysis::passDGMSelection(const reco::Track &muon) {
+
+   if (muon.pt() < 20){ return false; }
+   if (fabs(muon.eta()) > 2.4) { return false; }
+   if (muon.numberOfValidHits() < 6) { return false; }
+   return true;
+}
+
 
 //=======================================================================================================================================================================================================================//
 
@@ -2598,7 +2954,7 @@ bool LongLivedAnalysis::passBaselineSelection(llCandidate llc) {
       if ( llc.normalizedChi2 > 5 ) { return false; }
       if ( llc.mass < 15 ) { return false; }
       if ( llc.dR < 0.2 ) { return false; }
-      if ( llc.cosAlpha < -0.79 ) { return false; }
+      //if ( llc.cosAlpha < -0.79 ) { return false; }
 
       return true;
 
@@ -2612,9 +2968,38 @@ bool LongLivedAnalysis::passBaselineSelection(llCandidate llc) {
 }
 
 
+bool LongLivedAnalysis::passBaselineSelection(trackPair ttp) {
+
+   if ( ttp.leadingPt < 31 ) { return false; }
+   if ( ttp.subleadingPt < 31 ) { return false; }
+   if ( fabs(ttp.etaA) > 2.0 || fabs(ttp.etaB) > 2.0 ) { return false; }
+   if ( fabs(ttp.relisoA) > 0.1 || fabs(ttp.relisoB) > 0.1 ) { return false; }
+   if ( ttp.normalizedChi2 > 5 ) { return false; }
+   if ( ttp.mass < 15 ) { return false; }
+
+   return true;
+
+}
+
 //=======================================================================================================================================================================================================================//
 
 float LongLivedAnalysis::computeDxy(const pat::IsolatedTrack & track, const reco::Vertex pv) {
+
+   double vx = track.vx();
+   double vy = track.vy();
+   double phi = track.phi();
+   double PVx = pv.x();
+   double PVy = pv.y();
+
+   double dxy = -(vx - PVx)*sin(phi) + (vy - PVy)*cos(phi);
+   return dxy;
+}
+
+
+//=======================================================================================================================================================================================================================//
+
+
+float LongLivedAnalysis::computeDxy(const reco::Track & track, const reco::Vertex pv) {
 
    double vx = track.vx();
    double vy = track.vy();
@@ -2648,6 +3033,67 @@ float LongLivedAnalysis::computeDxyError(const pat::IsolatedTrack & track, const
    return sigmaXY;
 
 }
+
+//=======================================================================================================================================================================================================================//
+
+
+float LongLivedAnalysis::computeDxyError(const reco::Track & track, const reco::Vertex pv) {
+
+   // Trajectory computation [following steps in https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideTransientTracks#Examples_including_calculation_o]
+   // Used to compute uncertainty in the transverse impact parameter with respect to primary vertex.
+   
+   // Get packedCandidate and transient track:
+   reco::TransientTrack isotk = theTransientTrackBuilder->build(track);
+   
+   // Define the new point of reference and the trajectory:
+   GlobalPoint vert(pv.x(), pv.y(), pv.z());
+   TrajectoryStateClosestToPoint  traj = isotk.trajectoryStateClosestToPoint(vert);
+
+   float sigmaXY = traj.perigeeError().transverseImpactParameterError();
+
+   return sigmaXY;
+
+}
+
+
+//=======================================================================================================================================================================================================================//
+
+
+float LongLivedAnalysis::computeRelIso(const reco::Track & track, edm::Handle<edm::View<pat::PackedCandidate> > pfs) {
+
+
+   // Contributions to isolation:
+   double charged = 0, neutral = 0, pileup  = 0;
+
+   for (unsigned int i = 0, n = pfs->size(); i < n; ++i) {
+
+      const pat::PackedCandidate &pf = (*pfs)[i];
+      
+      // Reject pf candidate if it is the same track:
+      if (fabs(pf.pt() - track.pt()) < 0.01) { continue; }
+
+      // Only count tracks within a 0.3 cone
+      double _dR = getDeltaR(track.phi(), track.eta(), pf.phi(), pf.eta());
+      if (_dR > 0.3 || _dR < 0.03) { continue; }
+
+      if (pf.charge() == 0) {
+         if (pf.pt() > 0.5) neutral += pf.pt();
+      } else if (pf.fromPV() >= 2) {
+         charged += pf.pt();
+      } else {
+         if (pf.pt() > 0.5) pileup += pf.pt();
+      }
+
+   }
+
+   // do deltaBeta:
+   double iso = charged + std::max(0.0, neutral-0.5*pileup);
+   
+   return iso/track.pt();
+
+}
+
+
 
 //=======================================================================================================================================================================================================================//
 //

@@ -3,7 +3,7 @@ config = Configuration()
 
 config.section_('General')
 config.General.transferLogs = True
-config.General.requestName = '400-50-40_ScalarBosons_NTuple_withDS'
+config.General.requestName = '400-50-40_ScalarBosons_NTuple'
 
 config.section_('JobType')
 config.JobType.pluginName = 'Analysis'
