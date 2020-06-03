@@ -17,7 +17,7 @@ config.section_('Data')
 config.Data.inputDBS = 'phys03'
 config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = 10
-config.Data.inputDataset = '/H2ToLLPXToLeptons_MH_1000_MX_150_ctau_10mm_TuneCP2_13TeV_pythia8_80X_13082019-1313/fernance-ScalarBosons_RunIISummer16MiniAODv3_13082019-1313-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+config.Data.inputDataset = '/H2ToLLPXToLeptons_MH_1000_MX_150_ctau_10mm_TuneCP2_13TeV_pythia8_80X_13082019-1313/fernance-1000-150-10_RunIISummer16MiniAODv3_040420-1600-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
 

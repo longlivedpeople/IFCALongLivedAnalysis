@@ -18,7 +18,6 @@ config.Data.inputDBS = 'phys03'
 config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = 30
 config.Data.inputDataset = '/H2ToLLPXToLeptons_MH_400_MX_50_ctau_4mm_TuneCP2_13TeV_pythia8_80X_13082019-1313/fernance-400-50-4_RunIISummer16MiniAODv3_230220-1650-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
-
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
 

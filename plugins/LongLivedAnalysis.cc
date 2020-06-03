@@ -339,49 +339,49 @@ Int_t MuonSel_isPFMuon[nMuonMax];
 // -> AOD MUON COLLECTIONS
 // StandAlone:
 Int_t nSA;
-Float_t SA_pt[20];
-Float_t SA_eta[20];
-Float_t SA_phi[20];
-Float_t SA_dxy[20];
-Float_t SA_q[20];
+Float_t SA_pt[50];
+Float_t SA_eta[50];
+Float_t SA_phi[50];
+Float_t SA_dxy[50];
+Float_t SA_q[50];
 // DisplacedStandAlone:
 Int_t nDSA;
-Float_t DSA_pt[20];
-Float_t DSA_eta[20];
-Float_t DSA_phi[20];
-Float_t DSA_dxy[20];
-Float_t DSA_q[20];
+Float_t DSA_pt[200];
+Float_t DSA_eta[200];
+Float_t DSA_phi[200];
+Float_t DSA_dxy[200];
+Int_t DSA_q[200];
 // RefittedStandAlone:
 Int_t nRSA;
-Float_t RSA_pt[20];
-Float_t RSA_eta[20];
-Float_t RSA_phi[20];
-Float_t RSA_dxy[20];
-Float_t RSA_q[20];
+Float_t RSA_pt[50];
+Float_t RSA_eta[50];
+Float_t RSA_phi[50];
+Float_t RSA_dxy[50];
+Float_t RSA_q[50];
 // GlobalMuons:
 Int_t nGM;
-Float_t GM_pt[20];
-Float_t GM_eta[20];
-Float_t GM_phi[20];
-Float_t GM_dxy[20];
-Float_t GM_q[20];
+Float_t GM_pt[50];
+Float_t GM_eta[50];
+Float_t GM_phi[50];
+Float_t GM_dxy[50];
+Float_t GM_q[50];
 // DisplacedGlobalMuons 
 Int_t nDGM;
-Int_t DGM_idx[20];
-Float_t DGM_pt[20];
-Float_t DGM_eta[20];
-Float_t DGM_phi[20];
-Float_t DGM_dxy[20];
-Float_t DGM_dxyError[20];
-Float_t DGM_Ixy[20];
-Float_t DGM_q[20];
-Float_t DGM_relPFiso[20];
-Int_t DGM_numberOfValidHits[20];
-Int_t DGM_numberOfLostHits[20];
-Float_t DGM_chi2[20];
-Float_t DGM_ndof[20];
-Int_t DGM_charge[20];
-Int_t DGM_isHighPurity[2];
+Int_t DGM_idx[200];
+Float_t DGM_pt[200];
+Float_t DGM_eta[200];
+Float_t DGM_phi[200];
+Float_t DGM_dxy[200];
+Float_t DGM_dxyError[200];
+Float_t DGM_Ixy[200];
+Float_t DGM_q[200];
+Float_t DGM_relPFiso[200];
+Int_t DGM_numberOfValidHits[200];
+Int_t DGM_numberOfLostHits[200];
+Float_t DGM_chi2[200];
+Float_t DGM_ndof[200];
+Int_t DGM_charge[200];
+Int_t DGM_isHighPurity[200];
 
 
 // -> GENHIGGS
@@ -847,6 +847,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    Event_run = iEvent.id().run();
    Event_luminosityBlock = iEvent.id().luminosityBlock();
    
+
    counts->Fill(0.5);
 
    // Monte Carlo (only) information:
@@ -1014,7 +1015,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        }
      }
    Flag_HLT_DoubleMuon = trigger_DoubleMuon;
-
 
    ////////////////////////////// MUON TRIGGER OBJECTS /////////////////////////////////
  
@@ -1311,6 +1311,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        
        // this is the place to put any preselection if required
        if (goodMuon(muon)) { iM.push_back(i);}
+       //if (true) { iM.push_back(i);}
 
    }
 
@@ -1362,6 +1363,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    if (_DSAMode){
 
      // StandAlone muons:
+     /*
      nSA = SAs->size();
      for (size_t i = 0; i < SAs->size(); i++){
 
@@ -1373,6 +1375,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        SA_q[i] = muon.charge();
 
      }
+     */
 
      // DisplacedStandAlone muons:
      nDSA = DSAs->size();
@@ -1388,6 +1391,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      }
 
      // RefittedStandAlone muons:
+     /*
      nRSA = RSAs->size();
      for (size_t i = 0; i < RSAs->size(); i++){
 
@@ -1399,8 +1403,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        RSA_q[i] = muon.charge();
 
      }
+     */
 
      // GlobalMuons:
+     /*
      nGM = GMs->size();
      for (size_t i = 0; i < GMs->size(); i++){
 
@@ -1412,7 +1418,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        GM_q[i] = muon.charge();
 
      }
-
+     */
 
 
      // DisplacedGlobalMuons:
@@ -2403,6 +2409,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////////////////////////////////////////////////////////////
    tree_out->Fill();
 
+   std::cout << "Tree out filled" << std::endl;
 
 }
 //=======================================================================================================================================================================================================================//
@@ -2571,20 +2578,21 @@ void LongLivedAnalysis::beginJob()
     //////////////////////////// AOD MUON BRANCHES ///////////////////////////
     
     if (_DSAMode){
+      /*
       tree_out->Branch("nSA", &nSA, "nSA/I");
       tree_out->Branch("SA_pt", SA_pt, "SA_pt[nSA]/F");
       tree_out->Branch("SA_eta", SA_eta, "SA_eta[nSA]/F");
       tree_out->Branch("SA_phi", SA_phi, "SA_phi[nSA]/F");
       tree_out->Branch("SA_dxy", SA_dxy, "SA_dxy[nSA]/F");
       tree_out->Branch("SA_q", SA_q, "SA_q[nSA]/F");
-
+      */
       tree_out->Branch("nDSA", &nDSA, "nDSA/I");
       tree_out->Branch("DSA_pt", DSA_pt, "DSA_pt[nDSA]/F");
       tree_out->Branch("DSA_eta", DSA_eta, "DSA_eta[nDSA]/F");
       tree_out->Branch("DSA_phi", DSA_phi, "DSA_phi[nDSA]/F");
       tree_out->Branch("DSA_dxy", DSA_dxy, "DSA_dxy[nDSA]/F");
-      tree_out->Branch("DSA_q", DSA_q, "DSA_q[nDSA]/F");
-
+      tree_out->Branch("DSA_q", DSA_q, "DSA_q[nDSA]/I");
+      /*
       tree_out->Branch("nRSA", &nRSA, "nRSA/I");
       tree_out->Branch("RSA_pt", RSA_pt, "RSA_pt[nRSA]/F");
       tree_out->Branch("RSA_eta", RSA_eta, "RSA_eta[nRSA]/F");
@@ -2598,6 +2606,7 @@ void LongLivedAnalysis::beginJob()
       tree_out->Branch("GM_phi", GM_phi, "GM_phi[nGM]/F");
       tree_out->Branch("GM_dxy", GM_dxy, "GM_dxy[nGM]/F");
       tree_out->Branch("GM_q", GM_q, "GM_q[nGM]/F");
+      */
 
       tree_out->Branch("nDGM", &nDGM, "nDGM/I");
       tree_out->Branch("DGM_pt", DGM_pt, "DGM_pt[nDGM]/F");
@@ -2614,6 +2623,7 @@ void LongLivedAnalysis::beginJob()
       tree_out->Branch("DGM_ndof", DGM_ndof, "DGM_ndof[nDGM]/F");
       tree_out->Branch("DGM_charge", DGM_charge, "DGM_charge[nDGM]/I");
       tree_out->Branch("DGM_isHighPurity", DGM_isHighPurity, "DGM_isHighPurity[nDGM]/I");
+      
     }
 
     //////////////////////////// MUON TRIGGER OBJECT BRANCHES ///////////////////////////

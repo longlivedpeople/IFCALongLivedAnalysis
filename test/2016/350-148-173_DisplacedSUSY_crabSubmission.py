@@ -18,7 +18,7 @@ config.section_('Data')
 config.Data.inputDBS = 'phys03'
 config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = 8
-config.Data.inputDataset = '/DisplacedSUSY_squarkToQuarkChi_MSquark_350_MChi_148_ctau_173mm_TuneCP2_13TeV_80X_19062019-1840/fernance-DisplacedSUSY_RunIISummer16MiniAODv3_19062019-1840-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+config.Data.inputDataset = '/DisplacedSUSY_squarkToQuarkChi_MSquark_350_MChi_148_ctau_173mm_TuneCP2_13TeV_80X_19062019-1840/fernance-RPV-350-148-173_RunIISummer16MiniAODv3_040420-1600-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
 

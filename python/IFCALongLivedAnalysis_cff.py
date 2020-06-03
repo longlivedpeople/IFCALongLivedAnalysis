@@ -2,7 +2,7 @@ import FWCore.ParameterSet.Config as cms
 
 
 longlivedanalyzer = cms.EDAnalyzer('LongLivedAnalysis',
-    isData = cms.bool(False),
+    isData = cms.bool(True),
     BSMode = cms.bool(True),
     DSAMode = cms.bool(True),
     nameOfOutput = cms.string('output.root'),

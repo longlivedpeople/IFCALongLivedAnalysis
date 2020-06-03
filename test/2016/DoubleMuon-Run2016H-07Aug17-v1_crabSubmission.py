@@ -3,11 +3,11 @@ config = Configuration()
 
 config.section_('General')
 config.General.transferLogs = True
-config.General.requestName = '1000-148-60_DisplacedSUSY_NTuple'
+config.General.requestName = 'DoubleMuon-Run2016H-07Aug17-v1_NTuple'
 
 config.section_('JobType')
 config.JobType.pluginName = 'Analysis'
-config.JobType.psetName = 'runLongLivedAnalysis_cfg.py'
+config.JobType.psetName = 'runLongLivedData_cfg.py'
 config.JobType.disableAutomaticOutputCollection = True
 config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
                              'PUreweighting/2016MCPileupHistogram.root']
@@ -16,9 +16,10 @@ config.JobType.maxMemoryMB = 2500
 
 config.section_('Data')
 config.Data.inputDBS = 'phys03'
-config.Data.splitting = 'FileBased'
-config.Data.unitsPerJob = 5
-config.Data.inputDataset = '/DisplacedSUSY_squarkToQuarkChi_MSquark_1000_MChi_148_ctau_60mm_TuneCP2_13TeV_80X_19062019-1840/fernance-RPV-1000-148-60_RunIISummer16MiniAODv3_040420-1600-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+config.Data.lumiMask = 'https://cms-service-dqm.web.cern.ch/cms-service-dqm/CAF/certification/Collisions16/13TeV/Final/Cert_271036-284044_13TeV_PromptReco_Collisions16_JSON.txt'
+config.Data.splitting = 'Automatic'
+#config.Data.unitsPerJob = 1
+config.Data.inputDataset = '/DoubleMuon/fernance-DoubleMuon-Run2016H-07Aug17-v1_modified-42be9799ae70470560a96f9e21287209/USER'
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
 
