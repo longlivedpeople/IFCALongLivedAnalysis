@@ -11,7 +11,7 @@ process.load('Configuration.Geometry.GeometryRecoDB_cff')
 process.load("Configuration.StandardSequences.MagneticField_cff")
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 process.GlobalTag.globaltag = '94X_dataRun2_v10'  # or some other global tag depending on your CMSSW release and sample. 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(50) )
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
@@ -19,11 +19,14 @@ process.source = cms.Source("PoolSource",
        #'file:/afs/cern.ch/work/p/pablom/public/1686A035-14E9-E811-BCC8-0242AC130002.root'
        # 'file:test/merged.root'
        [
-'file:file:/afs/cern.ch/work/f/fernance/private/Long_Lived_Analysis/CMSSW_9_4_4/src/MyAnalysis/IFCALongLivedAnalysis/test/testSamples/jobid_1-4.root'
+'file:/eos/user/f/fernance/LLP_Analysis/miniAOD_extended/DoubleMuon_test/EXO-RunIISummer16MiniAODv3-08121_325.root'
        ]
     ),
-    skipEvents = cms.untracked.uint32(18860)
+    skipEvents = cms.untracked.uint32(0)
 )
+
+
+process.longlivedanalyzer.isData = True
 
 process.p = cms.Path(process.longlivedanalyzer)
 

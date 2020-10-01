@@ -4,6 +4,8 @@
 #include "DataFormats/TrackReco/interface/Track.h"
 #include "DataFormats/PatCandidates/interface/Photon.h"
 
+#include "DataFormats/Math/interface/Error.h"
+#include "DataFormats/Math/interface/Point3D.h"
 #include "TrackingTools/Records/interface/TransientTrackRecord.h"
 #include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
 #include "TrackingTools/TransientTrack/interface/TransientTrack.h"
@@ -40,15 +42,27 @@ struct trackPair
    int type = 99;  // 0:electrons 1:muons
    bool canFitVertex = false;
    bool hasValidVertex = false;
-   double vertexLxy = 0;
-   double vertexIxy = 0;
+   double Lxy_PV = 0;  // Primary vertex
+   double Ixy_PV = 0;  // Primary vertex
+   double Lxy_BS = 0; // BeamSpot
+   double Ixy_BS = 0; // BeamSpot
+   double Lxy_0 = 0; // Centro del detector
+   double Ixy_0 = 0; // Centro del detector
    double normalizedChi2 = 0;
-   double trackDxy = 0;
-   double trackIxy = 0;
+   double trackDxy = 0; // std PV
+   double trackIxy = 0; //  std PV
+   double trackDxy_PV = 0; // std PV
+   double trackIxy_PV = 0; //  std PV
+   double trackDxy_0 = 0; // CMS center
+   double trackIxy_0 = 0; // CMS center
+   double trackDxy_BS = 0; // BeamSpot
+   double trackIxy_BS = 0; // BeamSpot
    double etaA = 0;
    double etaB = 0;
    double leadingPt = 0;
    double subleadingPt = 0;
+   double leadingEt = 0;
+   double subleadingEt = 0;
    double mass = 0;   
    double ptll = 0;
    double cosAlpha = 0;
@@ -70,9 +84,9 @@ struct trackPair
 
 
    // ---- trackPair constructors: 
-   trackPair(const reco::Vertex &pv, edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder, const reco::Track &tr_A, const reco::Track &tr_B, bool isEE)
+   trackPair(const reco::Vertex &pv, const reco::BeamSpot &bs, edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder, const reco::Track &tr_A, const reco::Track &tr_B, bool isEE)
    { 
-      Init(theTransientTrackBuilder, pv, tr_A, tr_B, isEE); 
+      Init(theTransientTrackBuilder, pv, bs, tr_A, tr_B, isEE); 
    };
  
    ~trackPair(){};
@@ -81,7 +95,7 @@ struct trackPair
    // ---- trackPair DataFormat functions
 
    // -- Init trackPair:
-   void Init(edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder, const reco::Vertex &pv, const reco::Track &tr_A, const reco::Track &tr_B, bool isEE)
+   void Init(edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder, const reco::Vertex &pv, const reco::BeamSpot &bs,const reco::Track &tr_A, const reco::Track &tr_B, bool isEE)
    {
 
       if (isEE) { type = 0; }
@@ -104,30 +118,45 @@ struct trackPair
 
           hasValidVertex = true;
 
+          // Define the axis along the direction of the distance is defined:
           GlobalVector axis(0,0,0);
           axis = GlobalVector(secV.x(),secV.y(),secV.z());
-          Measurement1D vMeas = reco::SecondaryVertex::computeDist2d(pv,secV,axis,true);
+
+          // Define the errors and points of the CMS centre point and the beam spot:
+          math::Error<3>::type e0; // dummy
+          math::Error<3>::type cov = bs.covariance3D();
+          math::XYZPoint pbs(bs.x0(), bs.y0(), bs.z0());
+          math::XYZPoint p0(0.0, 0.0, 0.0);
+
+          // Fake vertices for the CMS centre and beam spot:
+          const reco::Vertex v0(p0, e0);
+          const reco::Vertex vbs(pbs, cov);
+
+          // Measurements:
+          Measurement1D vMeas_PV = reco::SecondaryVertex::computeDist2d(pv,secV,axis,true);
+          Measurement1D vMeas_0 = reco::SecondaryVertex::computeDist2d(v0,secV,axis,false);
+          Measurement1D vMeas_BS = reco::SecondaryVertex::computeDist2d(vbs,secV,axis,true);
              
-          // Values:
-          vertexLxy = vMeas.value();
-          vertexIxy = vMeas.significance();
+
+          // Distance values:
+          Lxy_0 = vMeas_0.value();
+          Ixy_0 = vMeas_0.significance();
+          Lxy_PV = vMeas_PV.value();
+          Ixy_PV = vMeas_PV.significance();
+          Lxy_BS = vMeas_BS.value();
+          Ixy_BS = vMeas_BS.significance();
+
+          // Vertex position and fit details:
           normalizedChi2 = myVertex.normalisedChiSquared();         
           vx = secV.x();
           vy = secV.y();
 
+          // Kinematics: 
           leadingPt = (tr_A.pt()>tr_B.pt())? tr_A.pt(): tr_B.pt();
           subleadingPt = (tr_A.pt()<tr_B.pt())? tr_A.pt(): tr_B.pt();
-          float trA_dxy = computeDxy(tr_A, pv);
-          float trA_dxyError = computeDxyError(theTransientTrackBuilder, tr_A, pv); 
-          float trB_dxy = computeDxy(tr_B, pv);
-          float trB_dxyError = computeDxyError(theTransientTrackBuilder, tr_B, pv); 
-
-          trackDxy = (fabs(trA_dxy/trA_dxyError) < fabs(trB_dxy/trB_dxyError))? trA_dxy: trB_dxy;
-          trackIxy = (fabs(trA_dxy/trA_dxyError) < fabs(trB_dxy/trB_dxyError))? fabs(trA_dxy/trA_dxyError): fabs(trB_dxy/trB_dxyError);
           etaA = tr_A.eta();
           etaB = tr_B.eta();   
 
- 
           // Vector angles:  
           TVector3 vec3A(tr_A.px(), tr_A.py(), tr_A.pz());
           TVector3 vec3B(tr_B.px(), tr_B.py(), tr_B.pz());
@@ -152,6 +181,17 @@ struct trackPair
 
           mass = (la + lb).M();
           ptll = (la + lb).Pt();
+
+          // Filled outside:
+          /*
+          float trA_dxy = computeDxy(tr_A, pv);
+          float trA_dxyError = computeDxyError(theTransientTrackBuilder, tr_A, pv); 
+          float trB_dxy = computeDxy(tr_B, pv);
+          float trB_dxyError = computeDxyError(theTransientTrackBuilder, tr_B, pv); 
+
+          trackDxy = (fabs(trA_dxy/trA_dxyError) < fabs(trB_dxy/trB_dxyError))? trA_dxy: trB_dxy;
+          trackIxy = (fabs(trA_dxy/trA_dxyError) < fabs(trB_dxy/trB_dxyError))? fabs(trA_dxy/trA_dxyError): fabs(trB_dxy/trB_dxyError);
+          */
 
           /*
           // PV association quality flags:
