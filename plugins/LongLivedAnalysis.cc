@@ -360,6 +360,18 @@ Float_t DGM_chi2[200];
 Float_t DGM_ndof[200];
 Int_t DGM_charge[200];
 Int_t DGM_isHighPurity[200];
+Int_t DGM_nPB[200];
+Int_t DGM_nPE[200];
+Int_t DGM_nTIB[200];
+Int_t DGM_nTOB[200];
+Int_t DGM_nTID[200];
+Int_t DGM_nTEC[200];
+Int_t DGM_nDT[200];
+Int_t DGM_nCSC[200];
+Int_t DGM_nRPC[200];
+Int_t DGM_nGEM[200];
+Int_t DGM_nME0[200];
+
 
 
 // -> GENHIGGS
@@ -1099,14 +1111,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    PV_vy = thePrimaryVertex.y();
    PV_vz = thePrimaryVertex.z();
    PV_passAcceptance = false;
-   std::cout << !thePrimaryVertex.isFake() << std::endl;
-   std::cout << thePrimaryVertex.ndof() << std::endl;
-   std::cout << fabs(thePrimaryVertex.z()) << std::endl;
-   std::cout << thePrimaryVertex.position().rho() << std::endl;
+
    if (!thePrimaryVertex.isFake() && thePrimaryVertex.ndof() > 4 && fabs(thePrimaryVertex.z()) < 25 && thePrimaryVertex.position().rho() <= 2) {
        PV_passAcceptance = true;
    }
-   std::cout << PV_passAcceptance << std::endl;
 
    GlobalPoint _PVpoint(thePrimaryVertex.x(), thePrimaryVertex.y(), thePrimaryVertex.z());
 
@@ -1409,7 +1417,11 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
    if (_DSAMode){
 
-     // DisplacedStandAlone muons:
+
+     //// ---------------------------------
+     //// ---- Displaced StandAlone Muons
+     //// ---------------------------------
+     
      nDSA = DSAs->size();
      for (size_t i = 0; i < DSAs->size(); i++){
 
@@ -1427,7 +1439,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      }
 
 
-     // DisplacedGlobalMuons:
+     //// -----------------------------
+     //// ---- Displaced Global Muons
+     //// -----------------------------
+
      for (size_t i = 0; i < DGMs->size(); i++){
 
        const reco::Track &muon = (*DGMs)[i];
@@ -1439,6 +1454,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      for (size_t i = 0; i < iDGM.size(); i++){
 
        const reco::Track &muon = (*DGMs)[iDGM.at(i)];
+
+       // Main variables
        DGM_pt[i] = muon.pt();
        DGM_ptError[i] = muon.ptError();
        DGM_eta[i] = muon.eta();
@@ -1466,6 +1483,47 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        DGM_dxy_BS[i] = -_trajBS.perigeeParameters().transverseImpactParameter();
        DGM_dxyError_BS[i] = _trajBS.perigeeError().transverseImpactParameterError();
 
+       // Muon hits
+       DGM_nPB[i] = 0;
+       DGM_nPE[i] = 0;
+       DGM_nTIB[i] = 0;
+       DGM_nTOB[i] = 0;
+       DGM_nTID[i] = 0;
+       DGM_nTEC[i] = 0;
+       DGM_nDT[i] = 0;
+       DGM_nCSC[i] = 0;
+       DGM_nRPC[i] = 0;
+       DGM_nGEM[i] = 0;
+       DGM_nME0[i] = 0;
+
+       for (auto hit = muon.recHitsBegin(); hit != muon.recHitsEnd(); hit++)
+       {
+
+          DetId idet = (*hit)->geographicalId();
+
+          if (idet.det() == 1){
+
+            if     ( idet.subdetId() == 1 ) { DGM_nPB[i]++;  }
+            else if( idet.subdetId() == 2 ) { DGM_nPE[i]++;  }
+            else if( idet.subdetId() == 3 ) { DGM_nTIB[i]++; }
+            else if( idet.subdetId() == 4 ) { DGM_nTOB[i]++; }
+            else if( idet.subdetId() == 5 ) { DGM_nTID[i]++; }
+            else if( idet.subdetId() == 6 ) { DGM_nTEC[i]++; }
+
+          } else if (idet.det() == 2){
+
+            if     ( idet.subdetId() == 1 ) { DGM_nDT[i]++;  }
+            else if( idet.subdetId() == 2 ) { DGM_nCSC[i]++; }
+            else if( idet.subdetId() == 3 ) { DGM_nRPC[i]++; }
+            else if( idet.subdetId() == 4 ) { DGM_nGEM[i]++; }
+            else if( idet.subdetId() == 5 ) { DGM_nME0[i]++; }
+
+          }
+
+       }
+
+
+       // Transverse impact parameters
        DGM_idx[i] = iDGM.at(i); // only to use in analyzer not in Galapago
 
      }
@@ -1749,7 +1807,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
          //llCandidate testcandidate(thePrimaryVertex, theTransientTrackBuilder, it_i, it_j, true);
          trackPair testcandidate(thePrimaryVertex, beamSpotObject, theTransientTrackBuilder, itr_i, itr_j, true);
 
-         if (!testcandidate.canFitVertex || !testcandidate.hasValidVertex) { continue ;} 
+         if (!testcandidate.hasValidVertex) { continue ;} 
 
          // Check if the Chi2 is lower:
          if (testcandidate.normalizedChi2 < minChi2) {
@@ -1828,6 +1886,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
         EE_subleadingEt[nEE] = eeCandidate.subleadingEt;
 
      }
+
      nEE++;
 
      // -> Fill candidates that pass baseline selection:
@@ -2372,6 +2431,18 @@ void LongLivedAnalysis::beginJob()
       tree_out->Branch("DGM_ndof", DGM_ndof, "DGM_ndof[nDGM]/F");
       tree_out->Branch("DGM_charge", DGM_charge, "DGM_charge[nDGM]/I");
       tree_out->Branch("DGM_isHighPurity", DGM_isHighPurity, "DGM_isHighPurity[nDGM]/I");
+      tree_out->Branch("DGM_nPB", DGM_nPB, "DGM_nPB[nDGM]/I");
+      tree_out->Branch("DGM_nPE", DGM_nPE, "DGM_nPE[nDGM]/I");
+      tree_out->Branch("DGM_nTIB", DGM_nTIB, "DGM_nTIB[nDGM]/I");
+      tree_out->Branch("DGM_nTOB", DGM_nTOB, "DGM_nTOB[nDGM]/I");
+      tree_out->Branch("DGM_nTID", DGM_nTID, "DGM_nTID[nDGM]/I");
+      tree_out->Branch("DGM_nTEC", DGM_nTEC, "DGM_nTEC[nDGM]/I");
+      tree_out->Branch("DGM_nDT", DGM_nDT, "DGM_nDT[nDGM]/I");
+      tree_out->Branch("DGM_nCSC", DGM_nCSC, "DGM_nCSC[nDGM]/I");
+      tree_out->Branch("DGM_nRPC", DGM_nRPC, "DGM_nRPC[nDGM]/I");
+      tree_out->Branch("DGM_nGEM", DGM_nGEM, "DGM_nGEM[nDGM]/I");
+      tree_out->Branch("DGM_nME0", DGM_nME0, "DGM_nME0[nDGM]/I");
+
       
     }
 
