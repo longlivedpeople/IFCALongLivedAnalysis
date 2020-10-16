@@ -161,7 +161,7 @@ struct trackPair
           TVector3 vec3A(tr_A.px(), tr_A.py(), tr_A.pz());
           TVector3 vec3B(tr_B.px(), tr_B.py(), tr_B.pz());
           TVector3 divec3 = vec3A + vec3B;
-          TVector3 vtxvec3(secV.x() - pv.z(), secV.y() - pv.y(), secV.z() - pv.z());
+          TVector3 vtxvec3(secV.x() - pv.x(), secV.y() - pv.y(), secV.z() - pv.z());
           cosAlpha = TMath::Cos(vec3A.Angle(vec3B));
           dPhi = divec3.DeltaPhi(vtxvec3);
           dR = vec3A.DeltaR(vec3B);

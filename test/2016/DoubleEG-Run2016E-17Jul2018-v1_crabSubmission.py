@@ -3,11 +3,11 @@ config = Configuration()
 
 config.section_('General')
 config.General.transferLogs = True
-config.General.requestName = 'DoubleEG-Run2016E-17Jul2018-v1_NTuple'
+config.General.requestName = 'DoubleEG-Run2016E-17Jul2018-v1_NTuple_rsb2'
 
 config.section_('JobType')
 config.JobType.pluginName = 'Analysis'
-config.JobType.psetName = 'runLongLivedAnalysis_cfg.py'
+config.JobType.psetName = 'runLongLivedEGData_cfg.py'
 config.JobType.disableAutomaticOutputCollection = True
 config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
                              'PUreweighting/2016MCPileupHistogram.root']
