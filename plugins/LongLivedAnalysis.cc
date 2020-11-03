@@ -1564,7 +1564,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
           const reco::GenParticle &genparticle = (*genParticles)[iGL.at(i)];
     
           GenLeptonSel_pt[i] = genparticle.pt();
-          GenLeptonSel_pt[i] = genparticle.energy();
+          GenLeptonSel_E[i] = genparticle.energy();
           GenLeptonSel_et[i] = genparticle.et();
           GenLeptonSel_eta[i] = genparticle.eta();
           GenLeptonSel_phi[i] = genparticle.phi();
@@ -2590,49 +2590,6 @@ void LongLivedAnalysis::beginJob()
 
     }
 
-    /*
-    tree_out->Branch("nMM", &nMM, "nMM/I");
-    if (!_BSMode) {
-       tree_out->Branch("MM_idxA", MM_idxA, "MM_idxA[nMM]/I");
-       tree_out->Branch("MM_idxB", MM_idxB, "MM_idxB[nMM]/I");
-       tree_out->Branch("MM_Lxy", MM_Lxy, "MM_Lxy[nMM]/F");
-       tree_out->Branch("MM_Ixy", MM_Ixy, "MM_Ixy[nMM]/F");
-       tree_out->Branch("MM_trackDxy", MM_trackDxy, "MM_trackDxy[nMM]/F");
-       tree_out->Branch("MM_trackIxy", MM_trackIxy, "MM_trackIxy[nMM]/F");
-       tree_out->Branch("MM_mass", MM_mass, "MM_mass[nMM]/F");
-       tree_out->Branch("MM_normalizedChi2", MM_normalizedChi2, "MM_normalizedChi2[nMM]/F");
-       tree_out->Branch("MM_leadingPt", MM_leadingPt, "MM_leadingPt[nMM]/F");
-       tree_out->Branch("MM_subleadingPt", MM_subleadingPt, "MM_subleadingPt[nMM]/F");
-       tree_out->Branch("MM_cosAlpha", MM_cosAlpha, "MM_cosAlpha[nMM]/F");
-       tree_out->Branch("MM_dPhi", MM_dPhi, "MM_dPhi[nMM]/F");
-       tree_out->Branch("MM_relisoA", MM_relisoA, "MM_relisoA[nMM]/F");
-       tree_out->Branch("MM_relisoB", MM_relisoB, "MM_relisoB[nMM]/F");
-    }
-
-    tree_out->Branch("nMMBase", &nMMBase, "nMMBase/I");
-    tree_out->Branch("MMBase_maxIxy", &MMBase_maxIxy, "MMBase_maxIxy/I");
-    tree_out->Branch("MMBase_idxA", MMBase_idxA, "MMBase_idxA[nMMBase]/I");
-    tree_out->Branch("MMBase_idxB", MMBase_idxB, "MMBase_idxB[nMMBase]/I");
-    tree_out->Branch("MMBase_vx", MMBase_vx, "MMBase_vx[nMMBase]/F");
-    tree_out->Branch("MMBase_vy", MMBase_vy, "MMBase_vy[nMMBase]/F");
-    tree_out->Branch("MMBase_Lxy", MMBase_Lxy, "MMBase_Lxy[nMMBase]/F");
-    tree_out->Branch("MMBase_Ixy", MMBase_Ixy, "MMBase_Ixy[nMMBase]/F");
-    tree_out->Branch("MMBase_trackDxy", MMBase_trackDxy, "MMBase_trackDxy[nMMBase]/F");
-    tree_out->Branch("MMBase_trackIxy", MMBase_trackIxy, "MMBase_trackIxy[nMMBase]/F");
-    tree_out->Branch("MMBase_mass", MMBase_mass, "MMBase_mass[nMMBase]/F");
-    tree_out->Branch("MMBase_normalizedChi2", MMBase_normalizedChi2, "MMBase_normalizedChi2[nMMBase]/F");
-    tree_out->Branch("MMBase_leadingPt", MMBase_leadingPt, "MMBase_leadingPt[nMMBase]/F");
-    tree_out->Branch("MMBase_subleadingPt", MMBase_subleadingPt, "MMBase_subleadingPt[nMMBase]/F");
-    tree_out->Branch("MMBase_cosAlpha", MMBase_cosAlpha, "MMBase_cosAlpha[nMMBase]/F");
-    tree_out->Branch("MMBase_dPhi", MMBase_dPhi, "MMBase_dPhi[nMMBase]/F");
-    tree_out->Branch("MMBase_relisoA", MMBase_relisoA, "MMBase_relisoA[nMMBase]/F");
-    tree_out->Branch("MMBase_relisoB", MMBase_relisoB, "MMBase_relisoB[nMMBase]/F");
-    tree_out->Branch("MMBase_refittedDxy", MMBase_refittedDxy, "MMBase_refittedDxy[nMMBase]/F");
-    tree_out->Branch("MMBase_refittedIxy", MMBase_refittedIxy, "MMBase_refittedIxy[nMMBase]/F");
-    tree_out->Branch("MMBase_fromPVA", MMBase_fromPVA, "MMBase_fromPVA[nMMBase]/I");
-    tree_out->Branch("MMBase_fromPVB", MMBase_fromPVB, "MMBase_fromPVB[nMMBase]/I");
-    tree_out->Branch("MMBase_PVAssociation", MMBase_PVAssociation, "MMBase_PVAssociation[nMMBase]/I");
-    */
 
     tree_out->Branch("nDMDM", &nDMDM, "nDMDM/I");
     if (!_BSMode && _DSAMode) {
