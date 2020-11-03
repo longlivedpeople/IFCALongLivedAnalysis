@@ -3,7 +3,7 @@ config = Configuration()
 
 config.section_('General')
 config.General.transferLogs = True
-config.General.requestName = 'WW_NTuple'
+config.General.requestName = 'WW_NTuple_rsb'
 
 config.section_('JobType')
 config.JobType.pluginName = 'Analysis'
@@ -16,8 +16,8 @@ config.JobType.maxMemoryMB = 2500
 
 config.section_('Data')
 config.Data.inputDBS = 'phys03'
-config.Data.splitting = 'Automatic'
-#config.Data.unitsPerJob = 10
+config.Data.splitting = 'FileBased'
+config.Data.unitsPerJob = 10
 config.Data.inputDataset = '/WW_TuneCUETP8M1_13TeV-pythia8/fernance-WW_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 

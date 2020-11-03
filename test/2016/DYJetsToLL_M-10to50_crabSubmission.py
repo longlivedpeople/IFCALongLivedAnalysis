@@ -16,9 +16,8 @@ config.JobType.maxMemoryMB = 2500
 
 config.section_('Data')
 config.Data.inputDBS = 'phys03'
-config.Data.splitting = 'Automatic'
-#config.Data.unitsPerJob = 1
-#config.Data.totalUnits = 10
+config.Data.splitting = 'FileBased'
+config.Data.unitsPerJob = 13
 config.Data.inputDataset = '/DYJetsToLL_M-10to50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/fernance-DYJetsToLL_M-10to50_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
 config.Data.publication = False
 config.Data.outLFNDirBase = '/store/user/fernance/' 
