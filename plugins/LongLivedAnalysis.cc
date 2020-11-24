@@ -449,6 +449,7 @@ Float_t ElectronCandidate_dxy_0[nElectronCandidateMax];
 Float_t ElectronCandidate_dxyError_0[nElectronCandidateMax];
 Float_t ElectronCandidate_dxy_BS[nElectronCandidateMax];
 Float_t ElectronCandidate_dxyError_BS[nElectronCandidateMax];
+Float_t ElectronCandidate_relPFiso[nElectronCandidateMax];
 Int_t ElectronCandidate_photonIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_isotrackIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_pvAssociationQuality[nElectronCandidateMax];
@@ -1253,6 +1254,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      //// ---- Displaced StandAlone Muons
      //// ---------------------------------
      
+     /*
      nDSA = DSAs->size();
      for (size_t i = 0; i < DSAs->size(); i++){
 
@@ -1268,6 +1270,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        DSA_q[i] = muon.charge();
 
      }
+     */
 
 
      //// -----------------------------
@@ -1578,6 +1581,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        ElectronCandidate_dxyError_0[li] = IsoTrackSel_dxyError_0[tmin];
        ElectronCandidate_dxy_BS[li] = IsoTrackSel_dxy_BS[tmin];
        ElectronCandidate_dxyError_BS[li] = IsoTrackSel_dxyError_BS[tmin];
+
+       // re-compute isolation
+       const pat::PackedCandidateRef &e_pck = (*isotracks)[iT.at(tmin)].packedCandRef();
+       ElectronCandidate_relPFiso[li] = computeRelIso(*(*e_pck).bestTrack(), packedPFCandidates);
  
        ElectronCandidate_pvAssociationQuality[li] = (*isotracks)[iT.at(tmin)].packedCandRef()->pvAssociationQuality();
        ElectronCandidate_ptDiff[li] = (*isotracks)[iT.at(tmin)].pt() - (*isotracks)[iT.at(tmin)].packedCandRef()->pseudoTrack().pt();
@@ -1675,8 +1682,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      eeCandidate.leadingEt = (ElectronCandidate_et[min_i] > ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
      eeCandidate.subleadingEt = (ElectronCandidate_et[min_i] < ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
 
-     eeCandidate.relisoA = IsoTrackSel_pfIsolationDR03[ElectronCandidate_isotrackIdx[min_i]];
-     eeCandidate.relisoB = IsoTrackSel_pfIsolationDR03[ElectronCandidate_isotrackIdx[min_j]];
+     eeCandidate.relisoA = IsoTrackSel_pfIsolationDR03[ElectronCandidate_isotrackIdx[min_i]]/IsoTrackSel_pt[ElectronCandidate_isotrackIdx[min_i]];
+     eeCandidate.relisoB = IsoTrackSel_pfIsolationDR03[ElectronCandidate_isotrackIdx[min_j]]/IsoTrackSel_pt[ElectronCandidate_isotrackIdx[min_j]];
 
      eeCandidate.trackDxy = (fabs(ElectronCandidate_dxy[min_i])/ElectronCandidate_dxyError[min_i] < fabs(ElectronCandidate_dxy[min_j])/ElectronCandidate_dxyError[min_j]) ? ElectronCandidate_dxy[min_i] : ElectronCandidate_dxy[min_j];
      eeCandidate.trackIxy = (fabs(ElectronCandidate_dxy[min_i])/ElectronCandidate_dxyError[min_i] < fabs(ElectronCandidate_dxy[min_j])/ElectronCandidate_dxyError[min_j]) ? fabs(ElectronCandidate_dxy[min_i])/ElectronCandidate_dxyError[min_i] : fabs(ElectronCandidate_dxy[min_j])/ElectronCandidate_dxyError[min_j];
@@ -2258,12 +2265,14 @@ void LongLivedAnalysis::beginJob()
     
     if (_DSAMode){
 
+      /*
       tree_out->Branch("nDSA", &nDSA, "nDSA/I");
       tree_out->Branch("DSA_pt", DSA_pt, "DSA_pt[nDSA]/F");
       tree_out->Branch("DSA_eta", DSA_eta, "DSA_eta[nDSA]/F");
       tree_out->Branch("DSA_phi", DSA_phi, "DSA_phi[nDSA]/F");
       tree_out->Branch("DSA_dxy", DSA_dxy, "DSA_dxy[nDSA]/F");
       tree_out->Branch("DSA_q", DSA_q, "DSA_q[nDSA]/I");
+      */
 
       tree_out->Branch("nDGM", &nDGM, "nDGM/I");
       tree_out->Branch("DGM_pt", DGM_pt, "DGM_pt[nDGM]/F");
@@ -2351,6 +2360,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronCandidate_dxyError_0", ElectronCandidate_dxyError_0, "ElectronCandidate_dxyError_0[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_dxy_BS", ElectronCandidate_dxy_BS, "ElectronCandidate_dxy_BS[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_dxyError_BS", ElectronCandidate_dxyError_BS, "ElectronCandidate_dxyError_BS[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_relPFiso", ElectronCandidate_relPFiso, "ElectronCandidate_relPFiso[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_pvAssociationQuality", ElectronCandidate_pvAssociationQuality, "ElectronCandidate_pvAssociationQuality[nElectronCandidate]/I");
     //tree_out->Branch("ElectronCandidate_ptDiff", ElectronCandidate_ptDiff, "ElectronCandidate_ptDiff[nElectronCandidate]/F");
     
