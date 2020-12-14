@@ -24,6 +24,8 @@ config.JobType.maxMemoryMB = 2500
 config.JobType.allowUndistributedCMSSW = True
 config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
                              'PUreweighting/2016MCPileupHistogram.root']
+config.JobType.outputFiles = ['output.root']
+
 
 # Input dataset (small)
 config.Data.inputDataset = '/H2ToLLPXToLeptons_MH_400_MX_50_ctau_400mm_TuneCP2_13TeV_pythia8_80X_13082019-1313/fernance-400-50-400_HXX_RunIISummer16MiniAODv3_230220-1650-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'

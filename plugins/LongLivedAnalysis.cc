@@ -450,6 +450,7 @@ Float_t ElectronCandidate_dxyError_0[nElectronCandidateMax];
 Float_t ElectronCandidate_dxy_BS[nElectronCandidateMax];
 Float_t ElectronCandidate_dxyError_BS[nElectronCandidateMax];
 Float_t ElectronCandidate_relPFiso[nElectronCandidateMax];
+Float_t ElectronCandidate_relTrkiso[nElectronCandidateMax];
 Int_t ElectronCandidate_photonIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_isotrackIdx[nElectronCandidateMax];
 Int_t ElectronCandidate_pvAssociationQuality[nElectronCandidateMax];
@@ -699,7 +700,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       reco::Vertex getSVCandidate(const pat::PackedCandidateRef &pckCandA, const pat::PackedCandidateRef &pckCandB);
       float computeDxyError(const pat::IsolatedTrack & track, const reco::Vertex pv);
       float computeDxyError(const reco::Track & track, const reco::Vertex pv);
-      float computeRelIso(const reco::Track & track,  edm::Handle<edm::View<pat::PackedCandidate> > pfs);
+      float computeRelIso(const reco::Track & track,  edm::Handle<edm::View<pat::PackedCandidate> > pfs, bool isPF);
 
       // Histograms
       TH1F *counts, *sum2Weights;
@@ -1295,7 +1296,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        DGM_eta[i] = muon.eta();
        DGM_phi[i] = muon.phi();
        DGM_q[i] = muon.charge();
-       DGM_relPFiso[i] = computeRelIso(muon, packedPFCandidates);
+       DGM_relPFiso[i] = computeRelIso(muon, packedPFCandidates, true);
        DGM_numberOfValidHits[i] = muon.numberOfValidHits();
        DGM_numberOfLostHits[i] = muon.numberOfLostHits();
        DGM_chi2[i] = muon.chi2();
@@ -1584,7 +1585,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        // re-compute isolation
        const pat::PackedCandidateRef &e_pck = (*isotracks)[iT.at(tmin)].packedCandRef();
-       ElectronCandidate_relPFiso[li] = computeRelIso(*(*e_pck).bestTrack(), packedPFCandidates);
+       ElectronCandidate_relPFiso[li] = computeRelIso(*(*e_pck).bestTrack(), packedPFCandidates, true);
+       ElectronCandidate_relTrkiso[li] = computeRelIso(*(*e_pck).bestTrack(), packedPFCandidates, false);
  
        ElectronCandidate_pvAssociationQuality[li] = (*isotracks)[iT.at(tmin)].packedCandRef()->pvAssociationQuality();
        ElectronCandidate_ptDiff[li] = (*isotracks)[iT.at(tmin)].pt() - (*isotracks)[iT.at(tmin)].packedCandRef()->pseudoTrack().pt();
@@ -2361,6 +2363,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronCandidate_dxy_BS", ElectronCandidate_dxy_BS, "ElectronCandidate_dxy_BS[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_dxyError_BS", ElectronCandidate_dxyError_BS, "ElectronCandidate_dxyError_BS[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_relPFiso", ElectronCandidate_relPFiso, "ElectronCandidate_relPFiso[nElectronCandidate]/F");
+    tree_out->Branch("ElectronCandidate_relTrkiso", ElectronCandidate_relTrkiso, "ElectronCandidate_relTrkiso[nElectronCandidate]/F");
     tree_out->Branch("ElectronCandidate_pvAssociationQuality", ElectronCandidate_pvAssociationQuality, "ElectronCandidate_pvAssociationQuality[nElectronCandidate]/I");
     //tree_out->Branch("ElectronCandidate_ptDiff", ElectronCandidate_ptDiff, "ElectronCandidate_ptDiff[nElectronCandidate]/F");
     
@@ -2744,11 +2747,11 @@ float LongLivedAnalysis::computeDxyError(const reco::Track & track, const reco::
 //=======================================================================================================================================================================================================================//
 
 
-float LongLivedAnalysis::computeRelIso(const reco::Track & track, edm::Handle<edm::View<pat::PackedCandidate> > pfs) {
+float LongLivedAnalysis::computeRelIso(const reco::Track & track, edm::Handle<edm::View<pat::PackedCandidate> > pfs, bool isPF) {
 
 
    // Contributions to isolation:
-   double charged = 0, neutral = 0, pileup  = 0;
+   double charged = 0, neutral = 0, pileup  = 0, trackiso = 0;
 
    for (unsigned int i = 0, n = pfs->size(); i < n; ++i) {
 
@@ -2761,6 +2764,7 @@ float LongLivedAnalysis::computeRelIso(const reco::Track & track, edm::Handle<ed
       double _dR = getDeltaR(track.phi(), track.eta(), pf.phi(), pf.eta());
       if (_dR > 0.3 || _dR < 0.03) { continue; }
 
+      // PF
       if (pf.charge() == 0) {
          if (pf.pt() > 0.5) neutral += pf.pt();
       } else if (pf.fromPV() >= 2) {
@@ -2769,13 +2773,19 @@ float LongLivedAnalysis::computeRelIso(const reco::Track & track, edm::Handle<ed
          if (pf.pt() > 0.5) pileup += pf.pt();
       }
 
+      // track
+      if (pf.charge() != 0 and pf.fromPV() >= 2) {trackiso += pf.pt(); }
+
    }
 
    // do deltaBeta:
    double iso = charged + std::max(0.0, neutral-0.5*pileup);
    
-   return iso/track.pt();
-
+   if (isPF){
+     return iso/track.pt();
+   } else {
+     return trackiso/track.pt();
+   }
 }
 
 
