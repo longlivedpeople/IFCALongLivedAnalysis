@@ -6,7 +6,7 @@ config = config()
 # All output/log files go in directory workArea/requestName/
 #config.General.workArea = 'crab_projects'
 
-config.General.requestName = 'DoubleMuon-Run2016B-07Aug17_ver2-v1_NTuples_rsb'
+config.General.requestName = 'DoubleMuon-Run2016E-07Aug17-v1_NTuples_rsb3'
 
 config.General.transferOutputs = True
 config.General.transferLogs = True
@@ -28,7 +28,7 @@ config.JobType.outputFiles = ['output.root']
 
 
 # Input dataset (small)
-config.Data.inputDataset = '/DoubleMuon/fernance-DoubleMuon-Run2016B-07Aug17_ver2-v1_modified-42be9799ae70470560a96f9e21287209/USER'
+config.Data.inputDataset = '/DoubleMuon/fernance-DoubleMuon-Run2016E-07Aug17-v1_modified_rsb2-42be9799ae70470560a96f9e21287209/USER'
 config.Data.lumiMask = 'https://cms-service-dqm.web.cern.ch/cms-service-dqm/CAF/certification/Collisions16/13TeV/ReReco/Final/Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON.txt'
 config.Data.inputDBS = 'phys03'
 
@@ -43,6 +43,6 @@ config.Data.publication = False
 
 # Output dataset stored in my dcache area in AAA/tomalin-outputDatasetTag-encodedDataAndTime/USER 
 # where "AAA" is name between first pair of slashes in input dataset.
-config.Data.outputDatasetTag = 'NTuples-Galapago'
+config.Data.outputDatasetTag = 'NTuples-Galapago_Run2016E'
 
 config.Site.storageSite = 'T2_ES_IFCA'

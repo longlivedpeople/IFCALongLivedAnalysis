@@ -744,11 +744,9 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
 
    thePileUpSummary = consumes<std::vector<PileupSummaryInfo> > (parameters.getParameter<edm::InputTag>("thePileUpSummary"));
 
-   if (_DSAMode) {
+   
    theDSACollection = consumes<std::vector<reco::Track> >  (parameters.getParameter<edm::InputTag>("DisplacedStandAloneCollection"));
    theDGMCollection = consumes<std::vector<reco::Track> >  (parameters.getParameter<edm::InputTag>("DisplacedGlobalMuonCollection"));
-
-   }
 
 
 
@@ -807,8 +805,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(theIsoTrackCollection, isotracks);
    iEvent.getByToken(thePrimaryVertexCollection, primaryvertices);
    iEvent.getByToken(thePackedPFCandidateCollection, packedPFCandidates);
-   iEvent.getByToken(theLostTracksCollection, lostTracks);
-   iEvent.getByToken(theEleLostTracksCollection, eleLostTracks);
+   if (_BSMode) {
+      iEvent.getByToken(theLostTracksCollection, lostTracks);
+      iEvent.getByToken(theEleLostTracksCollection, eleLostTracks);
+   }
    iEvent.getByToken(theMETCollection, METs);
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
@@ -1247,6 +1247,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    //// ---------------------------
 
    std::vector<int> iDGM; // needs to be declared outside the conditional
+   nDGM = 0; // initialize for avoiding crushing
 
    if (_DSAMode){
 
