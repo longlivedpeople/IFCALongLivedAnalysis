@@ -43,6 +43,6 @@ config.Data.publication = False
 
 # Output dataset stored in my dcache area in AAA/tomalin-outputDatasetTag-encodedDataAndTime/USER 
 # where "AAA" is name between first pair of slashes in input dataset.
-config.Data.outputDatasetTag = 'NTuples-Galapago'
+config.Data.outputDatasetTag = 'NTuples-Galapago_Run2016G'
 
 config.Site.storageSite = 'T2_ES_IFCA'

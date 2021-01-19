@@ -500,6 +500,7 @@ Float_t EE_subleadingEt[20];
 Float_t EE_cosAlpha[20];
 Float_t EE_dR[20];
 Float_t EE_dPhi[20];
+Float_t EE_lldPhi[20];
 Float_t EE_relisoA[20];
 Float_t EE_relisoB[20];
 
@@ -600,6 +601,7 @@ Float_t DMDM_leadingPt[20];
 Float_t DMDM_subleadingPt[20];
 Float_t DMDM_cosAlpha[20];
 Float_t DMDM_dPhi[20];
+Float_t DMDM_lldPhi[20];
 Float_t DMDM_dR[20];
 Float_t DMDM_relisoA[20];
 Float_t DMDM_relisoB[20];
@@ -1140,7 +1142,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    //// ---- CMS Electron Collection
    //// --
    //// ------------------------------
-   /*   
+      
    std::vector<int> iE; // electron indexes
 
 
@@ -1180,7 +1182,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
 
    }
-   */
+   
    
 
 
@@ -1681,12 +1683,12 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
      trackPair eeCandidate(thePrimaryVertex, beamSpotObject, theTransientTrackBuilder, itr_A, itr_B, true);
 
-     // Additionally, for electrons we have Et:
+     // Additionally, for electrons we have to redefine:
      eeCandidate.leadingEt = (ElectronCandidate_et[min_i] > ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
      eeCandidate.subleadingEt = (ElectronCandidate_et[min_i] < ElectronCandidate_et[min_j])? ElectronCandidate_et[min_i]: ElectronCandidate_et[min_j];
 
-     eeCandidate.relisoA = IsoTrackSel_pfIsolationDR03[ElectronCandidate_isotrackIdx[min_i]]/IsoTrackSel_pt[ElectronCandidate_isotrackIdx[min_i]];
-     eeCandidate.relisoB = IsoTrackSel_pfIsolationDR03[ElectronCandidate_isotrackIdx[min_j]]/IsoTrackSel_pt[ElectronCandidate_isotrackIdx[min_j]];
+     eeCandidate.relisoA = ElectronCandidate_relTrkiso[min_i];
+     eeCandidate.relisoB = ElectronCandidate_relTrkiso[min_j];
 
      eeCandidate.trackDxy = (fabs(ElectronCandidate_dxy[min_i])/ElectronCandidate_dxyError[min_i] < fabs(ElectronCandidate_dxy[min_j])/ElectronCandidate_dxyError[min_j]) ? ElectronCandidate_dxy[min_i] : ElectronCandidate_dxy[min_j];
      eeCandidate.trackIxy = (fabs(ElectronCandidate_dxy[min_i])/ElectronCandidate_dxyError[min_i] < fabs(ElectronCandidate_dxy[min_j])/ElectronCandidate_dxyError[min_j]) ? fabs(ElectronCandidate_dxy[min_i])/ElectronCandidate_dxyError[min_i] : fabs(ElectronCandidate_dxy[min_j])/ElectronCandidate_dxyError[min_j];
@@ -1700,7 +1702,19 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      eeCandidate.trackDxy_BS = (fabs(ElectronCandidate_dxy_BS[min_i])/ElectronCandidate_dxyError_BS[min_i] < fabs(ElectronCandidate_dxy_BS[min_j])/ElectronCandidate_dxyError_BS[min_j]) ? ElectronCandidate_dxy_BS[min_i] : ElectronCandidate_dxy_BS[min_j];
      eeCandidate.trackIxy_BS = (fabs(ElectronCandidate_dxy_BS[min_i])/ElectronCandidate_dxyError_BS[min_i] < fabs(ElectronCandidate_dxy_BS[min_j])/ElectronCandidate_dxyError_BS[min_j]) ? fabs(ElectronCandidate_dxy_BS[min_i])/ElectronCandidate_dxyError_BS[min_i] : fabs(ElectronCandidate_dxy_BS[min_j])/ElectronCandidate_dxyError_BS[min_j];
 
+     TLorentzVector l1 = TLorentzVector(); 
+     TLorentzVector l2 = TLorentzVector();
+     l1.SetPtEtaPhiM(ElectronCandidate_pt[min_i], ElectronCandidate_eta[min_i], ElectronCandidate_phi[min_i], 0.501/1000.0);
+     l2.SetPtEtaPhiM(ElectronCandidate_pt[min_j], ElectronCandidate_eta[min_j], ElectronCandidate_phi[min_j], 0.501/1000.0);
+     TVector3 vl1 = l1.Vect(); 
+     TVector3 vl2 = l2.Vect(); 
+     TVector3 vl1l2 = vl1 + vl2;
+     TVector3 vec = TVector3(eeCandidate.vx - PV_vx, eeCandidate.vy - PV_vy, 0.0);
 
+     eeCandidate.mass = (l1 + l2).M();
+     eeCandidate.dPhi = fabs(vec.DeltaPhi(vl1l2));
+     eeCandidate.lldPhi = fabs(l1.DeltaPhi(l2));
+     eeCandidate.dR = fabs(l1.DeltaR(l2));
 
      if (!_BSMode){
 
@@ -1728,6 +1742,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
         EE_subleadingPt[nEE] = eeCandidate.subleadingPt;
         EE_cosAlpha[nEE] = eeCandidate.cosAlpha;
         EE_dPhi[nEE] = eeCandidate.dPhi;
+        EE_lldPhi[nEE] = eeCandidate.lldPhi;
+        EE_dR[nEE] = eeCandidate.dR;
         EE_relisoA[nEE] = eeCandidate.relisoA;
         EE_relisoB[nEE] = eeCandidate.relisoB;
         EE_leadingEt[nEE] = eeCandidate.leadingEt;
@@ -1871,6 +1887,8 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
         DMDM_subleadingPt[nDMDM] = dmdmCandidate.subleadingPt;
         DMDM_cosAlpha[nDMDM] = dmdmCandidate.cosAlpha;
         DMDM_dPhi[nDMDM] = dmdmCandidate.dPhi;
+        DMDM_lldPhi[nDMDM] = dmdmCandidate.lldPhi;
+        DMDM_dR[nDMDM] = dmdmCandidate.dR;
         DMDM_relisoA[nDMDM] = dmdmCandidate.relisoA;
         DMDM_relisoB[nDMDM] = dmdmCandidate.relisoB;
 
@@ -2230,7 +2248,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("PhotonSel_r9", PhotonSel_r9, "PhotonSel_r9[nPhoton]/F");
 
     ///////////////////////////////// ELECTRON BRANCHES /////////////////////////////////
-    /*
+    
     tree_out->Branch("nElectron", &nElectron, "nElectron/I");
     tree_out->Branch("ElectronSel_pt", ElectronSel_pt, "ElectronSel_pt[nElectron]/F");
     tree_out->Branch("ElectronSel_et", ElectronSel_et, "ElectronSel_et[nElectron]/F");
@@ -2244,7 +2262,7 @@ void LongLivedAnalysis::beginJob()
     tree_out->Branch("ElectronSel_isLoose", ElectronSel_isLoose, "ElectronSel_isLoose[nElectron]/F");
     tree_out->Branch("ElectronSel_isMedium", ElectronSel_isMedium, "ElectronSel_isMedium[nElectron]/F");
     //tree_out->Branch("ElectronSel_isTight", ElectronSel_isTight, "ElectronSel_isTight[nElectron]/F");
-    */
+  
     ///////////////////////////////// MUON BRANCHES /////////////////////////////////
     /*
     tree_out->Branch("nMuon", &nMuon, "nMuon/I");
@@ -2404,6 +2422,8 @@ void LongLivedAnalysis::beginJob()
        tree_out->Branch("EE_subleadingEt", EE_subleadingEt, "EE_subleadingEt[nEE]/F");
        tree_out->Branch("EE_cosAlpha", EE_cosAlpha, "EE_cosAlpha[nEE]/F");
        tree_out->Branch("EE_dPhi", EE_dPhi, "EE_dPhi[nEE]/F");
+       tree_out->Branch("EE_lldPhi", EE_lldPhi, "EE_lldPhi[nEE]/F");
+       tree_out->Branch("EE_dR", EE_dR, "EE_dR[nEE]/F");
        tree_out->Branch("EE_relisoA", EE_relisoA, "EE_relisoA[nEE]/F");
        tree_out->Branch("EE_relisoB", EE_relisoB, "EE_relisoB[nEE]/F");
 
@@ -2464,6 +2484,8 @@ void LongLivedAnalysis::beginJob()
        tree_out->Branch("DMDM_subleadingPt", DMDM_subleadingPt, "DMDM_subleadingPt[nDMDM]/F");
        tree_out->Branch("DMDM_cosAlpha", DMDM_cosAlpha, "DMDM_cosAlpha[nDMDM]/F");
        tree_out->Branch("DMDM_dPhi", DMDM_dPhi, "DMDM_dPhi[nDMDM]/F");
+       tree_out->Branch("DMDM_dR", DMDM_dR, "DMDM_dR[nDMDM]/F");
+       tree_out->Branch("DMDM_lldPhi", DMDM_lldPhi, "DMDM_lldPhi[nDMDM]/F");
        tree_out->Branch("DMDM_relisoA", DMDM_relisoA, "DMDM_relisoA[nDMDM]/F");
        tree_out->Branch("DMDM_relisoB", DMDM_relisoB, "DMDM_relisoB[nDMDM]/F");
     }
@@ -2573,8 +2595,8 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
 
    // Quality cuts:
    if (photon.hadronicOverEm() > 0.05) { return false; } 
-   if (photon.isEE() && photon.full5x5_sigmaIetaIeta() > 0.034) { return false; }
-   if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.012) { return false; }
+   if (photon.isEE() && photon.full5x5_sigmaIetaIeta() > 0.0425) { return false; }
+   if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.0112) { return false; }
 
    // Preselection cuts:
    //if (fabs(photon.eta()) > 1.4442) { return false; }
