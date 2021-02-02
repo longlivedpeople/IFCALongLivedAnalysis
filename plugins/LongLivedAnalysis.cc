@@ -1122,6 +1122,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        const pat::Photon & photon = (*photons)[iP.at(i)];
 
+       std::cout << photon.et() << "\t" << photon.pt() << std::endl;
        PhotonSel_et[i] = photon.et();
        PhotonSel_eta[i] = photon.eta();
        PhotonSel_phi[i] = photon.phi();
