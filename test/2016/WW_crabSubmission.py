@@ -1,26 +1,47 @@
-from WMCore.Configuration import Configuration
-config = Configuration()
+import CRABClient
+from CRABClient.UserUtilities import config
 
-config.section_('General')
+config = config()
+
+# All output/log files go in directory workArea/requestName/
+#config.General.workArea = 'crab_projects'
+
+config.General.requestName = 'WW_NTuples'
+
+config.General.transferOutputs = True
 config.General.transferLogs = True
-config.General.requestName = 'WW_NTuple_rsb'
+config.General.instance = 'prod'
 
-config.section_('JobType')
+# Set pluginName = Analysis if you are reading a dataset, or to PrivateMC if not (so you are generating events)
 config.JobType.pluginName = 'Analysis'
-config.JobType.psetName = 'runLongLivedAnalysis_cfg.py'
-config.JobType.disableAutomaticOutputCollection = True
+# CMSSW cfg file you wish to run
+config.JobType.psetName = 'runLongLived2016Analysis_cfg.py'
+# Increase virtual memory limit (sum needed by all threads) from default of 2000 MB.
+config.JobType.maxMemoryMB = 2500
+# Number of threads to use.
+#config.JobType.numCores = 2
+# To allow use of SL7 CMSSW versions that were SL6 at time of original DATA/MC production.
+config.JobType.allowUndistributedCMSSW = True
 config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
                              'PUreweighting/2016MCPileupHistogram.root']
 config.JobType.outputFiles = ['output.root']
-config.JobType.maxMemoryMB = 2500
 
-config.section_('Data')
-config.Data.inputDBS = 'phys03'
-config.Data.splitting = 'FileBased'
-config.Data.unitsPerJob = 10
+
+# Input dataset (small)
 config.Data.inputDataset = '/WW_TuneCUETP8M1_13TeV-pythia8/fernance-WW_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
-config.Data.publication = False
-config.Data.outLFNDirBase = '/store/user/fernance/' 
+config.Data.inputDBS = 'phys03'
 
-config.section_('Site')
+# Units of "totalUnits" and "unitsPerJob" (e.g. files, events, lumi sections)
+config.Data.splitting = 'FileBased'
+# Total number of these units to be processed.
+#config.Data.totalUnits = 999
+# Requested number in each subjob.
+config.Data.unitsPerJob = 25
+config.Data.outLFNDirBase = '/store/user/fernance/'
+config.Data.publication = False
+
+# Output dataset stored in my dcache area in AAA/tomalin-outputDatasetTag-encodedDataAndTime/USER 
+# where "AAA" is name between first pair of slashes in input dataset.
+config.Data.outputDatasetTag = 'NTuples-Galapago'
+
 config.Site.storageSite = 'T2_ES_IFCA'

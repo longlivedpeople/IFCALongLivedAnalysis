@@ -6,7 +6,7 @@ config = config()
 # All output/log files go in directory workArea/requestName/
 #config.General.workArea = 'crab_projects'
 
-config.General.requestName = 'DYJetsToLL_M-10to50_NTuples'
+config.General.requestName = 'DoubleMuon-Run2016E-07Aug17-v1_NTuples_rsb3'
 
 config.General.transferOutputs = True
 config.General.transferLogs = True
@@ -15,7 +15,7 @@ config.General.instance = 'prod'
 # Set pluginName = Analysis if you are reading a dataset, or to PrivateMC if not (so you are generating events)
 config.JobType.pluginName = 'Analysis'
 # CMSSW cfg file you wish to run
-config.JobType.psetName = 'runLongLived2016Analysis_cfg.py'
+config.JobType.psetName = 'runLongLivedMuon2016Data_cfg.py'
 # Increase virtual memory limit (sum needed by all threads) from default of 2000 MB.
 config.JobType.maxMemoryMB = 2500
 # Number of threads to use.
@@ -28,7 +28,8 @@ config.JobType.outputFiles = ['output.root']
 
 
 # Input dataset (small)
-config.Data.inputDataset = '/DYJetsToLL_M-10to50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/fernance-DYJetsToLL_M-10to50_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+config.Data.inputDataset = '/DoubleMuon/fernance-DoubleMuon-Run2016E-07Aug17-v1_modified_rsb2-42be9799ae70470560a96f9e21287209/USER'
+config.Data.lumiMask = 'https://cms-service-dqm.web.cern.ch/cms-service-dqm/CAF/certification/Collisions16/13TeV/ReReco/Final/Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON.txt'
 config.Data.inputDBS = 'phys03'
 
 # Units of "totalUnits" and "unitsPerJob" (e.g. files, events, lumi sections)
@@ -36,12 +37,12 @@ config.Data.splitting = 'FileBased'
 # Total number of these units to be processed.
 #config.Data.totalUnits = 999
 # Requested number in each subjob.
-config.Data.unitsPerJob = 25
+config.Data.unitsPerJob = 5
 config.Data.outLFNDirBase = '/store/user/fernance/'
 config.Data.publication = False
 
 # Output dataset stored in my dcache area in AAA/tomalin-outputDatasetTag-encodedDataAndTime/USER 
 # where "AAA" is name between first pair of slashes in input dataset.
-config.Data.outputDatasetTag = 'NTuples-Galapago'
+config.Data.outputDatasetTag = 'NTuples-Galapago_Run2016E'
 
 config.Site.storageSite = 'T2_ES_IFCA'

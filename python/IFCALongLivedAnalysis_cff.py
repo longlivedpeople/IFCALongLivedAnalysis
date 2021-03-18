@@ -2,9 +2,10 @@ import FWCore.ParameterSet.Config as cms
 
 
 longlivedanalyzer = cms.EDAnalyzer('LongLivedAnalysis',
+    Era = cms.double(2018),
     isData = cms.bool(False),
     BSMode = cms.bool(False),
-    DSAMode = cms.bool(True),
+    DSAMode = cms.bool(False),
     nameOfOutput = cms.string('output.root'),
     EventInfo = cms.InputTag("generator"),
     RunInfo = cms.InputTag("generator"),

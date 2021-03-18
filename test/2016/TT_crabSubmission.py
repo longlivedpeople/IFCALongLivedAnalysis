@@ -6,7 +6,7 @@ config = config()
 # All output/log files go in directory workArea/requestName/
 #config.General.workArea = 'crab_projects'
 
-config.General.requestName = 'DYJetsToLL_M-10to50_NTuples'
+config.General.requestName = 'TT_NTuples'
 
 config.General.transferOutputs = True
 config.General.transferLogs = True
@@ -28,7 +28,7 @@ config.JobType.outputFiles = ['output.root']
 
 
 # Input dataset (small)
-config.Data.inputDataset = '/DYJetsToLL_M-10to50_TuneCUETP8M1_13TeV-madgraphMLM-pythia8/fernance-DYJetsToLL_M-10to50_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
+config.Data.inputDataset = '/TT_TuneCUETP8M2T4_13TeV-powheg-pythia8/fernance-TTJets_RunIISummer16MiniAODv3_modified-bd3e7bcff6c9bcad356ea4ed7e4f08b4/USER'
 config.Data.inputDBS = 'phys03'
 
 # Units of "totalUnits" and "unitsPerJob" (e.g. files, events, lumi sections)

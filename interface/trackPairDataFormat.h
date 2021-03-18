@@ -67,6 +67,7 @@ struct trackPair
    double ptll = 0;
    double cosAlpha = 0;
    double dPhi = 0;
+   double lldPhi = 0;
    double dR = 0;
    double relisoA = 0;
    double relisoB = 0;
