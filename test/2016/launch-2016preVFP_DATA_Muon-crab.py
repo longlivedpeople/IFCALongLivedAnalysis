@@ -9,7 +9,7 @@ from CRABClient.UserUtilities import config
 config = config()
 
 # All output/log files go in directory workArea/requestName/
-#config.General.workArea = 'crab_projects_TASKTAG'
+config.General.workArea = 'crab_projects_TASKTAG'
 
 config.General.requestName = 'crab_JOBTAG-NTuples'
 
@@ -20,7 +20,7 @@ config.General.instance = 'prod'
 # Set pluginName = Analysis if you are reading a dataset, or to PrivateMC if not (so you are generating events)
 config.JobType.pluginName = 'Analysis'
 # CMSSW cfg file you wish to run
-config.JobType.psetName = 'runLongLived2016Analysis_cfg.py'
+config.JobType.psetName = 'runLongLived2016preVFP_DATA_Muon_cfg.py'
 # Increase virtual memory limit (sum needed by all threads) from default of 2000 MB.
 config.JobType.maxMemoryMB = 2500
 # Number of threads to use.
@@ -32,6 +32,7 @@ config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
 config.JobType.outputFiles = ['output.root']
 
 config.Data.inputDataset = 'INPUTDATASET'
+config.Data.lumiMask = '/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/Legacy_2016/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt'
 config.Data.inputDBS = 'phys03'
 
 
@@ -45,6 +46,7 @@ config.Data.outLFNDirBase = '/store/user/fernance/'
 config.Data.publication = False
 config.Data.outputDatasetTag = 'JOBTAG_NTuples-Galapago'
 
+
 config.Site.storageSite = 'T2_ES_IFCA'
 '''    
 
@@ -57,8 +59,9 @@ def makeFile(inputdataset, nsplitting, jobtag, tasktag):
     text = text.replace('JOBTAG', jobtag)
     text = text.replace('TASKTAG', tasktag)
 
-    dir_ = 'crab_dir_' + tasktag + '/'
-    if not os.path.exists(dir_): os.makedirs(dir_) 
+    #dir_ = 'crab_dir_' + tasktag + '/'
+    dir_ = ''
+    if not os.path.exists(dir_) and dir_ != '': os.makedirs(dir_) 
     name_ = 'crab_{0}-NTuple.py'.format(jobtag)
     f = open(dir_ + name_, 'w')
     f.write(text + '\n')
@@ -101,6 +104,7 @@ if __name__=='__main__':
             print('   >   ' + str(nfiles))
 
         split = int(nfiles / 300)
+        if split == 0: split = 1
 
         crab_dir,crab_file = makeFile(dataset, str(split), key, opts.tasktag)
 
@@ -110,7 +114,9 @@ if __name__=='__main__':
         ### Launch job if submit mode activated:
         if opts.submit:
             command = 'crab submit ' + crab_file
-            Popen(command, shell = True, cwd = crab_dir)
+            os.system(command)
+            os.system('rm ' + crab_file)
+            #Popen(command, shell = True, cwd = crab_dir)
 
 
 

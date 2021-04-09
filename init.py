@@ -22,16 +22,16 @@ if not os.path.exists('test/2018/'):
 print('>> Accessing /eos/user/f/fernance/LLP_Analysis/...')
 
 print('>> Copying 2016 PU histograms...')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2016/2016DataPileupHistogram.root', 'test/2016/PUreweighting/')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2016/2016MCPileupHistogram.root', 'test/2016/PUreweighting/')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2016/2016DataPileupHistogram.root', './')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2016/2016MCPileupHistogram.root', './')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2016DataPileupHistogram.root', 'test/2016/PUreweighting/')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2016MCPileupHistogram.root', 'test/2016/PUreweighting/')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2016DataPileupHistogram.root', './')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2016MCPileupHistogram.root', './')
 
 print('>> Copying 2018 PU histograms...')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2018/2018DataPileupHistogram.root', 'test/2018/PUreweighting/')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2018/2018MCPileupHistogram.root', 'test/2018/PUreweighting/')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2018/2018DataPileupHistogram.root', './')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/Final/2018/2018MCPileupHistogram.root', './')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018DataPileupHistogram.root', 'test/2018/PUreweighting/')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018MCPileupHistogram.root', 'test/2018/PUreweighting/')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018DataPileupHistogram.root', './')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018MCPileupHistogram.root', './')
 
 print('> PUreweighting histograms have been copied')
 

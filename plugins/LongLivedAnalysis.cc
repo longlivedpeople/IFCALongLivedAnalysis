@@ -106,36 +106,6 @@
 ///////////////////////////////////// FUNCTIONS ///////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-bool goodMediumMuon( pat::Muon muon)
-{
-
-    if (!muon.isLooseMuon()) { return false;}
-    if (muon.innerTrack()->validFraction() < 0.8) { return false; }
-
-    bool additional_requirements = false;
-
-    if ( ( muon.isGlobalMuon() && muon.globalTrack()->normalizedChi2() < 3 && muon.combinedQuality().chi2LocalPosition < 12 && muon.combinedQuality().trkKink < 20 && muon.segmentCompatibility() > 0.303) 
-         || muon.segmentCompatibility() > 0.451)
-
-    { additional_requirements = true; }
-
-    if (!additional_requirements) {return false;}
-
-    return true;
-}
-
-
-bool goodMuon( pat::Muon muon)
-{
-
-    //if (muon.pt() < 28) { return false; }
-    if (fabs(muon.eta()) > 2) { return false;}
-
-    return true;
-
-}
-
-
 float dxy_value(const reco::GenParticle &p, const reco::Vertex &pv)
 {
 
@@ -1066,7 +1036,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
 
        const pat::Muon & muon = (*muons)[i];
        
-       if (goodMuon(muon)) { iM.push_back(i);}
+       if (fabs(muon.eta()) < 2.0) { iM.push_back(i);}
 
      }
 
@@ -1097,7 +1067,6 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        MuonSel_isStandAloneMuon[i] = muon.isStandAloneMuon();
        MuonSel_isLooseMuon[i] = muon.isLooseMuon();
        MuonSel_isMediumMuon[i] = muon.isMediumMuon();
-       MuonSel_isGoodMediumMuon[i] = goodMediumMuon(muon);
        MuonSel_isPFMuon[i] = muon.isPFMuon();
 
        MuonSel_dB[i] = muon.dB();
