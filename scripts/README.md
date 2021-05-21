@@ -22,6 +22,28 @@ python makeMCPileupHist.py SimGeneral.MixingModule.mix_2016_25ns_UltraLegacy_Poi
 ```
 
 
+## 2017
 
+(To be done)
+
+
+## 2018
+
+### Data distribution
+
+Golden json: /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/Legacy_2018/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt
+PileUp json: /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/pileup_latest.txt
+
+```
+pileupCalc.py -i /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/Legacy_2018/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt --inputLumiJSON /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/PileUp/pileup_latest.txt --calcMode true --minBiasXsec 69200 --maxPileupBin 100 --numPileupBins 100 2018DataPileupHistogram.root
+``` 
+
+### Monte Carlo
+
+The premixing library is /Neutrino_E-10_gun/RunIISummer20ULPrePremix-UL18_106X_upgrade2018_realistic_v11_L1v1-v2/PREMIX and the PU profile if found in https://github.com/cms-sw/cmssw/blob/CMSSW_10_6_X/SimGeneral/MixingModule/python/mix_2018_25ns_UltraLegacy_PoissonOOTPU_cfi.py
+
+```
+python makeMCPileupHist.py SimGeneral.MixingModule.mix_2018_25ns_UltraLegacy_PoissonOOTPU_cfi --outputFilename 2018MCPileupHistogram.root
+```
 
 

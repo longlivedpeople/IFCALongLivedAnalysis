@@ -28,10 +28,10 @@ shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2016DataPileupHi
 shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2016MCPileupHistogram.root', './')
 
 print('>> Copying 2018 PU histograms...')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018DataPileupHistogram.root', 'test/2018/PUreweighting/')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018MCPileupHistogram.root', 'test/2018/PUreweighting/')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018DataPileupHistogram.root', './')
-shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/preUL/2018/2018MCPileupHistogram.root', './')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2018DataPileupHistogram.root', 'test/2018/PUreweighting/')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2018MCPileupHistogram.root', 'test/2018/PUreweighting/')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2018DataPileupHistogram.root', './')
+shutil.copy('/eos/user/f/fernance/LLP_Analysis/PUreweighting/UL/2018MCPileupHistogram.root', './')
 
 print('> PUreweighting histograms have been copied')
 
