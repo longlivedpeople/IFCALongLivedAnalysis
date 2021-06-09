@@ -24,8 +24,20 @@ python makeMCPileupHist.py SimGeneral.MixingModule.mix_2016_25ns_UltraLegacy_Poi
 
 ## 2017
 
-(To be done)
+### Data distribution
 
+Golden json: /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/Legacy_2017/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt 
+PileUp json: /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/pileup_latest.txt
+
+```
+pileupCalc.py -i /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/Legacy_2017/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt --inputLumiJSON /afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/PileUp/pileup_latest.txt --calcMode true --minBiasXsec 69200 --maxPileupBin 100 --numPileupBins 100 2017DataPileupHistogram.root
+``` 
+
+### Monte Carlo
+
+```
+python makeMCPileupHist.py SimGeneral.MixingModule.mix_2017_25ns_UltraLegacy_PoissonOOTPU_cfi --outputFilename 2017MCPileupHistogram.root
+```
 
 ## 2018
 
