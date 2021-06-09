@@ -168,18 +168,8 @@ Float_t wPU;
 Float_t genWeight;
 
 //-> TRIGGER TAGS
-// 2016
-Bool_t Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10; // doublemuon
-Bool_t Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15; // diphoton
-// 2017
-// Empty
-// 2018
-Bool_t Flag_HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed; // doublemuons
-Bool_t Flag_HLT_DoubleL2Mu23NoVtx_2Cha;
-Bool_t Flag_HLT_DoubleMu33NoFiltersNoVtxDisplaced;
-Bool_t Flag_HLT_DoublePhoton33_CaloIdL; // diphoton
-Bool_t Flag_HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto;
-
+std::vector<std::string> HLTPaths_;
+bool triggerPass[200] = {false};
 
 //-> PRIMARY VERTEX SELECTION
 Int_t nPV;
@@ -743,23 +733,27 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    //// --
    //// -------------------------
 
+
+
+   // Check if trigger fired:
+   //
    const edm::TriggerNames &names = iEvent.triggerNames(*triggerBits);
-
-   if (_Era == 2016) {
-
-     Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10 = triggerBits->accept(names.triggerIndex(getPathVersion(names, "HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10_v")));  
-     Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15 = triggerBits->accept(names.triggerIndex(getPathVersion(names, "HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15_v")));  
-
-   } else if (_Era == 2018) {
-  
-    
-     Flag_HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed = triggerBits->accept(names.triggerIndex(getPathVersion(names, "HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed_v")));  
-     Flag_HLT_DoubleL2Mu23NoVtx_2Cha = triggerBits->accept(names.triggerIndex(getPathVersion(names, "HLT_DoubleL2Mu23NoVtx_2Cha_v")));  
-     Flag_HLT_DoubleMu33NoFiltersNoVtxDisplaced = triggerBits->accept(names.triggerIndex(getPathVersion(names, "HLT_DoubleMu33NoFiltersNoVtxDisplaced_v")));  
-     Flag_HLT_DoublePhoton33_CaloIdL = triggerBits->accept(names.triggerIndex(getPathVersion(names, "HLT_DoublePhoton33_CaloIdL_v")));  
-     Flag_HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto = triggerBits->accept(names.triggerIndex(getPathVersion(names, "HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto_v")));  
-
-
+   unsigned int ipath = 0;
+   for (auto path : HLTPaths_) {
+     std::string path_v = path + "_v";
+     bool fired = false;
+     for (unsigned int itrg = 0; itrg < triggerBits->size(); ++itrg) {
+       TString TrigPath = names.triggerName(itrg);
+       if (!triggerBits->accept(itrg))
+         continue;
+       if (!TrigPath.Contains(path_v)){
+         continue;
+       }
+       //std::cout << path << "\t" << TrigPath << std::endl;
+       fired = true;
+     }
+     triggerPass[ipath] = fired;
+     ipath++;
    }
 
     
@@ -1655,6 +1649,84 @@ void LongLivedAnalysis::beginJob()
       lumi_weights = edm::LumiReWeighting("2018MCPileupHistogram.root", "2018DataPileupHistogram.root", "pileup", "pileup");
     }
 
+
+   // Load HLT paths for every year:
+   //
+   if (_Era == 2016) {
+
+     HLTPaths_.push_back("HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10"); // signal
+     HLTPaths_.push_back("HLT_L2DoubleMu38_NoVertex_2Cha_Angle2p5_Mass10"); // backup
+     HLTPaths_.push_back("HLT_DoubleMu28NoFiltersNoVtxDisplaced"); // backup
+     HLTPaths_.push_back("HLT_DoubleMu23NoFiltersNoVtxDisplaced"); // backup
+     HLTPaths_.push_back("HLT_DoubleMu33NoFiltersNoVtx"); // backup
+     HLTPaths_.push_back("HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55"); // backup
+     HLTPaths_.push_back("HLT_Diphoton30_18_Solid_R9Id_AND_IsoCaloId_AND_HE_R9Id_Mass55"); // backup
+     HLTPaths_.push_back("HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelSeedMatch_Mass70"); // backup
+     HLTPaths_.push_back("HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90"); // signal
+     HLTPaths_.push_back("HLT_Diphoton30_18_Solid_R9Id_AND_IsoCaloId_AND_HE_R9Id_Mass55"); // backup
+     HLTPaths_.push_back("HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55"); // signal
+     HLTPaths_.push_back("HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15"); // signal
+     HLTPaths_.push_back("HLT_Photon26_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon16_AND_HE10_R9Id65_Eta2_Mass60"); // backup (prescaled)
+     HLTPaths_.push_back("HLT_Photon36_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon22_AND_HE10_R9Id65_Eta2_Mass15"); // backup (prescaled)
+     HLTPaths_.push_back("HLT_DoublePhoton85"); // backup
+     HLTPaths_.push_back("HLT_DoublePhoton60"); // backup
+
+   } else if (_Era == 2017) {
+  
+     HLTPaths_.push_back("HLT_DoubleMu43NoFiltersNoVtx"); // signal (?)
+     HLTPaths_.push_back("HLT_DoubleMu48NoFiltersNoVtx"); // backup (?)
+     HLTPaths_.push_back("HLT_DoublePhoton33_CaloIdL"); // prescaled
+     HLTPaths_.push_back("HLT_DoublePhoton70"); // signal
+     HLTPaths_.push_back("HLT_DoublePhoton85"); // backup
+     HLTPaths_.push_back("HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90"); // signal
+     HLTPaths_.push_back("HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95"); // backup
+     HLTPaths_.push_back("HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55"); // signal
+     HLTPaths_.push_back("HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55"); // prescaled
+     HLTPaths_.push_back("HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55"); // prescaled
+     HLTPaths_.push_back("HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55"); // prescaled
+     HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL"); // prescaled
+     HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL_DisplacedIdL"); // prescaled
+     HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL_DisplacedIdL_PFHT350MinPFJet15"); // no sensitive
+     HLTPaths_.push_back("HLT_HISinglePhoton20_Eta3p1ForPPRef"); // prescaled
+     HLTPaths_.push_back("HLT_HISinglePhoton30_Eta3p1ForPPRef"); // prescaled
+     HLTPaths_.push_back("HLT_HISinglePhoton40_Eta3p1ForPPRef"); // prescaled
+     HLTPaths_.push_back("HLT_HISinglePhoton50_Eta3p1ForPPRef"); // prescaled
+     HLTPaths_.push_back("HLT_HISinglePhoton60_Eta3p1ForPPRef"); // prescaled
+     HLTPaths_.push_back("HLT_Photon30_HoverELoose"); // prescaled
+     HLTPaths_.push_back("HLT_Photon40_HoverELoose"); // prescaled
+     HLTPaths_.push_back("HLT_Photon50_HoverELoose"); // prescaled
+     HLTPaths_.push_back("HLT_Photon60_HoverELoose"); // prescaled
+
+   } else if (_Era == 2018) {
+
+     HLTPaths_.push_back("HLT_DoubleL2Mu30NoVtx_2Cha_CosmicSeed_Eta2p4"); // backup
+     HLTPaths_.push_back("HLT_DoubleL2Mu30NoVtx_2Cha_Eta2p4"); // backup
+     HLTPaths_.push_back("HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed"); // signal
+     HLTPaths_.push_back("HLT_DoubleL2Mu25NoVtx_2Cha_CosmicSeed"); // backup
+     HLTPaths_.push_back("HLT_DoubleL2Mu25NoVtx_2Cha_CosmicSeed_Eta2p4"); // backup
+     HLTPaths_.push_back("HLT_DoubleL2Mu23NoVtx_2Cha"); // signal
+     HLTPaths_.push_back("HLT_DoubleL2Mu25NoVtx_2Cha"); // backup
+     HLTPaths_.push_back("HLT_DoubleL2Mu25NoVtx_2Cha_Eta2p4"); // backup
+     HLTPaths_.push_back("HLT_DoubleMu43NoFiltersNoVtx"); // backup (?)
+     HLTPaths_.push_back("HLT_DoubleMu48NoFiltersNoVtx"); // backup (?)
+     HLTPaths_.push_back("HLT_DoublePhoton33_CaloIdL");
+     HLTPaths_.push_back("HLT_DoublePhoton70");
+     HLTPaths_.push_back("HLT_DoublePhoton85");
+     HLTPaths_.push_back("HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90");
+     HLTPaths_.push_back("HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95");
+     HLTPaths_.push_back("HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55");
+     HLTPaths_.push_back("HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55");
+     HLTPaths_.push_back("HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55");
+     HLTPaths_.push_back("HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55");
+     HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL");
+     HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL_DisplacedIdL");
+     HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL_DisplacedIdL_PFHT350MinPFJet15");
+
+   }
+
+
+
+
     ///////////////////////////////// EVENT INFO BRANCHES ///////////////////////////////
 
     tree_out->Branch("Event_event", &Event_event, "Event_event/I");
@@ -1668,21 +1740,9 @@ void LongLivedAnalysis::beginJob()
 
     ///////////////////////////////// TRIGGER BRANCHES ///////////////////////////////
 
-    if (_Era == 2016) {
-
-      tree_out->Branch("Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10", &Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10, "Flag_HLT_L2DoubleMu28_NoVertex_2Cha_Angle2p5_Mass10/O");
-      tree_out->Branch("Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15", &Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15, "Flag_HLT_Photon42_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon25_AND_HE10_R9Id65_Eta2_Mass15/O");
-
-    } else if (_Era == 2018) {
-
-      tree_out->Branch("Flag_HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed", &Flag_HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed, "Flag_HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed/O");
-      tree_out->Branch("Flag_HLT_DoubleL2Mu23NoVtx_2Cha", &Flag_HLT_DoubleL2Mu23NoVtx_2Cha, "Flag_HLT_DoubleL2Mu23NoVtx_2Cha/O");
-      tree_out->Branch("Flag_HLT_DoubleMu33NoFiltersNoVtxDisplaced", &Flag_HLT_DoubleMu33NoFiltersNoVtxDisplaced, "Flag_HLT_DoubleMu33NoFiltersNoVtxDisplaced/O");
-      tree_out->Branch("Flag_HLT_DoublePhoton33_CaloIdL", &Flag_HLT_DoublePhoton33_CaloIdL, "Flag_HLT_DoublePhoton33_CaloIdL/O");
-      tree_out->Branch("Flag_HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto", &Flag_HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto, "Flag_HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto/O");
-
+    for (unsigned int ihlt = 0; ihlt < HLTPaths_.size(); ihlt++) {
+      tree_out->Branch(TString(HLTPaths_[ihlt]), &triggerPass[ihlt]);
     }
-
 
     ///////////////////////////////// BEAM SPOT BRANCHES ////////////////////////////////
 
