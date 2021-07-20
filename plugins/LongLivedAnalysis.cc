@@ -1699,6 +1699,8 @@ void LongLivedAnalysis::beginJob()
 
    } else if (_Era == 2018) {
 
+     HLTPaths_.push_back("HLT_L2Mu10_NoVertex_NoBPTX3BX"); // backup
+     HLTPaths_.push_back("HLT_L2Mu10_NoVertex_NoBPTX"); // backup
      HLTPaths_.push_back("HLT_DoubleL2Mu30NoVtx_2Cha_CosmicSeed_Eta2p4"); // backup
      HLTPaths_.push_back("HLT_DoubleL2Mu30NoVtx_2Cha_Eta2p4"); // backup
      HLTPaths_.push_back("HLT_DoubleL2Mu23NoVtx_2Cha_CosmicSeed"); // signal
@@ -2059,7 +2061,7 @@ bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) 
    if (!pckCand.isNonnull()) { return false; }
 
    // Preselection cuts:
-   if (track.pt() < 28) { return false; }
+   if (track.pt() < 15) { return false; }
    if (fabs(track.eta()) > 2.4) { return false; }
 
    // To be noticed: Isolation cuts are applied later with the LLCandidate selection
@@ -2079,7 +2081,7 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
 
    // Preselection cuts:
    //if (fabs(photon.eta()) > 1.4442) { return false; }
-   if (photon.et() < 25) {return false; }
+   if (photon.et() < 15) {return false; }
 
    return true;
 

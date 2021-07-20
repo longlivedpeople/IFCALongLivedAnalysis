@@ -44,7 +44,7 @@ config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = NSPLITTING
 config.Data.outLFNDirBase = '/store/user/fernance/'
 config.Data.publication = False
-config.Data.outputDatasetTag = 'JOBTAG_NTuples-Galapago'
+config.Data.outputDatasetTag = 'JOBTAG_2016_NTuples-Galapago'
 
 
 config.Site.storageSite = 'T2_ES_IFCA'
@@ -81,9 +81,9 @@ if __name__=='__main__':
     # List of datasets 
 
     Datasets_2016postVFP = {}
-    Datasets_2016postVFP['Run2016F_noHIPM']  = '/DoubleMuon/fernance-Run2016F-RunIISummer20UL16MiniAODAPVext_noHIPM-4cb2054cff34b4c12e6b5247ec61cf0f/USER'
-    #Datasets_2016postVFP['Run2016G_noHIPM']  = '/DoubleMuon/fernance-Run2016G-RunIISummer20UL16MiniAODAPVext_noHIPM-4cb2054cff34b4c12e6b5247ec61cf0f/USER'
-    Datasets_2016postVFP['Run2016H_noHIPM']  = '/DoubleMuon/fernance-Run2016H-RunIISummer20UL16MiniAODAPVext_noHIPM-4cb2054cff34b4c12e6b5247ec61cf0f/USER'
+#    Datasets_2016postVFP['Run2016F_noHIPM']  = '/DoubleMuon/fernance-Run2016F-RunIISummer20UL16MiniAODAPVext_noHIPM-4cb2054cff34b4c12e6b5247ec61cf0f/USER'
+    Datasets_2016postVFP['Run2016G_noHIPM']  = '/DoubleMuon/fernance-Run2016G-RunIISummer20UL16MiniAODAPVext_noHIPM-4cb2054cff34b4c12e6b5247ec61cf0f/USER'
+#    Datasets_2016postVFP['Run2016H_noHIPM']  = '/DoubleMuon/fernance-Run2016H-RunIISummer20UL16MiniAODAPVext_noHIPM-4cb2054cff34b4c12e6b5247ec61cf0f/USER'
 
     # Get datasets
     for key in Datasets_2016postVFP.keys():

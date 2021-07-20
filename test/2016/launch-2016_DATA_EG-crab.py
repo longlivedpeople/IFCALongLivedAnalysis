@@ -44,7 +44,7 @@ config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = NSPLITTING
 config.Data.outLFNDirBase = '/store/user/fernance/'
 config.Data.publication = False
-config.Data.outputDatasetTag = 'JOBTAG_NTuples-Galapago'
+config.Data.outputDatasetTag = 'JOBTAG_2016_NTuples-Galapago'
 
 
 config.Site.storageSite = 'T2_ES_IFCA'
@@ -81,15 +81,15 @@ if __name__=='__main__':
     # List of datasets 
 
     Datasets_2016 = {}
-    Datasets_2016['Run2016Bver1_HIPM']  = '/DoubleEG/Run2016B-21Feb2020_ver1_UL2016_HIPM-v1/MINIAOD'
-    Datasets_2016['Run2016Bver2_HIPM']  = '/DoubleEG/Run2016B-21Feb2020_ver2_UL2016_HIPM-v1/MINIAOD'
-    Datasets_2016['Run2016C_HIPM']      = '/DoubleEG/Run2016C-21Feb2020_UL2016_HIPM-v1/MINIAOD'
-    Datasets_2016['Run2016D_HIPM']      = '/DoubleEG/Run2016D-21Feb2020_UL2016_HIPM-v1/MINIAOD'
-    Datasets_2016['Run2016E_HIPM']      = '/DoubleEG/Run2016E-21Feb2020_UL2016_HIPM-v1/MINIAOD'
-    Datasets_2016['Run2016F_HIPM']      = '/DoubleEG/Run2016F-21Feb2020_UL2016_HIPM-v1/MINIAOD'
-    Datasets_2016['Run2016F_noHIPM']    = '/DoubleEG/Run2016F-21Feb2020_UL2016-v1/MINIAOD'
+    #Datasets_2016['Run2016Bver1_HIPM']  = '/DoubleEG/Run2016B-21Feb2020_ver1_UL2016_HIPM-v1/MINIAOD'
+    #Datasets_2016['Run2016Bver2_HIPM']  = '/DoubleEG/Run2016B-21Feb2020_ver2_UL2016_HIPM-v1/MINIAOD'
+    #Datasets_2016['Run2016C_HIPM']      = '/DoubleEG/Run2016C-21Feb2020_UL2016_HIPM-v1/MINIAOD'
+    #Datasets_2016['Run2016D_HIPM']      = '/DoubleEG/Run2016D-21Feb2020_UL2016_HIPM-v1/MINIAOD'
+    #Datasets_2016['Run2016E_HIPM']      = '/DoubleEG/Run2016E-21Feb2020_UL2016_HIPM-v1/MINIAOD'
+    #Datasets_2016['Run2016F_HIPM']      = '/DoubleEG/Run2016F-21Feb2020_UL2016_HIPM-v1/MINIAOD'
+    #Datasets_2016['Run2016F_noHIPM']    = '/DoubleEG/Run2016F-21Feb2020_UL2016-v1/MINIAOD'
     Datasets_2016['Run2016G_noHIPM']    = '/DoubleEG/Run2016G-21Feb2020_UL2016-v1/MINIAOD'
-    Datasets_2016['Run2016H_noHIPM']    = '/DoubleEG/Run2016H-21Feb2020_UL2016-v1/MINIAOD'
+    #Datasets_2016['Run2016H_noHIPM']    = '/DoubleEG/Run2016H-21Feb2020_UL2016-v1/MINIAOD'
 
     # Get datasets
     for key in Datasets_2016.keys():

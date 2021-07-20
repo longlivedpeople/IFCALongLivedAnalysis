@@ -44,7 +44,7 @@ config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = NSPLITTING
 config.Data.outLFNDirBase = '/store/user/fernance/'
 config.Data.publication = False
-config.Data.outputDatasetTag = 'JOBTAG_NTuples-Galapago'
+config.Data.outputDatasetTag = 'JOBTAG_2016_NTuples-Galapago'
 
 
 config.Site.storageSite = 'T2_ES_IFCA'
