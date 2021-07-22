@@ -21,7 +21,7 @@ config.General.instance = 'prod'
 # Set pluginName = Analysis if you are reading a dataset, or to PrivateMC if not (so you are generating events)
 config.JobType.pluginName = 'Analysis'
 # CMSSW cfg file you wish to run
-config.JobType.psetName = 'runLongLived2016Analysis_cfg.py'
+config.JobType.psetName = 'runLongLived2016postVFP_MCAnalysis_cfg.py'
 # Increase virtual memory limit (sum needed by all threads) from default of 2000 MB.
 config.JobType.maxMemoryMB = 2500
 # Number of threads to use.
