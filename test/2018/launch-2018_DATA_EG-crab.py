@@ -84,7 +84,7 @@ if __name__=='__main__':
     Datasets['Run2018A']  = '/EGamma/Run2018A-12Nov2019_UL2018-v2/MINIAOD'
     Datasets['Run2018B']  = '/EGamma/Run2018B-12Nov2019_UL2018-v2/MINIAOD'
     Datasets['Run2018C']  = '/EGamma/Run2018C-12Nov2019_UL2018-v2/MINIAOD'
-    Datasets['Run2018D']  = '/EGamma/Run2018D-12Nov2019_UL2018-v6/MINIAOD'
+    Datasets['Run2018D']  = '/EGamma/Run2018D-12Nov2019_UL2018-v8/MINIAOD'
 
     # Get datasets
     for key in Datasets.keys():
@@ -93,6 +93,7 @@ if __name__=='__main__':
 
         command = """/cvmfs/cms.cern.ch/common/dasgoclient --query="dataset={0} instance=prod/global | grep dataset.nfiles" -format string""".format(dataset)
         nfiles = os.popen(command).read()
+        print(nfiles)
         nfiles = int(nfiles)
 
         if opts.verbose:

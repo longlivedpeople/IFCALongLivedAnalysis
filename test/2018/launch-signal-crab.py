@@ -1,5 +1,4 @@
 import os, sys, optparse
-from das_client import get_data
 
 
 
@@ -77,16 +76,15 @@ if __name__=='__main__':
     (opts, args) = parser.parse_args()
 
     mass_points = []
-    #mass_points.append(['300', '150'])
-    #mass_points.append(['300', '50'])
-    #mass_points.append(['300', '20'])
-    mass_points.append(['400', '150'])
+    mass_points.append(['400', '50'])
+    mass_points.append(['1000', '150'])
+    mass_points.append(['125', '30'])
 
 
     # Get datasets
     for mp in mass_points:
         print(">>> Mass point mH = {0} GeV and mS = {1} GeV".format(mp[0], mp[1]))
-        dcommand = """/cvmfs/cms.cern.ch/common/dasgoclient --query="dataset=/ggH_HToSSTo4l_MH-{0}_MS-{1}_ctauS-*_Tune*_13TeV-powheg-pythia8*/*RunIIAutumn18MiniAODext*/USER instance=prod/phys03 " """.format(mp[0], mp[1])
+        dcommand = """/cvmfs/cms.cern.ch/common/dasgoclient --query="dataset=/ggH_HToSSTo4l_MH-{0}_MS-{1}_ctauS-*_Tune*_13TeV-powheg-pythia8*/*RunIISummer20UL18MiniAODv2ext*/USER instance=prod/phys03 " """.format(mp[0], mp[1])
         dataset_outstring = os.popen(dcommand).read()
         datasets = dataset_outstring.split('\n')
 
