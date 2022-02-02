@@ -20,7 +20,7 @@ config.General.instance = 'prod'
 # Set pluginName = Analysis if you are reading a dataset, or to PrivateMC if not (so you are generating events)
 config.JobType.pluginName = 'Analysis'
 # CMSSW cfg file you wish to run
-config.JobType.psetName = 'runLongLived2016postVFP_MCAnalysis_cfg.py'
+config.JobType.psetName = 'runLongLived2017_MCAnalysis_cfg.py'
 # Increase virtual memory limit (sum needed by all threads) from default of 2000 MB.
 config.JobType.maxMemoryMB = 2500
 # Number of threads to use.
@@ -76,17 +76,15 @@ if __name__=='__main__':
     (opts, args) = parser.parse_args()
 
     mass_points = []
-    #mass_points.append(['300', '150'])
-    #mass_points.append(['300', '50'])
-    mass_points.append(['1000', '150'])
     mass_points.append(['400', '50'])
+    mass_points.append(['1000', '150'])
     mass_points.append(['125', '30'])
 
 
     # Get datasets
     for mp in mass_points:
         print(">>> Mass point mH = {0} GeV and mS = {1} GeV".format(mp[0], mp[1]))
-        dcommand = """/cvmfs/cms.cern.ch/common/dasgoclient --query="dataset=/ggH_HToSSTo4l_MH-{0}_MS-{1}_ctauS-*_TuneCP5_13TeV-powheg-pythia8*/fernance-private-RunIISummer20UL16MiniAODv2*/USER instance=prod/phys03 " """.format(mp[0], mp[1])
+        dcommand = """/cvmfs/cms.cern.ch/common/dasgoclient --query="dataset=/ggH_HToSSTo4l_MH-{0}_MS-{1}_ctauS-*_Tune*_13TeV-powheg-pythia8*/*RunIISummer20UL17MiniAODv2*/USER instance=prod/phys03 " """.format(mp[0], mp[1])
         dataset_outstring = os.popen(dcommand).read()
         datasets = dataset_outstring.split('\n')
 
