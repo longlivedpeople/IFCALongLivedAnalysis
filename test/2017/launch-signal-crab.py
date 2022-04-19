@@ -9,7 +9,7 @@ from CRABClient.UserUtilities import config
 config = config()
 
 # All output/log files go in directory workArea/requestName/
-config.General.workArea = 'crab_signal_projects'
+config.General.workArea = 'crab_HToSSTo4l_MHMASSHIGGS'
 
 config.General.requestName = 'crab_NLO_HToSSTo4l_MHMASSHIGGS_MSMASSX_ctauSCTAU_13TeV-NTuples'
 
@@ -27,8 +27,8 @@ config.JobType.maxMemoryMB = 2500
 #config.JobType.numCores = 2
 # To allow use of SL7 CMSSW versions that were SL6 at time of original DATA/MC production.
 config.JobType.allowUndistributedCMSSW = True
-config.JobType.inputFiles = ['PUreweighting/2016DataPileupHistogram.root',
-                             'PUreweighting/2016MCPileupHistogram.root']
+config.JobType.inputFiles = ['PUreweighting/2017DataPileupHistogram.root',
+                             'PUreweighting/2017MCPileupHistogram.root']
 config.JobType.outputFiles = ['output.root']
 
 config.Data.inputDataset = 'INPUTDATASET'
@@ -41,9 +41,9 @@ config.Data.splitting = 'FileBased'
 #config.Data.totalUnits = NTOTAL
 # Requested number in each subjob.
 config.Data.unitsPerJob = NSPLITTING
-config.Data.outLFNDirBase = '/store/user/fernance/'
+config.Data.outLFNDirBase = '/store/user/fernance/Galapago/'
 config.Data.publication = False
-config.Data.outputDatasetTag = 'NTuples-Galapago'
+config.Data.outputDatasetTag = 'NTuples-Galapago_2017'
 
 config.Site.storageSite = 'T3_CH_CERNBOX'
 '''    

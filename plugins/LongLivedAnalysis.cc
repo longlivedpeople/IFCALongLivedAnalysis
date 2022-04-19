@@ -298,6 +298,7 @@ Float_t DGM_ptError[200];
 Float_t DGM_eta[200];
 Float_t DGM_phi[200];
 Float_t DGM_dxy[200];
+Float_t DGM_dz[200];
 Float_t DGM_dxyError[200];
 Float_t DGM_dxy_PV[200];
 Float_t DGM_dxyError_PV[200];
@@ -1123,6 +1124,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
        TrajectoryStateClosestToPoint _trajPV = _dgmtk.trajectoryStateClosestToPoint( _PVpoint );
        TrajectoryStateClosestToPoint _trajBS = _dgmtk.trajectoryStateClosestToPoint( _BSpoint );
        DGM_dxy[i] = muon.dxy();
+       DGM_dz[i] = muon.dz();
        DGM_dxyError[i] = muon.dxyError();
        DGM_dxy_PV[i] = -_trajPV.perigeeParameters().transverseImpactParameter();
        DGM_dxyError_PV[i] = _trajPV.perigeeError().transverseImpactParameterError();
@@ -1539,6 +1541,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
          const reco::Track & tr_i = (*DGMs)[DGM_idx[i]];
          const reco::Track & tr_j = (*DGMs)[DGM_idx[j]];
 
+         if ( deltaR(tr_i.eta(), tr_i.phi(), tr_j.eta(), tr_j.phi()) < 0.1 ) // Ghost suppresion (to be optimized)
+           continue; 
+
          trackPair testcandidate(thePrimaryVertex, beamSpotObject, theTransientTrackBuilder, tr_i, tr_j, false);
 
          if (!testcandidate.hasValidVertex) { continue ;} 
@@ -1611,10 +1616,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////////////
-   //if (nEE > 0 || nDMDM > 0){
-   //  tree_out->Fill();
-   //}
-   tree_out->Fill();
+   if (nEE > 0 || nDMDM > 0){
+     tree_out->Fill();
+   }
+   //tree_out->Fill();
 
 }
 //=======================================================================================================================================================================================================================//
@@ -1855,6 +1860,7 @@ void LongLivedAnalysis::beginJob()
       tree_out->Branch("DGM_eta", DGM_eta, "DGM_eta[nDGM]/F");
       tree_out->Branch("DGM_phi", DGM_phi, "DGM_phi[nDGM]/F");
       tree_out->Branch("DGM_dxy", DGM_dxy, "DGM_dxy[nDGM]/F");
+      tree_out->Branch("DGM_dz", DGM_dz, "DGM_dz[nDGM]/F");
       tree_out->Branch("DGM_dxyError", DGM_dxyError, "DGM_dxyError[nDGM]/F");
       tree_out->Branch("DGM_dxy_PV", DGM_dxy_PV, "DGM_dxy_PV[nDGM]/F");
       tree_out->Branch("DGM_dxyError_PV", DGM_dxyError_PV, "DGM_dxyError_PV[nDGM]/F");

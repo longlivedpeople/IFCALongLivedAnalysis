@@ -10,12 +10,12 @@ process.load('Configuration.Geometry.GeometryRecoDB_cff')
 process.load("Configuration.StandardSequences.MagneticField_cff")
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 process.GlobalTag.globaltag = '106X_mcRun2_asymptotic_preVFP_v9'  # or some other global tag depending on your CMSSW release and sample. 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10000) )
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
        [
-          'file:/eos/user/f/fernance/LLP_Analysis/UL/test/DY_miniAOD.root'
+          '/store/user/fernance/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/fernance-RunIISummer20UL16MiniAODAPVext-skim/220407_143620/0000/output_skim_1.root'
        ]
     )
 )

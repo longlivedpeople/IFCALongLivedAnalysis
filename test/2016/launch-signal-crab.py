@@ -9,7 +9,7 @@ from CRABClient.UserUtilities import config
 config = config()
 
 # All output/log files go in directory workArea/requestName/
-config.General.workArea = 'crab_signal_projects'
+config.General.workArea = 'crab_HToSSTo4l_MHMASSHIGGS'
 
 config.General.requestName = 'crab_NLO_HToSSTo4l_MHMASSHIGGS_MSMASSX_ctauSCTAU_13TeV-NTuples'
 
@@ -41,9 +41,9 @@ config.Data.splitting = 'FileBased'
 #config.Data.totalUnits = NTOTAL
 # Requested number in each subjob.
 config.Data.unitsPerJob = NSPLITTING
-config.Data.outLFNDirBase = '/store/user/fernance/'
+config.Data.outLFNDirBase = '/store/user/fernance/Galapago/'
 config.Data.publication = False
-config.Data.outputDatasetTag = 'NTuples-Galapago'
+config.Data.outputDatasetTag = 'NTuples-Galapago_postVFP'
 
 config.Site.storageSite = 'T3_CH_CERNBOX'
 '''    

@@ -11,6 +11,7 @@
 #include "TrackingTools/TransientTrack/interface/TransientTrack.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "RecoVertex/AdaptiveVertexFit/interface/AdaptiveVertexFitter.h"
+#include "RecoVertex/KalmanVertexFit/interface/KalmanVertexFitter.h"
 #include "RecoVertex/VertexPrimitives/interface/TransientVertex.h"
 #include "RecoVertex/VertexTools/interface/GeometricAnnealing.h"
 #include "TrackingTools/Records/interface/TransientTrackRecord.h"
@@ -110,7 +111,8 @@ struct trackPair
       vec_refitTracks.push_back(isotransienttrackA); vec_refitTracks.push_back(isotransienttrackB);
 
       // Fit tracks:
-      AdaptiveVertexFitter  thefitterll(GeometricAnnealing(2.5));
+      //AdaptiveVertexFitter  thefitterll(GeometricAnnealing(2.5));
+      KalmanVertexFitter thefitterll;
       TransientVertex myVertex = thefitterll.vertex(vec_refitTracks);
       const reco::Vertex secV = myVertex;
 

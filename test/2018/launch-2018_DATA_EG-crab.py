@@ -44,10 +44,12 @@ config.Data.splitting = 'FileBased'
 config.Data.unitsPerJob = NSPLITTING
 config.Data.outLFNDirBase = '/store/user/fernance/'
 config.Data.publication = False
+config.Data.ignoreLocality = True
 config.Data.outputDatasetTag = 'JOBTAG_2018_NTuples-Galapago'
 
 
 config.Site.storageSite = 'T2_ES_IFCA'
+config.Site.whitelist = ["T2_*","T3_*"]
 '''    
 
 def makeFile(inputdataset, nsplitting, jobtag, tasktag):
