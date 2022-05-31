@@ -1678,6 +1678,10 @@ void LongLivedAnalysis::beginJob()
      HLTPaths_.push_back("HLT_Photon36_R9Id85_OR_CaloId24b40e_Iso50T80L_Photon22_AND_HE10_R9Id65_Eta2_Mass15"); // backup (prescaled)
      HLTPaths_.push_back("HLT_DoublePhoton85"); // backup
      HLTPaths_.push_back("HLT_DoublePhoton60"); // backup
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT90_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT100_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT110_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT110_IDTight"); // MET path for trigger efficiency
 
    } else if (_Era == 2017) {
   
@@ -1704,6 +1708,8 @@ void LongLivedAnalysis::beginJob()
      HLTPaths_.push_back("HLT_Photon40_HoverELoose"); // prescaled
      HLTPaths_.push_back("HLT_Photon50_HoverELoose"); // prescaled
      HLTPaths_.push_back("HLT_Photon60_HoverELoose"); // prescaled
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight_PFHT60"); // MET path for trigger efficiency
 
    } else if (_Era == 2018) {
 
@@ -1732,6 +1738,8 @@ void LongLivedAnalysis::beginJob()
      HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL");
      HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL_DisplacedIdL");
      HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL_DisplacedIdL_PFHT350MinPFJet15");
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight_PFHT60"); // MET path for trigger efficiency
 
    }
 
