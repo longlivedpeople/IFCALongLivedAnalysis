@@ -885,10 +885,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
            IsoTrackSel_PVy[i] = (*PV).y();
            IsoTrackSel_PVz[i] = (*PV).z();
            
-
            // Access to the track and computation of impact parameters:
-           const reco::Track *trref = (*pckCand).bestTrack();
-           const reco::Track &ctr = *trref;
+           //const reco::Track *trref = (*pckCand).pseudoTrack();
+           //const reco::Track &ctr = *trref;
+           const reco::Track ctr = (*pckCand).pseudoTrack();
            reco::TransientTrack _isotk = theTransientTrackBuilder->build(ctr);
            TrajectoryStateClosestToPoint _trajPV = _isotk.trajectoryStateClosestToPoint( _PVpoint );
            TrajectoryStateClosestToPoint _trajBS = _isotk.trajectoryStateClosestToPoint( _BSpoint );
@@ -1616,10 +1616,10 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////////////
-   if (nEE > 0 || nDMDM > 0){
-     tree_out->Fill();
-   }
-   //tree_out->Fill();
+   //if (nEE > 0 || nDMDM > 0){
+   //  tree_out->Fill();
+   //}
+   tree_out->Fill();
 
 }
 //=======================================================================================================================================================================================================================//
@@ -2064,11 +2064,12 @@ bool LongLivedAnalysis::passIsotrackSelection( const pat::IsolatedTrack &track) 
    // Quality cuts:
    const reco::HitPattern &hits = track.hitPattern();
    if (hits.numberOfValidTrackerHits() < 6) { return false; }
-   if (!track.isHighPurityTrack()) { return false;}
+   //if (!track.isHighPurityTrack()) { return false;}
 
    // Isotrack must have packed candidate:
    const pat::PackedCandidateRef &pckCand = track.packedCandRef();
    if (!pckCand.isNonnull()) { return false; }
+   if (!pckCand->hasTrackDetails()) { return false; }
 
    // Preselection cuts:
    if (track.pt() < 15) { return false; }
@@ -2090,7 +2091,6 @@ bool LongLivedAnalysis::passPhotonSelection( const pat::Photon &photon ) {
    if (photon.isEB() && photon.full5x5_sigmaIetaIeta() > 0.0112) { return false; }
 
    // Preselection cuts:
-   //if (fabs(photon.eta()) > 1.4442) { return false; }
    if (photon.et() < 15) {return false; }
 
    return true;
@@ -2114,6 +2114,9 @@ bool LongLivedAnalysis::passDGMSelection(const reco::Track &muon) {
 
    if (muon.pt() < 20){ return false; }
    if (fabs(muon.eta()) > 2.4) { return false; }
+   if (muon.ptError()/muon.pt() > 0.3) {return false;}
+   if (muon.hitPattern().numberOfValidMuonHits() < 13) {return false;}
+   if (muon.hitPattern().numberOfValidStripHits() < 6) {return false;}
    //if (muon.numberOfValidHits() < 6) { return false; }
    return true;
 }
