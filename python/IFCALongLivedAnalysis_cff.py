@@ -16,6 +16,14 @@ longlivedanalyzer = cms.EDAnalyzer('LongLivedAnalysis',
     doCMSElectrons = cms.bool(False), 
     doCMSMuons     = cms.bool(False), 
 
+    # Filters
+
+    FilterByEE       = cms.bool(False), 
+    FilterByMM       = cms.bool(False), 
+    FilterByLL       = cms.bool(False), 
+    FilterByElectron = cms.bool(False), 
+    FilterByMuon     = cms.bool(False), 
+
 
     # Collections
 

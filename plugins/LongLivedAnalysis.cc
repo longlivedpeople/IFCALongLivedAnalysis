@@ -490,6 +490,13 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
       double _Era;
 
+      // Filter variables
+      bool _filterByEE;
+      bool _filterByMM;
+      bool _filterByLL;
+      bool _filterByElectron;
+      bool _filterByMuon;
+
       edm::ParameterSet parameters;
 
       // Tokens
@@ -525,6 +532,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       // "Global" variables
       std::vector<int> iT; // track indexes
       edm::ESHandle<TransientTrackBuilder> theTransientTrackBuilder;
+
 
       // Class functions
       std::string getPathVersion(const edm:: TriggerNames &names, const std::string &rawPath);
@@ -583,6 +591,7 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
 
    
    theDGMCollection = consumes<std::vector<reco::Track> >  (parameters.getParameter<edm::InputTag>("DisplacedGlobalMuonCollection"));
+
 
 
 
@@ -1616,10 +1625,27 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    /////////////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////// FILL THE TREE ///////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////////////
-   //if (nEE > 0 || nDMDM > 0){
-   //  tree_out->Fill();
-   //}
-   tree_out->Fill();
+
+   bool filter = true;
+
+   if (_filterByEE)
+       filter = (nEE > 0) ? true : false;
+
+   if (_filterByMM)
+       filter = (nDMDM > 0) ? true : false;
+
+   if (_filterByLL)
+       filter = (nDMDM > 0 || nEE > 0) ? true : false;
+
+   if (_filterByElectron)
+       filter = (nElectronCandidate > 1) ? true : false;
+
+   if (_filterByMuon)
+       filter = (nDGM > 1) ? true : false;
+
+   // Fill the tree
+   if (filter)
+     tree_out->Fill();
 
 }
 //=======================================================================================================================================================================================================================//
@@ -1647,6 +1673,14 @@ void LongLivedAnalysis::beginJob()
     _doCMSMuons     = parameters.getParameter<bool>("doCMSMuons");
 
     _Era     = parameters.getParameter<double>("Era");
+
+    // Filter parameters
+   _filterByEE       = parameters.getParameter<bool>("FilterByEE");
+   _filterByMM       = parameters.getParameter<bool>("FilterByMM");
+   _filterByLL       = parameters.getParameter<bool>("FilterByLL");
+   _filterByElectron = parameters.getParameter<bool>("FilterByElectron");
+   _filterByMuon     = parameters.getParameter<bool>("FilterByMuon");
+
 
     // PU reweighting
     if (_Era == 2016) {
@@ -2280,8 +2314,5 @@ float LongLivedAnalysis::computeRelIso(const reco::Track & track, edm::Handle<ed
      return trackiso/track.pt();
    }
 }
-
-
-
 
 DEFINE_FWK_MODULE(LongLivedAnalysis);
