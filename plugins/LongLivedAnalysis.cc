@@ -1715,7 +1715,12 @@ void LongLivedAnalysis::beginJob()
      HLTPaths_.push_back("HLT_PFMET120_PFMHT90_IDTight"); // MET path for trigger efficiency
      HLTPaths_.push_back("HLT_PFMET120_PFMHT100_IDTight"); // MET path for trigger efficiency
      HLTPaths_.push_back("HLT_PFMET120_PFMHT110_IDTight"); // MET path for trigger efficiency
-     HLTPaths_.push_back("HLT_PFMET120_PFMHT110_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_MET200"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_MonoCentralPFJet80_PFMETNoMu110_PFMHTNoMu110_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET170_HBHECleaned"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET300"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMETNoMu120_PFMHTNoMu120_IDTight"); // MET path for trigger efficiency
 
    } else if (_Era == 2017) {
   
@@ -1744,6 +1749,10 @@ void LongLivedAnalysis::beginJob()
      HLTPaths_.push_back("HLT_Photon60_HoverELoose"); // prescaled
      HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight"); // MET path for trigger efficiency
      HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight_PFHT60"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_CaloMET350_HBHECleaned"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_MonoCentralPFJet80_PFMETNoMu120_PFMHTNoMu120_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET250_HBHECleaned"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMETNoMu120_PFMHTNoMu120_IDTight"); // MET path for trigger efficiency
 
    } else if (_Era == 2018) {
 
@@ -1774,6 +1783,11 @@ void LongLivedAnalysis::beginJob()
      HLTPaths_.push_back("HLT_Photon60_R9Id90_CaloIdL_IsoL_DisplacedIdL_PFHT350MinPFJet15");
      HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight"); // MET path for trigger efficiency
      HLTPaths_.push_back("HLT_PFMET120_PFMHT120_IDTight_PFHT60"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_CaloMET350_HBHECleaned"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_MonoCentralPFJet80_PFMETNoMu120_PFMHTNoMu120_IDTight"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET200_HBHE_BeamHaloCleaned"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMET250_HBHECleaned"); // MET path for trigger efficiency
+     HLTPaths_.push_back("HLT_PFMETNoMu120_PFMHTNoMu120_IDTight"); // MET path for trigger efficiency
 
    }
 
