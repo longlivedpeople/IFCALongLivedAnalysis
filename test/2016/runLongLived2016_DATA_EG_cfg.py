@@ -24,6 +24,7 @@ process.source = cms.Source("PoolSource",
 process.longlivedanalyzer.isData = True
 process.longlivedanalyzer.Era = 2016
 process.longlivedanalyzer.DSAMode = False
+process.longlivedanalyzer.FilterByElectron = True
 
 process.p = cms.Path(process.longlivedanalyzer)
 

@@ -496,6 +496,7 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       bool _filterByLL;
       bool _filterByElectron;
       bool _filterByMuon;
+      bool _filterByLepton;
 
       edm::ParameterSet parameters;
 
@@ -1643,6 +1644,9 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    if (_filterByMuon)
        filter = (nDGM > 1) ? true : false;
 
+   if (_filterByLepton)
+       filter = (nDGM > 1 || nElectronCandidate > 1) ? true : false;
+
    // Fill the tree
    if (filter)
      tree_out->Fill();
@@ -1680,6 +1684,7 @@ void LongLivedAnalysis::beginJob()
    _filterByLL       = parameters.getParameter<bool>("FilterByLL");
    _filterByElectron = parameters.getParameter<bool>("FilterByElectron");
    _filterByMuon     = parameters.getParameter<bool>("FilterByMuon");
+   _filterByLepton   = parameters.getParameter<bool>("FilterByLepton");
 
 
     // PU reweighting

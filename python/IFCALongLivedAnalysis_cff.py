@@ -23,6 +23,7 @@ longlivedanalyzer = cms.EDAnalyzer('LongLivedAnalysis',
     FilterByLL       = cms.bool(False), 
     FilterByElectron = cms.bool(False), 
     FilterByMuon     = cms.bool(False), 
+    FilterByLepton   = cms.bool(False), 
 
 
     # Collections
