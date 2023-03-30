@@ -15,7 +15,8 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10000) )
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
        [
-          '/store/user/fernance/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/fernance-RunIISummer20UL16MiniAODAPVext-skim/220407_143620/0000/output_skim_1.root'
+       '/store/user/fernance/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/RunIISummer20UL16MiniAODAPVext/210330_095618/0000/EXO-RunIISummer20UL16MiniAODAPV_10.root'
+       #'/store/mc/RunIISummer20UL16MiniAODAPV/DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8/MINIAODSIM/106X_mcRun2_asymptotic_preVFP_v8-v1/50000/001FEF0E-58A2-894A-8280-2F4AA900A5A6.root'    
        ]
     )
 )

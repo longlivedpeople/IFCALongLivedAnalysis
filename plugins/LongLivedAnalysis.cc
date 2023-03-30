@@ -69,10 +69,12 @@
 
 #include "FWCore/Common/interface/TriggerNames.h"
 #include "DataFormats/Common/interface/TriggerResults.h"
+#include "DataFormats/PatCandidates/interface/TriggerEvent.h"
 #include "DataFormats/PatCandidates/interface/TriggerObjectStandAlone.h"
 #include "DataFormats/PatCandidates/interface/PackedTriggerPrescales.h"
+#include "DataFormats/L1TGlobal/interface/GlobalAlgBlk.h"
 #include "DataFormats/Candidate/interface/Candidate.h"
-
+#include "HLTrigger/HLTcore/interface/HLTPrescaleProvider.h"
 
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
@@ -170,7 +172,7 @@ Float_t genWeight;
 //-> TRIGGER TAGS
 std::vector<std::string> HLTPaths_;
 bool triggerPass[200] = {false};
-
+Bool_t L1Pass;
 //-> PRIMARY VERTEX SELECTION
 Int_t nPV;
 Int_t nTruePV;
@@ -514,6 +516,8 @@ class LongLivedAnalysis : public edm::one::EDAnalyzer<edm::one::SharedResources>
       edm::EDGetTokenT<edm::TriggerResults> triggerBits_;
       edm::EDGetTokenT<edm::View<pat::TriggerObjectStandAlone> > triggerObjects_;
       edm::EDGetTokenT<pat::PackedTriggerPrescales>  triggerPrescales_;
+      edm::EDGetTokenT<GlobalAlgBlkBxCollection> m_l1GtObjectMapToken;
+      edm::EDGetTokenT<edm::TriggerResults> filtersToken;
 
       edm::EDGetTokenT<reco::BeamSpot> theBeamSpot;
 
@@ -576,10 +580,11 @@ LongLivedAnalysis::LongLivedAnalysis(const edm::ParameterSet& iConfig)
    theEleLostTracksCollection = consumes<edm::View<pat::PackedCandidate> >  (parameters.getParameter<edm::InputTag>("EleLostTracksCollection"));
    theMETCollection = consumes<edm::View<pat::MET> >  (parameters.getParameter<edm::InputTag>("METCollection"));
 
-
    triggerBits_ = consumes<edm::TriggerResults> (parameters.getParameter<edm::InputTag>("bits"));
    triggerObjects_ = consumes<edm::View<pat::TriggerObjectStandAlone> > (parameters.getParameter<edm::InputTag>("objects"));
    triggerPrescales_ = consumes<pat::PackedTriggerPrescales > (parameters.getParameter<edm::InputTag>("prescales"));
+   m_l1GtObjectMapToken = consumes<GlobalAlgBlkBxCollection>(iConfig.getParameter<edm::InputTag>("L1ObjectMapInputTag"));
+   filtersToken = consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("filters"));
 
    theBeamSpot = consumes<reco::BeamSpot>  (parameters.getParameter<edm::InputTag>("BeamSpot"));
 
@@ -636,6 +641,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    edm::Handle<edm::TriggerResults> triggerBits;
    edm::Handle<edm::View<pat::TriggerObjectStandAlone>  >triggerObjects;
    edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
+   edm::Handle<GlobalAlgBlkBxCollection> gtObjectMapRecord;
    edm::Handle<reco::BeamSpot> beamSpot;
    edm::Handle<edm::View<reco::GenParticle> > genParticles;
    edm::Handle<GenEventInfoProduct> genEvtInfo;
@@ -655,6 +661,7 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
    iEvent.getByToken(theMETCollection, METs);
    iEvent.getByToken(triggerBits_, triggerBits);
    iEvent.getByToken(triggerObjects_, triggerObjects);
+   iEvent.getByToken(m_l1GtObjectMapToken, gtObjectMapRecord);
    iEvent.getByToken(theBeamSpot, beamSpot);
 
    iSetup.get<TransientTrackRecord>().get("TransientTrackBuilder",theTransientTrackBuilder);
@@ -767,7 +774,37 @@ void LongLivedAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup&
      ipath++;
    }
 
-    
+   // ----------------------
+   // --
+   // ---- Get L1 information
+   // --
+   // -----------------------   
+   L1Pass = false;
+   std::vector<std::string> trig_l1tmu_algo;
+   std::vector<std::string> ddmL1AlgoNames;
+   ddmL1AlgoNames.push_back("L1_DoubleEG_23_10");
+   ddmL1AlgoNames.push_back("L1_DoubleEG_24_17");
+   ddmL1AlgoNames.push_back("L1_SingleEG40");
+   std::vector<int> ddmL1AlgoBits;
+   ddmL1AlgoBits.push_back(76);
+   ddmL1AlgoBits.push_back(77);
+   ddmL1AlgoBits.push_back(50);
+   if (gtObjectMapRecord.failedToGet()) {
+       edm::LogWarning("TriggerBranches") << "+++ Warning: GlobalAlgBlkBxCollection collection is not found +++";
+   } else {
+       std::vector<bool> l1BitMap = (gtObjectMapRecord->at(0,0)).getAlgoDecisionInitial();
+       unsigned int bitIndex = 0;
+       for (auto algo : ddmL1AlgoNames) {
+           if (l1BitMap[ddmL1AlgoBits[bitIndex]]) {
+               trig_l1tmu_algo.push_back(algo);
+           }
+       bitIndex++;
+       }
+    }
+    if (trig_l1tmu_algo.size() == 3) L1Pass = true;
+
+
+ 
    //// ----------------------------
    //// --
    //// ---- Slimmed PV Collection
@@ -1815,7 +1852,7 @@ void LongLivedAnalysis::beginJob()
     for (unsigned int ihlt = 0; ihlt < HLTPaths_.size(); ihlt++) {
       tree_out->Branch(TString(HLTPaths_[ihlt]), &triggerPass[ihlt]);
     }
-
+    tree_out->Branch("L1Pass", &L1Pass, "L1Pass/O");
     ///////////////////////////////// BEAM SPOT BRANCHES ////////////////////////////////
 
     tree_out->Branch("BeamSpot_x0", &BeamSpot_x0, "BeamSpot_x0/F");

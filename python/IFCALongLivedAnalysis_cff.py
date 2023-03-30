@@ -50,7 +50,9 @@ longlivedanalyzer = cms.EDAnalyzer('LongLivedAnalysis',
 
     prescales  = cms.InputTag("patTrigger"),
     bits       = cms.InputTag("TriggerResults","","HLT"),
-    objects    = cms.InputTag("slimmedPatTrigger")
+    objects    = cms.InputTag("slimmedPatTrigger"),
+    L1ObjectMapInputTag = cms.InputTag('gtStage2Digis','','RECO'),
+    filters    = cms.InputTag('TriggerResults', '', 'RECO')
 
 
 )
