@@ -35,19 +35,19 @@ config.Data.inputDataset = 'INPUTDATASET'
 config.Data.lumiMask = '/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/Legacy_2016/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt'
 config.Data.inputDBS = 'global'
 
-
+config.Data.runRange = '273158-273159'
 # Units of "totalUnits" and "unitsPerJob" (e.g. files, events, lumi sections)
-config.Data.splitting = 'FileBased'
+config.Data.splitting = 'Automatic'
 # Total number of these units to be processed.
 #config.Data.totalUnits = NTOTAL
 # Requested number in each subjob.
-config.Data.unitsPerJob = NSPLITTING
-config.Data.outLFNDirBase = '/store/user/fernance/'
+config.Data.unitsPerJob = 300
+config.Data.outLFNDirBase = '/store/user/pablom/'
 config.Data.publication = False
 config.Data.outputDatasetTag = 'JOBTAG_2016_NTuples-Galapago'
 
 
-config.Site.storageSite = 'T2_ES_IFCA'
+config.Site.storageSite = 'T2_CH_CERN'
 '''    
 
 def makeFile(inputdataset, nsplitting, jobtag, tasktag):
@@ -82,13 +82,13 @@ if __name__=='__main__':
 
     Datasets_2016 = {}
     #Datasets_2016['Run2016Bver1_HIPM']  = '/DoubleEG/Run2016B-21Feb2020_ver1_UL2016_HIPM-v1/MINIAOD'
-    #Datasets_2016['Run2016Bver2_HIPM']  = '/DoubleEG/Run2016B-21Feb2020_ver2_UL2016_HIPM-v1/MINIAOD'
+    Datasets_2016['Run2016Bver2_HIPM']  = '/DoubleEG/Run2016B-21Feb2020_ver2_UL2016_HIPM-v2/MINIAOD'
     #Datasets_2016['Run2016C_HIPM']      = '/DoubleEG/Run2016C-21Feb2020_UL2016_HIPM-v1/MINIAOD'
     #Datasets_2016['Run2016D_HIPM']      = '/DoubleEG/Run2016D-21Feb2020_UL2016_HIPM-v1/MINIAOD'
     #Datasets_2016['Run2016E_HIPM']      = '/DoubleEG/Run2016E-21Feb2020_UL2016_HIPM-v1/MINIAOD'
     #Datasets_2016['Run2016F_HIPM']      = '/DoubleEG/Run2016F-21Feb2020_UL2016_HIPM-v1/MINIAOD'
     #Datasets_2016['Run2016F_noHIPM']    = '/DoubleEG/Run2016F-21Feb2020_UL2016-v1/MINIAOD'
-    Datasets_2016['Run2016G_noHIPM']    = '/DoubleEG/Run2016G-21Feb2020_UL2016-v1/MINIAOD'
+    #Datasets_2016['Run2016G_noHIPM']    = '/DoubleEG/Run2016G-21Feb2020_UL2016-v1/MINIAOD'
     #Datasets_2016['Run2016H_noHIPM']    = '/DoubleEG/Run2016H-21Feb2020_UL2016-v1/MINIAOD'
 
     # Get datasets
